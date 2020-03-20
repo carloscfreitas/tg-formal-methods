@@ -1,29 +1,25 @@
-From Coq Require Import Strings.String.
-From Coq Require Import Lists.List.
+Require Import Lists.List.
+Require Import Lists.ListSet.
+Require Import Strings.String.
 Import ListNotations.
+
+Open Scope string_scope.
 
 (** TYPE DEFINITIONS **)
 
-(* TODO Remove ETick and ETau.*)
 Inductive event : Type :=
-  | Event (name : string)
-  | ETick
-  | ETau.
+  | Event (name : string).
 
-(* TODO Use ListSet and define notations. *)
 Inductive alphabet : Type :=
-  | Alphabet (events : list event).
+  | Alphabet (events : set event).
 
 Inductive channel : Type :=
-  | Channel (events : list event).
+  | Channel (events : set event).
 
-Compute (Channel [Event "print" ; Event "accept"]).
-
-(* TODO Rename ProcName to ProcRef. *)
 Inductive proc_body : Type :=
   | SKIP
   | STOP
-  | ProcName (name : string) (* A reference to a process, including itself (recursion). *)
+  | ProcRef (name : string) (* A reference to a process. May be itself (recursion). *)
   | ProcPrefix (event : event) (proc : proc_body)
   | ProcExtChoice (proc1 proc2 : proc_body)
   | ProcIntChoice (proc1 proc2 : proc_body)
@@ -35,20 +31,25 @@ Inductive proc_body : Type :=
 Inductive proc_def : Type :=
   | Proc (name : string) (body : proc_body).
 
-(* TODO Define especification as a list of channels and processes. *)
+Inductive specification : Type :=
+  | Spec (ch_list : list channel) (proc_list : list proc_def).
 
-(* Example 1.6 (book): PRINTER0 = accept -> print -> STOP *)
-Compute (Proc "PRINTER0" (ProcPrefix (Event "accept") (ProcPrefix (Event "print") STOP))).
+(** NOTATIONS/COERCIONS **)
 
-(* Example 1.14 (book): LIGHT = on -> off -> LIGHT *)
-Compute Proc "LIGHT" (ProcPrefix (Event "on") (ProcPrefix (Event "off") (ProcName "LIGHT"))).
+(* TODO Prove that equality is decidable for event type. *)
+Definition event_dec : forall s1 s2 : event, {s1 = s2} + {s1 <> s2}. Admitted.
 
-(** NOTATIONS **)
+(* Notations for declaring sets of events. *)
+Notation "{ }" := (empty_set event) (format "{ }").
+(* TODO Investigate why this notation isn't working. *)
+Notation "{ x }" := (set_add event_dec (Event x) (empty_set event)).
+Notation "{ x , y , .. , z }" := (set_add event_dec (Event x) (set_add event_dec (Event y) .. (set_add event_dec (Event z) (empty_set event)) ..)).
 
-(* TODO Try to use coercion instead of notation for this constructor. *)
-Notation "@ Q" := (ProcName Q) (at level 100, no associativity).
-(* Process definition. TODO use "::=" instead. *)
-Notation "P == Q" := (Proc P Q) (at level 100).
+(* Process reference (coercion). *)
+Definition str_to_proc_body (s : string) : proc_body := ProcRef s.
+Coercion str_to_proc_body : string >-> proc_body.
+(* Process definition *)
+Notation "P ::= Q" := (Proc P Q) (at level 100).
 (* Prefix *)
 Notation "a --> P" := (ProcPrefix (Event a) P) (at level 80, right associativity).
 (* External Choice *)
@@ -61,26 +62,30 @@ Notation "P [ A || B ] Q" := (ProcAlphaParallel P Q A B) (at level 90, no associ
 Notation "P [| A |] Q" := (ProcGenParallel P Q A) (at level 90, no associativity).
 (* Interleaving *)
 Notation "P ||| Q" := (ProcInterleave P Q) (at level 90, left associativity).
-(* Sequencial Composition *)
-Notation "P ; Q" := (ProcSeqComp P Q) (at level 90, left associativity).
-
-Unset Printing Notations.
-
-(* Example 1.6 (book) but with notations. *)
-Compute "PRINTER0" == "accept" --> "print" --> STOP.
-
-(* Example 1.14 (book) but with notations. *)
-Compute "LIGHT" == "on" --> "off" --> (@ "LIGHT").
+(* Sequencial Composition (";" is already defined in list notations) *)
+Notation "P ;; Q" := (ProcSeqComp P Q) (at level 90, left associativity).
 
 (* Example 3.20 (book) using notations. *)
-Definition PChoose := "CHOOSE" == "select" --> ("keep" --> SKIP 
-                                                [] "return" --> (@ "CHOOSE")).
-Definition PPay := "PAY" == "cash" --> "receipt" --> SKIP
-                            [] "cheque" --> "receipt" --> SKIP
-                            [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
-                                                       [] "reject" --> (@ "PAY")).
-Definition PPurchase := "PURCHASE" == (@ "CHOOSE") ; (@ "PAY").
-Print PPurchase.
+Definition SPurchase := 
+  (
+    Spec
+    [
+      Channel {"select", "keep", "return"}
+      ; Channel {"cash", "cheque", "card"}
+      ; Channel {"swipe", "sign"}
+      ; Channel {"receipt", "reject"}
+    ]
+
+    [
+      "CHOOSE" ::= "select" --> ("keep" --> SKIP 
+                                [] "return" --> "CHOOSE")
+      ; "PAY" ::= "cash" --> "receipt" --> SKIP
+                  [] "cheque" --> "receipt" --> SKIP
+                  [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
+                                            [] "reject" --> "PAY")
+      ; "PURCHASE" ::= "CHOOSE" ;; "PAY"
+    ]
+  ).
 
 (* TODO: here, "string" is an event in the semantic level, with tick and tau *)
 
@@ -109,7 +114,7 @@ Definition traceR (P : proc_def) (t : list string) :=
   | Proc name body => traceBodyR body t
   end.
 
-Definition PRINTER0 := "PRINTER0" == "accept" --> "print" --> STOP.
+Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
 
 Local Open Scope string.
 Example PRINTER0_empty_trace : traceR PRINTER0 nil.
@@ -128,10 +133,7 @@ Proof.
   - apply sos_empty_rule.
 Qed.
 
-(* TODO: for some reason, writing ["accept" ; "print"] raises an error
-         I have the impression that it is related to your notation *)
-
-Example PRINTER0_trace2 : traceR PRINTER0 ("accept" :: ["print"]).
+Example PRINTER0_trace2 : traceR PRINTER0 ["accept" ; "print"].
 Proof.
   unfold traceR. simpl.
   exists (STOP).
@@ -153,7 +155,7 @@ Qed.
    - https://coq-club.inria.narkive.com/PQalG3f4/how-to-solve-trivial-evars-automatically-so-that-they-don-t-get-shelved
 *)
 
-Example PRINTER0_trace2' : traceR PRINTER0 ("accept" :: ["print"]).
+Example PRINTER0_trace2' : traceR PRINTER0 ["accept" ; "print"].
 Proof.
   unfold traceR. simpl.
   exists (STOP).
