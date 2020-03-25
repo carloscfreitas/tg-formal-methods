@@ -7,8 +7,7 @@ Open Scope string_scope.
 
 (** TYPE DEFINITIONS **)
 
-(* TODO Check if the "event" type could be defined as a notation
-  instead of a inductive type. *)
+(* TODO Check if it is okay to define the "event" type as a notation instead of an inductive type. *)
 
 Notation event := string.
 
@@ -39,28 +38,28 @@ Inductive proc_def : Type :=
 Inductive specification : Type :=
   | Spec (ch_list : list channel) (proc_list : list proc_def).
 
-Fixpoint proc_eqb (P Q : proc_body) : Prop :=
+Fixpoint proc_eq (P Q : proc_body) : Prop :=
   match P, Q with
   | SKIP, SKIP => True
   | STOP, STOP => True
   | ProcRef a, ProcRef b => eq a b
-  | ProcPrefix a A, ProcPrefix b B => eq a b /\ proc_eqb A B
-  (* | ProcExtChoice A B, ProcExtChoice X Y => proc_eqb A B /\ proc_eqb X Y
-  | ProcIntChoice A B, ProcIntChoice X Y => proc_eqb A B /\ proc_eqb X Y
-  | ProcAlphaParallel A B K L, ProcAlphaParallel X Y M N => proc_eqb A B /\ proc_eqb X Y /\ eq K M /\ eq L N
-  | ProcGenParallel A B K, ProcGenParallel X Y M => proc_eqb A B /\ proc_eqb X Y /\ eq K M
-  | ProcInterleave A B, ProcInterleave X Y => proc_eqb A B /\ proc_eqb X Y
-  | ProcSeqComp A B, ProcSeqComp X Y => proc_eqb A B /\ proc_eqb X Y *)
+  | ProcPrefix a A, ProcPrefix b B => eq a b /\ proc_eq A B
+  (* | ProcExtChoice A B, ProcExtChoice X Y => proc_eq A B /\ proc_eq X Y
+  | ProcIntChoice A B, ProcIntChoice X Y => proc_eq A B /\ proc_eq X Y
+  | ProcAlphaParallel A B K L, ProcAlphaParallel X Y M N => proc_eq A B /\ proc_eq X Y /\ eq K M /\ eq L N
+  | ProcGenParallel A B K, ProcGenParallel X Y M => proc_eq A B /\ proc_eq X Y /\ eq K M
+  | ProcInterleave A B, ProcInterleave X Y => proc_eq A B /\ proc_eq X Y
+  | ProcSeqComp A B, ProcSeqComp X Y => proc_eq A B /\ proc_eq X Y *)
   | _, _ => False
 end.
 
 (** NOTATIONS/COERCIONS **)
 
-(* TODO Prove that equality is decidable for event type. *)
 Check string_dec.
 Definition event_dec := string_dec.
 
-(* Notations for declaring sets of events. *)
+(* Notations for declaring sets of events.
+  TODO Validate the syntax for defining channels and alphabets. *)
 Notation "{ }" := (empty_set event) (format "{ }").
 Notation "{ x }" := (set_add event_dec x (empty_set event)). (* TODO This notation is not working properly. *)
 Notation "{ x , y , .. , z }" := (set_add event_dec x (set_add event_dec y .. (set_add event_dec z (empty_set event)) ..)).
@@ -82,7 +81,8 @@ Notation "P [ A || B ] Q" := (ProcAlphaParallel P Q A B) (at level 90, no associ
 Notation "P [| A |] Q" := (ProcGenParallel P Q A) (at level 90, no associativity).
 (* Interleaving *)
 Notation "P ||| Q" := (ProcInterleave P Q) (at level 90, left associativity).
-(* Sequencial Composition (";" is already defined in list notations) *)
+(* Sequencial Composition (";" is already defined in list notations)
+  TODO Validate with Gustavo this notation. *)
 Notation "P ;; Q" := (ProcSeqComp P Q) (at level 90, left associativity).
 
 (* Example 3.20 (book) using notations. *)
@@ -119,15 +119,15 @@ Inductive sosR : proc_body -> string -> proc_body -> Prop :=
   (* Prefix *)
   | prefix_rule (P Q : proc_body) (a : string) :
       (a --> P) // a ==> Q
-  (* Recursion *)
-  | recursion_rule (P : proc_body) :
-      forall (P' N : proc_body) (a : string), (P // a ==> P') /\ (proc_eqb P N) -> N // a ==> P'
+  (* Reference. TODO This rule relies on the whether equality of process is decidable (and it should be). *)
+  | reference_rule (P : proc_body) :
+      forall (P' N : proc_body) (a : string), (P // a ==> P') /\ (proc_eq P N) -> N // a ==> P'
   (* External Choice *)
   | ext_choice_left_rule (P Q : proc_body) :
       forall (P' : proc_body) (a : string), (P // a ==> P') -> (P [] Q // a ==> P')
   | ext_choice_right_rule (P Q : proc_body) :
       forall (P' : proc_body) (a : string), (P // a ==> P') -> (Q [] P // a ==> P')
-  (* Internal Choice *)
+  (* Internal Choice. TODO This definition is not working properly. *)
   | int_choice_left_rule (P Q : proc_body) :
       forall (tau : string), P |~| Q // tau ==> P
   | int_choice_right_rule (P Q : proc_body) (tau : string) :
@@ -176,6 +176,8 @@ Definition traceR (P : proc_def) (t : list string) :=
   match P with
   | Proc name body => traceBodyR body t
   end.
+
+(** TRACE EXAMPLES **)
 
 Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
 
@@ -269,7 +271,7 @@ Proof.
   exists ("TEAM").
   apply sos_transitive_rule with (R := "PETE" [| Alphabet {"lift_piano", "lift_table"} |] "DAVE").
   - apply gener_parall_joint_rule.
-    * apply recursion_rule with (P := "lift_piano" --> "PETE" |~| "lift_table" --> "PETE"). split.
+    * apply reference_rule with (P := "lift_piano" --> "PETE" |~| "lift_table" --> "PETE"). split.
       + Fail eapply int_choice_left_rule. Abort.
 
 Example LIGHT_trace1 : traceR ("LIGHT" ::= "on" --> "off" --> "LIGHT") ["on" ; "off" ; "on"].
@@ -283,4 +285,33 @@ Proof.
     * apply sos_transitive_rule with (R := "off" --> "LIGHT").
       + apply prefix_rule.
       + apply sos_empty_rule.
+Qed.
+
+(* TODO Mention the workaround made here (define proc_body's instead of proc_def's) and why. *)
+Definition PUMP1 := "lift_nozzle_1" --> "READY1".
+Definition READY1 := "replace_nozzle_1" --> "PUMP1"
+                      [] "depress_trigger_1" --> "release_trigger_1" --> "READY1".
+Definition PUMP2 := "lift_nozzle_2" --> "READY2".
+Definition READY2 := "replace_nozzle_2" --> "PUMP2"
+                      [] "depress_trigger_2" --> "release_trigger_2" --> "READY2".
+Definition FORECOURT := "FORECOURT" ::= PUMP1 ||| PUMP2.
+
+Example FORECOURT_trace1 : traceR FORECOURT ["lift_nozzle_1" ; "depress_trigger_1" ; "lift_nozzle_2" ;
+                                  "depress_trigger_2" ; "release_trigger_2"].
+Proof.
+  unfold traceR. simpl.
+  exists("release_trigger_1" --> READY1 ||| READY2).
+  apply sos_transitive_rule with (R := READY1 ||| PUMP2).
+  - apply interleave_left_rule. unfold PUMP1. apply prefix_rule.
+  - apply sos_transitive_rule with (R := "release_trigger_1" --> READY1 ||| PUMP2).
+    * apply interleave_left_rule. apply ext_choice_right_rule. apply prefix_rule.
+    * apply sos_transitive_rule with (R := "release_trigger_1" --> READY1 ||| READY2).
+      + apply interleave_right_rule. unfold PUMP2. apply prefix_rule.
+      + apply sos_transitive_rule with (R := "release_trigger_1" --> READY1 ||| "release_trigger_2" --> READY2).
+        { apply interleave_right_rule. apply ext_choice_right_rule. apply prefix_rule. }
+        { 
+          apply sos_transitive_rule with (R := "release_trigger_1" --> READY1 ||| READY2).
+          { apply interleave_right_rule. apply prefix_rule. }
+          { apply sos_empty_rule. }
+        }
 Qed.
