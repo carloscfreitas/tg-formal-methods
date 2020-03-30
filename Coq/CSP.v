@@ -23,7 +23,7 @@ Inductive channel : Type :=
 Inductive proc_body : Type :=
   | SKIP
   | STOP
-  | ProcRef (name : string) (* A reference to a process. May be itself (recursion). *)
+  | ProcRef (name : string)
   | ProcPrefix (event : event) (proc : proc_body)
   | ProcExtChoice (proc1 proc2 : proc_body)
   | ProcIntChoice (proc1 proc2 : proc_body)
@@ -73,8 +73,8 @@ Notation "a --> P" := (ProcPrefix a P) (at level 80, right associativity).
 Notation "P [] Q" := (ProcExtChoice P Q) (at level 90, left associativity).
 (* Internal Choice *)
 Notation "P |~| Q" := (ProcIntChoice P Q) (at level 90, left associativity).
-(* Alphabetised Parallel (TODO Still not working...) *)
-Notation "P [[ A || B ]] Q" := (ProcAlphaParallel P Q A B) (at level 90, no associativity).
+(* Alphabetised Parallel *)
+Notation "P [[ A \\ B ]] Q" := (ProcAlphaParallel P Q A B) (at level 90, no associativity).
 (* Generalised (or Interface) Parallel *)
 Notation "P [| A |] Q" := (ProcGenParallel P Q A) (at level 90, no associativity).
 (* Interleaving *)
@@ -106,8 +106,7 @@ Definition SPurchase :=
 
 Compute get_proc_body SPurchase "CHOOSE".
 
-(* TODO Add context (specification) to this type.
-  Revisit the transition rules bellow and check their alphabet. *)
+(* TODO Revisit the transition rules bellow and check their alphabet. *)
 Reserved Notation "C '#' P '//' a '==>' Q" (at level 150, left associativity).
 Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Prop :=
   (* Prefix *)
@@ -115,50 +114,48 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
       C # (a --> P) // Event a ==> Q
   (* Reference *)
   | reference_rule (C : specification) (P : proc_body) (name : string) :
-      forall (Q : proc_body) (a : event),
+      forall (Q : proc_body) (a : event_tau_tick),
       eq P (ProcRef name) ->
-      (C # (get_proc_body C name) // Event a ==> Q) ->
-      C # P // Event a ==> Q
+      (C # (get_proc_body C name) // a ==> Q) ->
+      C # P // a ==> Q
   (* External Choice *)
   | ext_choice_left_rule (C : specification) (P Q : proc_body) :
       forall (P' : proc_body) (a : event), (C # P // Event a ==> P') -> (C # P [] Q // Event a ==> P')
   | ext_choice_right_rule (C : specification) (P Q : proc_body) :
       forall (P' : proc_body) (a : event), (C # P // Event a ==> P') -> (C # Q [] P // Event a ==> P')
-  (* Internal Choice. TODO Check this definition. *)
+  (* Internal Choice *)
   | int_choice_left_rule (C : specification) (P Q : proc_body) :
-      forall (R : proc_body) (a : event),
-      (C # P // Event a ==> R) -> C # P |~| Q // Event a ==> R
+      C # P |~| Q // Tau ==> P
   | int_choice_right_rule (C : specification) (P Q : proc_body) :
-      forall (R : proc_body) (a : event),
-      (C # P // Event a ==> R) ->  C # Q |~| P // Event a ==> R
+      C # Q |~| P // Tau ==> P
   (* Alphabetised Parallel *)
   | alpha_parall_indep_left_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
       forall (P' : proc_body) (a : event),
       (C # P // Event a ==> P') ->
-      C # ProcAlphaParallel P Q A B // Event a ==> ProcAlphaParallel P' Q A B
+      C # P [[ A \\ B ]] Q // Event a ==> P' [[ A \\ B ]] Q
   | alpha_parall_indep_right_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
       forall (P' : proc_body) (a : event),
       (C # P // Event a ==> P') ->
-      C # ProcAlphaParallel Q P A B // Event a ==> ProcAlphaParallel Q P' A B
+      C # Q [[ A \\ B ]] P // Event a ==> Q [[ A \\ B ]] P'
   | alpha_parall_joint_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
       forall (P' Q' : proc_body) (a : event),
       (C # P // Event a ==> P') ->
       (C # Q // Event a ==> Q') ->
-      C # ProcAlphaParallel P Q A B // Event a ==> ProcAlphaParallel P' Q' A B
+      C # P [[ A \\ B ]] Q // Event a ==> P' [[ A \\ B ]] Q'
   (* Generalised Parallel *)
   | gener_parall_indep_left_rule (C : specification) (P Q : proc_body) (A : alphabet) :
-      forall (P' : proc_body) (a : event),
-      (C # P // Event a ==> P') ->
-      C # P [| A |] Q // Event a ==> P' [| A |] Q
+      forall (P' : proc_body) (a : event_tau_tick),
+      (C # P // a ==> P') ->
+      C # P [| A |] Q // a ==> P' [| A |] Q
   | gener_parall_indep_right_rule (C : specification) (P Q : proc_body) (A : alphabet) :
-      forall (P' : proc_body) (a : event),
-      (C # P // Event a ==> P') ->
-      C # Q [| A |] P // Event a ==> Q [| A |] P'
+      forall (P' : proc_body) (a : event_tau_tick),
+      (C # P // a ==> P') ->
+      C # Q [| A |] P // a ==> Q [| A |] P'
   | gener_parall_joint_rule (C : specification) (P Q : proc_body) (A : alphabet) :
-      forall (P' Q' : proc_body) (a : event),
-      (C # P // Event a ==> P') ->
-      (C # Q // Event a ==> Q') ->
-      C # P [| A |] Q // Event a ==> P' [| A |] Q'
+      forall (P' Q' : proc_body) (a : event_tau_tick),
+      (C # P // a ==> P') ->
+      (C # Q // a ==> Q') ->
+      C # P [| A |] Q // a ==> P' [| A |] Q'
   (* Interleave *)
   | interleave_left_rule (P Q : proc_body) :
       forall (C : specification) (P' : proc_body) (a : event),
@@ -168,7 +165,7 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
       forall (P' : proc_body) (a : event),
       (C # P // Event a ==> P') ->
       C # Q ||| P // Event a ==> Q ||| P'
-  | interleave_tick_rule (C : specification) (P Q : proc_body) : (* TODO Check if there is indeed a conjuction in this transition rule. *)
+  | interleave_tick_rule (C : specification) (P Q : proc_body) :
       forall (P' Q' : proc_body),
       (C # P // Tick ==> P') /\ (C # Q // Tick ==> Q') ->
       C # P ||| Q // Tick ==> P' ||| Q'
@@ -291,19 +288,23 @@ Definition TEAM := "TEAM" ::= "PETE" [| Alphabet {{"lift_piano", "lift_table"}} 
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
 
-Example TEAM_trace1 : traceR S_TEAM TEAM [Event "lift_piano"].
+Example TEAM_trace1 : traceR S_TEAM TEAM [Tau ; Event "lift_piano"].
 Proof.
   unfold traceR. simpl.
   exists ("PETE" [| Alphabet {{"lift_piano", "lift_table"}} |] "DAVE").
-  apply sos_transitive_rule with (R := "PETE" [| Alphabet {{"lift_piano", "lift_table"}} |] "DAVE").
+  apply sos_transitive_rule with (R := "lift_piano" --> "PETE" [| Alphabet {{"lift_piano", "lift_table"}} |] "lift_piano" --> "DAVE").
   - apply gener_parall_joint_rule.
     * apply reference_rule with (name := "PETE").
       + reflexivity.
-      + simpl. apply int_choice_left_rule. apply prefix_rule.
+      + simpl. apply int_choice_left_rule.
     * apply reference_rule with (name := "DAVE").
       + reflexivity.
-      + simpl. apply int_choice_left_rule. apply prefix_rule.
-  - apply sos_empty_rule.
+      + simpl. apply int_choice_left_rule.
+  - apply sos_transitive_rule with (R := "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "DAVE").
+    * apply gener_parall_joint_rule.
+      + apply prefix_rule.
+      + apply prefix_rule.
+    * apply sos_empty_rule.
 Qed.
 
 Definition LIGHT := "LIGHT" ::= "on" --> "off" --> "LIGHT".
@@ -322,7 +323,6 @@ Proof.
       + apply sos_empty_rule.
 Qed.
 
-Definition FORECOURT := "FORECOURT" ::= "PUMP1" ||| "PUMP2".
 Definition S_FORECOURT :=
   (
     Spec
