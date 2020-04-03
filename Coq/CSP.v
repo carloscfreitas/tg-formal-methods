@@ -62,6 +62,13 @@ Notation "{{ x }}" := (set_add event_dec x (empty_set event)).
 Notation "{{ x , y , .. , z }}" := (set_add event_dec x (set_add event_dec y
     .. (set_add event_dec z (empty_set event)) ..)).
 
+(* Coercion: alphabet to (event) set. *)
+Definition alphabet_to_set (s : alphabet) : set event :=
+  match s with
+  | Alphabet b => b
+  end.
+Coercion alphabet_to_set : alphabet >-> set.
+
 (* Process reference (coercion). *)
 Definition str_to_proc_body (s : string) : proc_body := ProcRef s.
 Coercion str_to_proc_body : string >-> proc_body.
@@ -104,25 +111,39 @@ Definition SPurchase :=
     ]
   ).
 
-Compute get_proc_body SPurchase "CHOOSE".
-
-(* TODO Revisit the transition rules bellow and check their alphabet. *)
 Reserved Notation "C '#' P '//' a '==>' Q" (at level 150, left associativity).
 Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Prop :=
   (* Prefix *)
   | prefix_rule (C : specification) (P Q : proc_body) (a : event) :
       C # (a --> P) // Event a ==> Q
   (* Reference *)
+  (* This inference rule is different from the one implemented in the FDR tool. This approach will
+    allow an ill-formed recursion such as P = P to be defined, by introducing a transition which communicates
+    the internal event tau and, therefore, increasing the process LTS size. *)
   | reference_rule (C : specification) (P : proc_body) (name : string) :
       forall (Q : proc_body) (a : event_tau_tick),
       eq P (ProcRef name) ->
-      (C # (get_proc_body C name) // a ==> Q) ->
-      C # P // a ==> Q
+      (C # (get_proc_body C name) // Tau ==> Q) ->
+      C # P // Tau ==> Q
   (* External Choice *)
   | ext_choice_left_rule (C : specification) (P Q : proc_body) :
-      forall (P' : proc_body) (a : event), (C # P // Event a ==> P') -> (C # P [] Q // Event a ==> P')
+      forall (P' : proc_body) (a : event_tau_tick),
+      ~ eq a Tau ->
+      (C # P // a ==> P') ->
+      (C # P [] Q // a ==> P')
   | ext_choice_right_rule (C : specification) (P Q : proc_body) :
-      forall (P' : proc_body) (a : event), (C # P // Event a ==> P') -> (C # Q [] P // Event a ==> P')
+      forall (P' : proc_body) (a : event_tau_tick),
+      ~ eq a Tau ->
+      (C # P // a ==> P') ->
+      (C # Q [] P // a ==> P')
+  | ext_choice_tau_left_rule (C : specification) (P Q : proc_body) :
+      forall (P' : proc_body),
+      (C # P // Tau ==> P') ->
+      (C # P [] Q // Tau ==> P' [] Q)
+  | ext_choice_tau_right_rule (C : specification) (P Q : proc_body) :
+      forall (P' : proc_body),
+      (C # P // Tau ==> P') ->
+      (C # Q [] P // Tau ==> Q [] P')
   (* Internal Choice *)
   | int_choice_left_rule (C : specification) (P Q : proc_body) :
       C # P |~| Q // Tau ==> P
@@ -131,50 +152,92 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
   (* Alphabetised Parallel *)
   | alpha_parall_indep_left_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
       forall (P' : proc_body) (a : event),
+      set_In a (set_diff event_dec A B) ->
       (C # P // Event a ==> P') ->
       C # P [[ A \\ B ]] Q // Event a ==> P' [[ A \\ B ]] Q
   | alpha_parall_indep_right_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
       forall (P' : proc_body) (a : event),
+      set_In a (set_diff event_dec A B) ->
       (C # P // Event a ==> P') ->
-      C # Q [[ A \\ B ]] P // Event a ==> Q [[ A \\ B ]] P'
+      C # Q [[ B \\ A ]] P // Event a ==> Q [[ B \\ A ]] P'
+  | alpha_parall_tau_indep_left_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+      forall (P' : proc_body),
+      (C # P // Tau ==> P') ->
+      C # P [[ A \\ B ]] Q // Tau ==> P' [[ A \\ B ]] Q
+  | alpha_parall_tau_indep_right_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+      forall (P' : proc_body),
+      (C # P // Tau ==> P') ->
+      C # Q [[ B \\ A ]] P // Tau ==> Q [[ B \\ A ]] P'
   | alpha_parall_joint_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
       forall (P' Q' : proc_body) (a : event),
+      set_In a (set_inter event_dec A B) ->
       (C # P // Event a ==> P') ->
       (C # Q // Event a ==> Q') ->
       C # P [[ A \\ B ]] Q // Event a ==> P' [[ A \\ B ]] Q'
+  | alpha_parall_tick_joint_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+      forall (P' Q' : proc_body),
+      (C # P // Tick ==> P') ->
+      (C # Q // Tick ==> Q') ->
+      C # P [[ A \\ B ]] Q // Tick ==> P' [[ A \\ B ]] Q'
   (* Generalised Parallel *)
   | gener_parall_indep_left_rule (C : specification) (P Q : proc_body) (A : alphabet) :
-      forall (P' : proc_body) (a : event_tau_tick),
-      (C # P // a ==> P') ->
-      C # P [| A |] Q // a ==> P' [| A |] Q
+      forall (P' : proc_body) (a : event),
+      ~ set_In a A ->
+      (C # P // Event a ==> P') ->
+      C # P [| A |] Q // Event a ==> P' [| A |] Q
   | gener_parall_indep_right_rule (C : specification) (P Q : proc_body) (A : alphabet) :
-      forall (P' : proc_body) (a : event_tau_tick),
-      (C # P // a ==> P') ->
-      C # Q [| A |] P // a ==> Q [| A |] P'
+      forall (P' : proc_body) (a : event),
+      ~ set_In a A ->
+      (C # P // Event a ==> P') ->
+      C # Q [| A |] P // Event a ==> Q [| A |] P'
+  | gener_parall_tau_indep_left_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+      forall (P' : proc_body),
+      (C # P // Tau ==> P') ->
+      C # P [| A |] Q // Tau ==> P' [| A |] Q
+  | gener_parall_tau_indep_right_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+      forall (P' : proc_body),
+      (C # P // Tau ==> P') ->
+      C # Q [| A |] P // Tau ==> Q [| A |] P'
   | gener_parall_joint_rule (C : specification) (P Q : proc_body) (A : alphabet) :
-      forall (P' Q' : proc_body) (a : event_tau_tick),
-      (C # P // a ==> P') ->
-      (C # Q // a ==> Q') ->
-      C # P [| A |] Q // a ==> P' [| A |] Q'
+      forall (P' Q' : proc_body) (a : event),
+      set_In a A ->
+      (C # P // Event a ==> P') ->
+      (C # Q // Event a ==> Q') ->
+      C # P [| A |] Q // Event a ==> P' [| A |] Q'
+  | gener_parall_tick_joint_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+      forall (P' Q' : proc_body),
+      (C # P // Tick ==> P') ->
+      (C # Q // Tick ==> Q') ->
+      C # P [| A |] Q // Tick ==> P' [| A |] Q'
   (* Interleave *)
   | interleave_left_rule (P Q : proc_body) :
-      forall (C : specification) (P' : proc_body) (a : event),
-      (C # P // Event a ==> P') ->
-      C # P ||| Q // Event a ==> P' ||| Q
+      forall (C : specification) (P' : proc_body) (a : event_tau_tick),
+      ~ eq a Tick ->
+      (C # P // a ==> P') ->
+      C # P ||| Q // a ==> P' ||| Q
   | interleave_right_rule (C : specification) (P Q : proc_body) :
-      forall (P' : proc_body) (a : event),
-      (C # P // Event a ==> P') ->
-      C # Q ||| P // Event a ==> Q ||| P'
+      forall (P' : proc_body) (a : event_tau_tick),
+      ~ eq a Tick ->
+      (C # P // a ==> P') ->
+      C # Q ||| P // a ==> Q ||| P'
   | interleave_tick_rule (C : specification) (P Q : proc_body) :
       forall (P' Q' : proc_body),
-      (C # P // Tick ==> P') /\ (C # Q // Tick ==> Q') ->
+      (C # P // Tick ==> P') ->
+      (C # Q // Tick ==> Q') ->
       C # P ||| Q // Tick ==> P' ||| Q'
   (* Sequential Composition *)
+  (* This inference rule is different from the one implemented in the FDR tool. The main consequence
+    of this approach is that the transition resulting from the communication of the internal event tau
+    will not be supressed and, therefore, will appear in the LTS. *)
   | seq_comp_rule (C : specification) (P Q : proc_body) :
-      forall (P' : proc_body) (a : event),
-      (C # P // Event a ==> P') -> C # P ;; Q // Event a ==> P' ;; Q
+      forall (P' : proc_body) (a : event_tau_tick),
+      ~ eq a Tick ->
+      (C # P // a ==> P') ->
+      C # P ;; Q // a ==> P' ;; Q
   | seq_comp_tick_rule (C : specification) (P Q : proc_body) :
-      forall (P' : proc_body), (C # P // Tick ==> P') -> C # P ;; Q // Tau ==> Q
+      forall (P' : proc_body),
+      (C # P // Tick ==> P') ->
+      C # P ;; Q // Tau ==> Q
   where "C '#' P '//' a '==>' Q" := (sosR C P a Q).
 
 Reserved Notation "C '#' P '///' t '==>' Q" (at level 150, left associativity).
@@ -226,17 +289,6 @@ Proof.
     + apply sos_empty_rule.
 Qed.
 
-(* Note the following proof with eapply. In some sense, it's easier.
-   However, in the end we get "remaining goals are on the shelf".
-   
-   To conclude the proof, I removed this goal from the shelf,
-   and provided a trivial example of a proc_body.
-   
-   More information about "the shelf":
-   - https://github.com/coq/coq/issues/8770
-   - https://coq-club.inria.narkive.com/PQalG3f4/how-to-solve-trivial-evars-automatically-so-that-they-don-t-get-shelved
-*)
-
 Example PRINTER0_trace2' : traceR S_PRINTER0 PRINTER0 [Event "accept" ; Event "print"].
 Proof.
   unfold traceR. simpl.
@@ -261,7 +313,8 @@ Proof.
   - apply prefix_rule.
   - apply sos_transitive_rule with (R := SKIP).
     * apply ext_choice_left_rule.
-      apply prefix_rule.
+      + unfold not. intro. inversion H.
+      + apply prefix_rule.
     * apply sos_empty_rule.
 Qed.
 
@@ -273,7 +326,8 @@ Proof.
   - apply prefix_rule.
   - apply sos_transitive_rule with (R := "CHOOSE").
     * apply ext_choice_right_rule.
-      apply prefix_rule.
+      + unfold not. intro. inversion H.
+      + apply prefix_rule.
     * apply sos_empty_rule.
 Qed.
 
