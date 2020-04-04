@@ -121,9 +121,9 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
     allow an ill-formed recursion such as P = P to be defined, by introducing a transition which communicates
     the internal event tau and, therefore, increasing the process LTS size. *)
   | reference_rule (C : specification) (P : proc_body) (name : string) :
-      forall (Q : proc_body) (a : event_tau_tick),
+      forall (Q : proc_body),
       eq P (ProcRef name) ->
-      (C # (get_proc_body C name) // Tau ==> Q) ->
+      eq (get_proc_body C name) Q ->
       C # P // Tau ==> Q
   (* External Choice *)
   | ext_choice_left_rule (C : specification) (P Q : proc_body) :
@@ -342,23 +342,46 @@ Definition TEAM := "TEAM" ::= "PETE" [| Alphabet {{"lift_piano", "lift_table"}} 
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
 
-Example TEAM_trace1 : traceR S_TEAM TEAM [Tau ; Event "lift_piano"].
+Example TEAM_trace1 : traceR S_TEAM TEAM [Tau ; Tau ; Tau ; Tau; Event "lift_piano"].
 Proof.
   unfold traceR. simpl.
   exists ("PETE" [| Alphabet {{"lift_piano", "lift_table"}} |] "DAVE").
-  apply sos_transitive_rule with (R := "lift_piano" --> "PETE" [| Alphabet {{"lift_piano", "lift_table"}} |] "lift_piano" --> "DAVE").
-  - apply gener_parall_joint_rule.
+  apply sos_transitive_rule with
+    (R := ("lift_piano" --> "PETE" |~| "lift_table" --> "PETE") [| Alphabet {{"lift_piano", "lift_table"}} |] "DAVE").
+  - apply gener_parall_tau_indep_left_rule.
     * apply reference_rule with (name := "PETE").
       + reflexivity.
-      + simpl. apply int_choice_left_rule.
-    * apply reference_rule with (name := "DAVE").
+      + simpl. reflexivity. 
+  - apply sos_transitive_rule with 
+      (R := ("lift_piano" --> "PETE" |~| "lift_table" --> "PETE")
+            [| Alphabet {{"lift_piano", "lift_table"}} |]
+            ("lift_piano" --> "DAVE" |~| "lift_table" --> "DAVE")).
+    * apply gener_parall_tau_indep_right_rule.
+      apply reference_rule with (name := "DAVE").
       + reflexivity.
-      + simpl. apply int_choice_left_rule.
-  - apply sos_transitive_rule with (R := "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "DAVE").
-    * apply gener_parall_joint_rule.
-      + apply prefix_rule.
-      + apply prefix_rule.
-    * apply sos_empty_rule.
+      + simpl. reflexivity.
+    * apply sos_transitive_rule with
+        (R := "lift_piano" --> "PETE" 
+              [|Alphabet {{"lift_piano", "lift_table"}}|] 
+              ("lift_piano" --> "DAVE" |~| "lift_table" --> "DAVE")).
+      + apply gener_parall_tau_indep_left_rule.
+        apply int_choice_left_rule.
+      + apply sos_transitive_rule with
+        (R := "lift_piano" --> "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "lift_piano" --> "DAVE").
+        {
+          apply gener_parall_tau_indep_right_rule.
+          apply int_choice_left_rule. 
+        }
+        {
+          apply sos_transitive_rule with (R := "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "DAVE").
+          {
+            apply gener_parall_joint_rule.
+            { simpl. right. left. reflexivity. }
+            { apply prefix_rule. }
+            { apply prefix_rule. }
+          }
+          { apply sos_empty_rule. }
+        }
 Qed.
 
 Definition LIGHT := "LIGHT" ::= "on" --> "off" --> "LIGHT".
@@ -396,32 +419,92 @@ Definition S_FORECOURT :=
   ).
 
 Example FORECOURT_trace1 : traceR S_FORECOURT ("FORECOURT" ::= "PUMP1" ||| "PUMP2")
-    [Event "lift_nozzle_1" ; Event "depress_trigger_1" ; Event "lift_nozzle_2"
-    ; Event "depress_trigger_2" ; Event "release_trigger_2"].
+    [Tau ; Event "lift_nozzle_1" ; Tau ; Event "lift_nozzle_2" ; Tau ; Event "depress_trigger_1"
+    ; Tau ; Event "depress_trigger_2" ; Event "release_trigger_2"].
 Proof.
   unfold traceR. simpl.
   exists("release_trigger_1" --> "READY1" ||| "READY2").
-  apply sos_transitive_rule with (R := "READY1" ||| "PUMP2").
-  - apply interleave_left_rule. apply reference_rule with (name := "PUMP1").
-    * reflexivity.
-    * simpl. apply prefix_rule.
-  - apply sos_transitive_rule with (R := "release_trigger_1" --> "READY1" ||| "PUMP2").
-    * apply interleave_left_rule. apply reference_rule with (name := "READY1").
+  apply sos_transitive_rule with (R := "lift_nozzle_1" --> "READY1" ||| "PUMP2").
+  - apply interleave_left_rule.
+    * unfold not. intro. inversion H.
+    * apply reference_rule with (name := "PUMP1").
       + reflexivity.
-      + simpl. apply ext_choice_right_rule. apply prefix_rule.
-    * apply sos_transitive_rule with (R := "release_trigger_1" --> "READY1" ||| "READY2").
-      + apply interleave_right_rule. apply reference_rule with (name := "PUMP2").
+      + simpl. reflexivity.
+  - apply sos_transitive_rule with (R := "READY1" ||| "PUMP2").
+    * apply interleave_left_rule.
+      + intro. inversion H.
+      + apply prefix_rule.
+    * apply sos_transitive_rule with (R := "READY1" ||| "lift_nozzle_2" --> "READY2").
+      + apply interleave_right_rule.
+        { intro. inversion H. }
+        {
+          apply reference_rule with (name := "PUMP2").
           { reflexivity. }
-          { simpl. apply prefix_rule. }
-      + apply sos_transitive_rule with (R := "release_trigger_1" --> "READY1" ||| "release_trigger_2" --> "READY2").
-        { 
-          apply interleave_right_rule. apply reference_rule with (name := "READY2").
-          { reflexivity. }
-          { simpl. apply ext_choice_right_rule. apply prefix_rule. }
+          { simpl. reflexivity. } 
         }
-        { 
-          apply sos_transitive_rule with (R := "release_trigger_1" --> "READY1" ||| "READY2").
-          { apply interleave_right_rule. apply prefix_rule. }
-          { apply sos_empty_rule. }
+      + apply sos_transitive_rule with (R := "READY1" ||| "READY2").
+        {
+          apply interleave_right_rule.
+          { intro. inversion H. }
+          { apply prefix_rule. }
+        }
+        {
+          apply sos_transitive_rule with
+            (R := ("replace_nozzle_1" --> "PUMP1"
+                  [] "depress_trigger_1" --> "release_trigger_1" --> "READY1") ||| "READY2").
+          {
+            apply interleave_left_rule.
+            { intro. inversion H. }
+            {
+              apply reference_rule with (name := "READY1").
+              { reflexivity. }
+              { simpl. reflexivity. }
+            }
+          }
+          {
+            apply sos_transitive_rule with (R := ("release_trigger_1" --> "READY1") ||| "READY2").
+            {
+              apply interleave_left_rule.
+              { intro. inversion H. }
+              {
+                apply ext_choice_right_rule.
+                { intro. inversion H. }
+                { apply prefix_rule. }
+              }
+            }
+            {
+              apply sos_transitive_rule with
+                (R := "release_trigger_1" --> "READY1"
+                      ||| ("replace_nozzle_2" --> "PUMP2"
+                          [] "depress_trigger_2" --> "release_trigger_2" --> "READY2")).
+              {
+                apply interleave_right_rule.
+                { intro. inversion H. }
+                {
+                  apply reference_rule with (name := "READY2").
+                  { reflexivity. }
+                  { simpl. reflexivity. }
+                }
+              }
+              apply sos_transitive_rule with
+                (R := "release_trigger_1" --> "READY1" ||| "release_trigger_2" --> "READY2").
+              {
+                apply interleave_right_rule.
+                { intro. inversion H. }
+                {
+                  apply ext_choice_right_rule.
+                  { intro. inversion H. }
+                  { apply prefix_rule. }
+                }
+              }
+              apply sos_transitive_rule with (R := "release_trigger_1" --> "READY1" ||| "READY2").
+              {
+                apply interleave_right_rule. 
+                { intro. inversion H. }
+                { apply prefix_rule. }
+              }
+              apply sos_empty_rule.
+            }
+          }
         }
 Qed.
