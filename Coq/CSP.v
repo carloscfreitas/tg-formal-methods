@@ -508,3 +508,74 @@ Proof.
           }
         }
 Qed.
+
+(** LTS RELATION **)
+
+Inductive transitionR : specification -> (proc_body * event_tau_tick * proc_body) -> proc_body -> Prop :=
+  | transition_rule (C : specification) (P' : proc_body) (a : event_tau_tick) (Q : proc_body)
+    (P : proc_body)  (Tc : list event_tau_tick) :
+      (C # P /// Tc ==> P') ->
+      (C # P' // a ==> Q) ->
+      transitionR C (P', a, Q) P.
+
+Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
+
+Example test1 : transitionR TOY_PROBLEM ("a" --> "b" --> STOP, Event "a", "b" --> STOP) ("a" --> "b" --> STOP).
+Proof.
+  apply transition_rule with (Tc := nil).
+  - apply sos_empty_rule.
+  - apply prefix_rule.
+Qed.
+
+Example test2 : transitionR TOY_PROBLEM ("b" --> STOP, Event "b", STOP) ("a" --> "b" --> STOP).
+Proof.
+  apply transition_rule with (Tc := [Event "a"]).
+  - apply sos_transitive_rule with (R := "b" --> STOP).
+    * apply prefix_rule.
+    * apply sos_empty_rule.
+  - apply prefix_rule.
+Qed.
+
+Inductive transitionsR : specification -> list (proc_body * event_tau_tick * proc_body) -> proc_body -> Prop :=
+  | transitions_empty_rule (C : specification) (P : proc_body) :
+      transitionsR C nil P
+  | transitions_rule (C : specification) (P : proc_body) (head : proc_body * event_tau_tick * proc_body)
+    (tail : list (proc_body * event_tau_tick * proc_body)) :
+      transitionR C head P ->
+      transitionsR C tail P ->
+      transitionsR C (head :: tail) P.
+
+Example test3 :
+  transitionsR
+    TOY_PROBLEM 
+    [
+      ("b" --> STOP, Event "b", STOP)
+      ; ("a" --> "b" --> STOP, Event "a", "b" --> STOP)
+    ] 
+    ("a" --> "b" --> STOP).
+Proof.
+  apply transitions_rule.
+  - apply transition_rule with (Tc := [Event "a"]).
+    * apply sos_transitive_rule with (R := "b" --> STOP).
+      + apply prefix_rule.
+      + apply sos_empty_rule.
+    * apply prefix_rule.
+  - apply transitions_rule.
+    * apply transition_rule with (Tc := nil).
+      + apply sos_empty_rule.
+      + apply prefix_rule.
+    * apply transitions_empty_rule.
+Qed.
+
+Inductive ltsR (C : specification) (T : list (proc_body * event_tau_tick * proc_body)) (P : proc_body) : Prop :=
+  | lts_rule :
+      (forall (t : proc_body * event_tau_tick * proc_body), transitionR C t P -> In t T) ->
+      transitionsR C T P ->
+      ltsR C T P.
+
+(* TODO Complete this proof. *)
+Example lts1 :
+  ltsR TOY_PROBLEM [("a" --> STOP, Event "a", STOP)] ("a" --> STOP).
+Proof.
+    apply lts_rule.
+    - intros. destruct H. simpl. left. Abort.
