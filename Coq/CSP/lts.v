@@ -146,8 +146,7 @@ Example lts1' :
     ["a" --> "b" --> STOP].
 Proof.
   eapply lts_inductive_rule with
-    (T' := [("a" --> "b" --> STOP, Event "a", "b" --> STOP)])
-    (L' := ["b" --> STOP]).
+    (T' := [("a" --> "b" --> STOP, Event "a", "b" --> STOP)]).
   - simpl. left. reflexivity.
   - intros. split.
     + intros. inversion H. subst.
@@ -156,7 +155,7 @@ Proof.
     + intros. simpl in H. destruct H.
       * inversion H. subst. apply prefix_rule.
       * inversion H.
-  - intros. simpl. reflexivity.
+  - reflexivity.
   - eapply lts_inductive_rule with
     (T' := [("b" --> STOP, Event "b", STOP)])
     (L' := [STOP]).
@@ -177,10 +176,84 @@ Proof.
     + simpl. reflexivity.
   - simpl.
     destruct (transition_eq_dec ("b" --> STOP, Event "b", STOP)
-                                ("a" --> "b" --> STOP, Event "a", "b" --> STOP))
-             eqn:H.
+                                ("a" --> "b" --> STOP, Event "a", "b" --> STOP)).
     + inversion e.
     + reflexivity.
+Qed.
+
+Definition TOY_PROBLEM' := Spec
+  [Channel {{"a", "b", "c"}}]
+  ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)].
+
+Example lts2' :
+  ltsR'
+    (* context *)
+    TOY_PROBLEM (* context *)
+    (* LTS *)
+    [ (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "a", "b" --> STOP);
+      (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "c", STOP);
+      ("b" --> STOP, Event "b", STOP) ]
+    (* INITIAL STATE *)
+    [("a" --> "b" --> STOP) [] ("c" --> STOP)].
+Proof.
+  eapply lts_inductive_rule with
+    (T' :=
+      [(("a" --> "b" --> STOP) [] ("c" --> STOP), Event "a", "b" --> STOP);
+       (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "c", STOP)]).
+  - simpl. left. reflexivity.
+  - intros. split.
+    + intros. inversion H. subst.
+      * inversion H0.
+      * subst. inversion H6. subst.
+        { simpl. left. reflexivity. }
+        { subst. inversion H0. }
+      * subst. inversion H6. subst.
+        { simpl. right. left. reflexivity. }
+        { subst. inversion H0. }
+      * subst. inversion H5. subst. inversion H0.
+      * subst. inversion H5. subst. inversion H0.
+    + intros. simpl in H. destruct H.
+      * inversion H. apply ext_choice_left_rule.
+        { unfold not. intros. subst. inversion H0. }
+        { apply prefix_rule. }
+      * destruct H.
+        { inversion H. apply ext_choice_right_rule.
+          { unfold not. intros. subst. inversion H0. }
+          { apply prefix_rule. }
+        }
+        { inversion H. }
+  - reflexivity.
+  - simpl. destruct (proc_body_eq_dec ("b" --> STOP) (STOP)) eqn:H.
+    + inversion e.
+    + eapply lts_inductive_rule with
+        (T' := [(("b" --> STOP), Event "b", STOP)]).
+      * simpl. right. left. reflexivity.
+      * intros. split.
+        { intros. inversion H0. subst.
+          { simpl. left. reflexivity. }
+          { subst. inversion H1. }
+        }
+        { intros. simpl in H0. destruct H0.
+          { inversion H0. apply prefix_rule. }
+          { inversion H0. }
+        }
+      * simpl. reflexivity.
+      * eapply lts_empty_rule.
+        { simpl. reflexivity. }
+        { simpl. left. reflexivity. }
+        { unfold not. intros. destruct H0. destruct H0.
+          inversion H0. subst. inversion H1. }
+      * simpl. reflexivity.
+  - simpl.
+    destruct (transition_eq_dec
+      ("b" --> STOP, Event "b", STOP)
+      ("a" --> "b" --> STOP [] "c" --> STOP, Event "a", "b" --> STOP)).
+    + inversion e.
+    + destruct (transition_eq_dec
+        ("b" --> STOP, Event "b", STOP)
+        ("a" --> "b" --> STOP [] "c" --> STOP, Event "c", STOP)).
+      * inversion e.
+      * reflexivity.
 Qed.
 
 Local Close Scope string.
