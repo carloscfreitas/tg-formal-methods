@@ -72,12 +72,40 @@ Inductive ltsR (C : specification) (T : list (proc_body * event_tau_tick * proc_
       transitionsR C T P ->
       ltsR C T P.
 
-(* TODO Complete this proof. *)
 Example lts1 :
-  ltsR TOY_PROBLEM [("a" --> STOP, Event "a", STOP)] ("a" --> STOP).
+  ltsR TOY_PROBLEM
+    [
+      ("b" --> STOP, Event "b", STOP)
+      ; ("a" --> "b" --> STOP, Event "a", "b" --> STOP)
+    ]
+    ("a" --> "b" --> STOP).
 Proof.
     apply lts_rule.
-    - intros. destruct H. simpl. left. Abort.
+    - intros. inversion H. subst.
+      inversion H0. subst.
+      + inversion H1. subst.
+        * simpl. right. left. reflexivity.
+        * subst. inversion H2.
+      + subst. inversion H2. subst.
+        inversion H3. subst. inversion H1. subst.
+        * simpl. left. reflexivity.
+        * subst. inversion H4.
+        * subst. inversion H4. subst. inversion H5. subst.
+          inversion H1. subst. inversion H6. subst.
+          inversion H6. subst. inversion H8. subst. inversion H6.
+        * subst. inversion H4.
+    - apply transitions_rule.
+      + apply transition_rule with (Tc := [Event "a"]).
+        * apply sos_transitive_rule with (R := "b" --> STOP).
+          { apply prefix_rule. }
+          { apply sos_empty_rule. }
+        * apply prefix_rule.
+      + apply transitions_rule.
+        * apply transition_rule with (Tc := nil).
+          { apply sos_empty_rule. }
+          { apply prefix_rule. }
+        * apply transitions_empty_rule.
+Qed.
 
 Theorem event_tau_tick_eq_dec :
   forall (e1 e2 : event_tau_tick),

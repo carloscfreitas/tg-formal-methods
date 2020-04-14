@@ -1,3 +1,6 @@
 *.vo
 *.aux
 *.glob
+*.v#
+*.vok
+*.vos
