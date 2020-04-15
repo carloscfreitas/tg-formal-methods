@@ -6,17 +6,45 @@ Import ListNotations.
 Require Import syntax.
 Require Import semantics_sos.
 
-(* TODO: This definition needs to be updated to reflect the "taus"
-   we have introduced in the semantics of sequential composition and
-   process unfolding. The "tau" should not be part of the trace,
-   but we might let the relation evolve by performing "tau" on a given
-   process P. *)
-Definition traceBodyR (C : specification) (body : proc_body) (t : list event_tau_tick) :=
-  exists (body' : proc_body), C # body /// t ==> body'.
+Definition trace := list event.
+
+Inductive traceR' : specification -> proc_body -> trace -> Prop :=
+  | empty_trace_rule (C : specification) (P : proc_body) :
+    traceR' C P nil
+  | event_trace_rule (C : specification) (P P' : proc_body) (h : event) (tl : trace) :
+    (C # P // Event h ==> P') ->
+    traceR' C P' tl ->
+    traceR' C P (h::tl)
+  | tick_trace_rule (C : specification) (P P' : proc_body) (t : trace) :
+    (C # P // Tick ==> P') ->
+    traceR' C P' t ->
+    traceR' C P t
+  | tau_trace_rule (C : specification) (P P' : proc_body) (t : trace) :
+    (C # P // Tau ==> P') ->
+    traceR' C P' t ->
+    traceR' C P t.
   
-Definition traceR (C : specification) (P : proc_def) (t : list event_tau_tick) :=
+Definition traceR (C : specification) (P : proc_def) (t : trace) :=
   match P with
-  | Proc name body => traceBodyR C body t
+  | Proc name body => traceR' C body t
+  end.
+
+Fixpoint getTrace (t : list event_tau_tick) : trace :=
+  match t with
+  | nil     => nil
+  | h :: tl => match h with
+               | Event e  => e :: getTrace tl
+               | _        => getTrace tl
+               end
+  end.
+
+Definition extendedTraceR' (C : specification) (body : proc_body) (t : trace) :=
+  exists (t' : list event_tau_tick) (body' : proc_body),
+    t = getTrace t' /\ (C # body /// t' ==> body').
+  
+Definition extendedTraceR (C : specification) (P : proc_def) (t : trace) :=
+  match P with
+  | Proc name body => extendedTraceR' C body t
   end.
 
 (** TRACE EXAMPLES **)
@@ -30,30 +58,63 @@ Definition S_PRINTER0 := Spec [CH_PRINTER0] [PRINTER0].
 Example PRINTER0_empty_trace : traceR S_PRINTER0 PRINTER0 nil.
 Proof.
   unfold traceR. simpl.
-  exists ("accept" --> "print" --> STOP).
-  apply sos_empty_rule.
+  apply empty_trace_rule.
 Qed.
 
-Example PRINTER0_trace1 : traceR S_PRINTER0 PRINTER0 [Event "accept"].
+Example PRINTER0_empty_trace' : extendedTraceR S_PRINTER0 PRINTER0 nil.
 Proof.
-  unfold traceR. simpl.
-  exists ("print" --> STOP).
-  apply sos_transitive_rule with (R := "print" --> STOP).
-  - apply prefix_rule.
+  unfold extendedTraceR. simpl. unfold extendedTraceR'.
+  exists nil.
+  eexists. split.
+  - reflexivity.
   - apply sos_empty_rule.
 Qed.
 
-Example PRINTER0_trace2 : traceR S_PRINTER0 PRINTER0 [Event "accept" ; Event "print"].
+Example PRINTER0_trace1 : traceR S_PRINTER0 PRINTER0 ["accept"].
 Proof.
   unfold traceR. simpl.
-  exists (STOP).
-  apply sos_transitive_rule with (R := "print" --> STOP).
+  eapply event_trace_rule.
   - apply prefix_rule.
-  - apply sos_transitive_rule with (R := STOP).
-    + apply prefix_rule.
-    + apply sos_empty_rule.
+  - apply empty_trace_rule.
 Qed.
 
+Example PRINTER0_trace1' : extendedTraceR S_PRINTER0 PRINTER0 ["accept"].
+Proof.
+  unfold extendedTraceR. simpl. unfold extendedTraceR'.
+  exists [Event "accept"]. eexists. split.
+  - simpl. reflexivity.
+  - eapply sos_transitive_rule.
+    + apply prefix_rule.
+    + apply sos_empty_rule. 
+Qed.
+
+Example PRINTER0_trace2 : traceR S_PRINTER0 PRINTER0 ["accept" ; "print"].
+Proof.
+  unfold traceR. simpl.
+  eapply event_trace_rule.
+  - apply prefix_rule.
+  - eapply event_trace_rule.
+    + apply prefix_rule.
+    + apply empty_trace_rule.
+Qed.
+
+Example PRINTER0_trace2' : extendedTraceR S_PRINTER0 PRINTER0 ["accept" ; "print"].
+Proof.
+  unfold traceR. simpl.
+  exists [Event "accept" ; Event "print"].
+  eexists. split.
+  - simpl. reflexivity.
+  - apply sos_transitive_rule with (R := "print" --> STOP).
+    + apply prefix_rule.
+    + apply sos_transitive_rule with (R := STOP).
+      * apply prefix_rule.
+      * apply sos_empty_rule.
+Qed.
+
+(* TODO: Update the following proofs considering both
+   traceR and extendedTraceR. *)
+
+(**
 Example PRINTER0_trace2' : traceR S_PRINTER0 PRINTER0 [Event "accept" ; Event "print"].
 Proof.
   unfold traceR. simpl.
@@ -151,13 +212,6 @@ Qed.
 Definition LIGHT := "LIGHT" ::= "on" --> "off" --> "LIGHT".
 Definition S_LIGHT := Spec [Channel {{"on", "off"}}] [LIGHT].
 
-(* TODO: To illustrate the comment I made in the beginning of this file,
-   see the following proof. The previous version, without the Tau, was not
-   working any more. It was working before as a consequence of the error
-   in the prefix operator semantics After including the Tau in the trace,
-   which should not happen, the proof can now be finished. When you update
-   the definition of traces, you should revisit this proof with the proper
-   trace (with no "taus"). *)
 Example LIGHT_trace1 : traceR S_LIGHT LIGHT [Event "on" ; Event "off" ; Tau ; Event "on"].
 Proof.
   unfold traceR. simpl. unfold traceBodyR.
@@ -283,5 +337,6 @@ Proof.
           }
         }
 Qed.
+**)
 
 Local Close Scope string.

@@ -8,207 +8,107 @@ Require Import semantics_sos.
 
 (** LTS RELATION **)
 
-Inductive transitionR : specification -> (proc_body * event_tau_tick * proc_body) -> proc_body -> Prop :=
-  | transition_rule (C : specification) (P' : proc_body) (a : event_tau_tick) (Q : proc_body)
-    (P : proc_body)  (Tc : list event_tau_tick) :
-      (C # P /// Tc ==> P') ->
-      (C # P' // a ==> Q) ->
-      transitionR C (P', a, Q) P.
-
-Local Open Scope string.
-
-Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
-
-Example test1 : transitionR TOY_PROBLEM ("a" --> "b" --> STOP, Event "a", "b" --> STOP) ("a" --> "b" --> STOP).
-Proof.
-  apply transition_rule with (Tc := nil).
-  - apply sos_empty_rule.
-  - apply prefix_rule.
-Qed.
-
-Example test2 : transitionR TOY_PROBLEM ("b" --> STOP, Event "b", STOP) ("a" --> "b" --> STOP).
-Proof.
-  apply transition_rule with (Tc := [Event "a"]).
-  - apply sos_transitive_rule with (R := "b" --> STOP).
-    * apply prefix_rule.
-    * apply sos_empty_rule.
-  - apply prefix_rule.
-Qed.
-
-Inductive transitionsR : specification -> list (proc_body * event_tau_tick * proc_body) -> proc_body -> Prop :=
-  | transitions_empty_rule (C : specification) (P : proc_body) :
-      transitionsR C nil P
-  | transitions_rule (C : specification) (P : proc_body) (head : proc_body * event_tau_tick * proc_body)
-    (tail : list (proc_body * event_tau_tick * proc_body)) :
-      transitionR C head P ->
-      transitionsR C tail P ->
-      transitionsR C (head :: tail) P.
-
-Example test3 :
-  transitionsR
-    TOY_PROBLEM 
-    [
-      ("b" --> STOP, Event "b", STOP)
-      ; ("a" --> "b" --> STOP, Event "a", "b" --> STOP)
-    ] 
-    ("a" --> "b" --> STOP).
-Proof.
-  apply transitions_rule.
-  - apply transition_rule with (Tc := [Event "a"]).
-    * apply sos_transitive_rule with (R := "b" --> STOP).
-      + apply prefix_rule.
-      + apply sos_empty_rule.
-    * apply prefix_rule.
-  - apply transitions_rule.
-    * apply transition_rule with (Tc := nil).
-      + apply sos_empty_rule.
-      + apply prefix_rule.
-    * apply transitions_empty_rule.
-Qed.
-
-Inductive ltsR (C : specification) (T : list (proc_body * event_tau_tick * proc_body)) (P : proc_body) : Prop :=
-  | lts_rule :
-      (forall (t : proc_body * event_tau_tick * proc_body), transitionR C t P -> In t T) ->
-      transitionsR C T P ->
-      ltsR C T P.
-
-Example lts1 :
-  ltsR TOY_PROBLEM
-    [
-      ("b" --> STOP, Event "b", STOP)
-      ; ("a" --> "b" --> STOP, Event "a", "b" --> STOP)
-    ]
-    ("a" --> "b" --> STOP).
-Proof.
-    apply lts_rule.
-    - intros. inversion H. subst.
-      inversion H0. subst.
-      + inversion H1. subst.
-        * simpl. right. left. reflexivity.
-        * subst. inversion H2.
-      + subst. inversion H2. subst.
-        inversion H3. subst. inversion H1. subst.
-        * simpl. left. reflexivity.
-        * subst. inversion H4.
-        * subst. inversion H4. subst. inversion H5. subst.
-          inversion H1. subst. inversion H6. subst.
-          inversion H6. subst. inversion H8. subst. inversion H6.
-        * subst. inversion H4.
-    - apply transitions_rule.
-      + apply transition_rule with (Tc := [Event "a"]).
-        * apply sos_transitive_rule with (R := "b" --> STOP).
-          { apply prefix_rule. }
-          { apply sos_empty_rule. }
-        * apply prefix_rule.
-      + apply transitions_rule.
-        * apply transition_rule with (Tc := nil).
-          { apply sos_empty_rule. }
-          { apply prefix_rule. }
-        * apply transitions_empty_rule.
-Qed.
-
-Theorem event_tau_tick_eq_dec :
-  forall (e1 e2 : event_tau_tick),
-    {e1 = e2} + {e1 <> e2}.
-Proof.
-  intros. destruct e1, e2 ; try (left ; reflexivity) ;
-  try (right ; unfold not ; intros H ; now inversion H).
-  decide equality ; apply event_dec.
-Qed.
-
-Theorem alphabet_eq_dec :
-  forall (a1 a2 : alphabet),
-    {a1 = a2} + {a1 <> a2}.
-Proof.
-  intros. destruct a1, a2.
-  repeat (decide equality ; try apply event_dec).
-Qed.
-
-Theorem proc_body_eq_dec :
-  forall (p1 p2 : proc_body),
-    {p1 = p2} + {p1 <> p2}.
-Proof.
-  intros. destruct p1, p2 ;
-    try (right ; unfold not ; intros H ; now inversion H) ;
-    try (left ; reflexivity) ;
-    decide equality ; try apply event_dec ; try apply alphabet_eq_dec.
-Qed.
+Definition transition := prod (prod proc_body event_tau_tick) proc_body.
 
 Theorem transition_eq_dec :
-  forall (t1 t2 : (proc_body * event_tau_tick * proc_body)),
+  forall (t1 t2 : transition),
     {t1 = t2} + {t1 <> t2}.
 Proof.
   intros. decide equality.
   - decide equality ; try apply event_dec ; try apply alphabet_eq_dec.
   - decide equality ; try apply event_tau_tick_eq_dec ; try apply proc_body_eq_dec.
-Qed.
+Defined.
 
-Fixpoint get_target_states (T : set (proc_body * event_tau_tick * proc_body)) : (set proc_body) :=
+Fixpoint target_proc_bodies (T : set transition) : set proc_body :=
   match T with
   | nil              => nil
-  | (p,a,p') :: tail => set_add proc_body_eq_dec p' (get_target_states tail)
+  | (_, _, P') :: tl => set_add proc_body_eq_dec P' (target_proc_bodies tl)
   end.
+  
+Fixpoint transitions_from_P (P : proc_body) (T : set transition) : set transition :=
+  match T with
+  | nil                => nil
+  | (P', e, P'') :: tl => if proc_body_eq_dec P P'
+                          then set_add transition_eq_dec (P',e,P'')
+                                                         (transitions_from_P P tl)
+                          else transitions_from_P P tl
+  end.
+  
+Inductive ltsR' :
+  specification -> (* the context *)
+  set transition -> (* the transitions of the LTS *)
+  set proc_body -> (* the states still to be visited *)
+  set proc_body -> (* the visited states *)
+  Prop :=
+  | lts_empty_rule (C : specification) (visited : set proc_body) :
+      ltsR' C nil nil visited
+  | lts_inductive_rule
+        (C : specification)
+        (T : set transition)
+        (P : proc_body)
+        (tl visited : set proc_body) :
+      let T' := transitions_from_P P T in
+      let T'' := set_diff transition_eq_dec T T' in
+      let visited' := set_add proc_body_eq_dec P visited in
+      let to_visit := set_diff proc_body_eq_dec
+                        (set_union proc_body_eq_dec tl (target_proc_bodies T'))
+                        visited' in
+      (forall (a : event_tau_tick) (P' : proc_body),
+         (C # P // a ==> P') <-> In (P,a,P') T') ->
+      ltsR' C T'' to_visit visited' ->
+      ltsR' C T (P :: tl) visited.
 
-Inductive ltsR' : specification -> set (proc_body * event_tau_tick * proc_body) -> set proc_body -> Prop :=
-  | lts_empty_rule (C : specification) (S : set proc_body) (P : proc_body) :
-    Datatypes.length S = 1 ->
-    In P S ->
-    ~ (exists (a : event_tau_tick) (P' : proc_body), C # P // a ==> P') ->
-    ltsR' C nil S
-  | lts_inductive_rule (C : specification) (T T' T'' : set (proc_body * event_tau_tick * proc_body)) (P : proc_body) (L L' : set proc_body) :
-    In P L ->
-    (forall (a : event_tau_tick) (P' : proc_body), (C # P // a ==> P') <-> In (P,a,P') T') ->
-    L' = get_target_states T' ->
-    ltsR' C T'' L' ->
-    T = (set_union transition_eq_dec T' T'') ->
-    ltsR' C T L.
+Definition ltsR (C : specification) (T : set transition) (name : string) : Prop :=
+  NoDup T /\ ltsR' C T [get_proc_body C name] nil.
+
+Local Open Scope string.
+Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
 
 Example lts1' :
-  ltsR'
+  ltsR
     (* context *)
     TOY_PROBLEM (* context *)
     (* LTS *)
     [ ("a" --> "b" --> STOP, Event "a", "b" --> STOP) ;
       ("b" --> STOP, Event "b", STOP) ]
-    (* INITIAL STATE *)
-    ["a" --> "b" --> STOP].
+    (* PROCESS NAME *)
+    "P".
 Proof.
-  eapply lts_inductive_rule with
-    (T' := [("a" --> "b" --> STOP, Event "a", "b" --> STOP)]).
-  - simpl. left. reflexivity.
-  - intros. split.
-    + intros. inversion H. subst.
-      * simpl. left. reflexivity.
-      * subst. inversion H0.
-    + intros. simpl in H. destruct H.
-      * inversion H. subst. apply prefix_rule.
-      * inversion H.
-  - reflexivity.
-  - eapply lts_inductive_rule with
-    (T' := [("b" --> STOP, Event "b", STOP)])
-    (L' := [STOP]).
-    + simpl. left. reflexivity.
+  unfold ltsR. split.
+  - repeat (
+        apply NoDup_cons ;
+        try (unfold not ; intros H ; inversion H ; inversion H0)
+    ) ; apply NoDup_nil.
+  - simpl. apply lts_inductive_rule.
     + intros. split.
-      * intros. inversion H. subst.
+      * intros. inversion H ; subst.
         { simpl. left. reflexivity. }
-        { subst. inversion H0. }
-      * intros. simpl in H. destruct H.
-        { inversion H. subst. apply prefix_rule. }
-        { inversion H. }
-    + simpl. reflexivity.
-    + eapply lts_empty_rule.
-      * simpl. reflexivity.
-      * simpl. left. reflexivity.
-      * unfold not. intros. destruct H. destruct H.
-        inversion H. subst. inversion H0.
-    + simpl. reflexivity.
-  - simpl.
-    destruct (transition_eq_dec ("b" --> STOP, Event "b", STOP)
-                                ("a" --> "b" --> STOP, Event "a", "b" --> STOP)).
-    + inversion e.
-    + reflexivity.
+        { inversion H0. }
+      * intros. inversion H ; subst.
+        { inversion H0. subst. apply prefix_rule. }
+        { inversion H0. }
+    + simpl. apply lts_inductive_rule.
+      * intros. split.
+        { intros. inversion H ; subst.
+          { simpl. left. reflexivity. }
+          { inversion H0. }
+        }
+        { intros. inversion H ; subst.
+          { inversion H0. subst. apply prefix_rule. }
+          { inversion H0. }
+        } 
+      * simpl. apply lts_inductive_rule.
+        { intros. split.
+          { intros. inversion H. subst. inversion H0. }
+          { intros. inversion H. }
+        }
+        { simpl. apply lts_empty_rule. }
 Qed.
 
+(* TODO: update the following proofs considering
+   the new formulation of ltsR. *)
+
+(**
 Definition TOY_PROBLEM' := Spec
   [Channel {{"a", "b", "c"}}]
   ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)].
@@ -283,5 +183,6 @@ Proof.
       * inversion e.
       * reflexivity.
 Qed.
+**)
 
 Local Close Scope string.
