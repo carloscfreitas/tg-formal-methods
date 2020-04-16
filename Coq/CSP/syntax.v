@@ -6,14 +6,32 @@ Import ListNotations.
 (** TYPE DEFINITIONS **)
 
 Notation event := string.
+Definition event_dec := string_dec.
 
 Inductive event_tau_tick :=
   | Event (e : event)
   | Tau
   | Tick.
 
+Theorem event_tau_tick_eq_dec :
+  forall (e1 e2 : event_tau_tick),
+    {e1 = e2} + {e1 <> e2}.
+Proof.
+  intros. destruct e1, e2 ; try (left ; reflexivity) ;
+  try (right ; unfold not ; intros H ; now inversion H).
+  decide equality. apply event_dec.
+Defined.
+
 Inductive alphabet : Type :=
   | Alphabet (events : set event).
+  
+Theorem alphabet_eq_dec :
+  forall (a1 a2 : alphabet),
+    {a1 = a2} + {a1 <> a2}.
+Proof.
+  intros. destruct a1, a2.
+  repeat (decide equality ; try apply event_dec).
+Defined.
 
 Inductive channel : Type :=
   | Channel (events : set event).
@@ -29,6 +47,16 @@ Inductive proc_body : Type :=
   | ProcGenParallel (proc1 proc2 : proc_body) (alph : alphabet)
   | ProcInterleave (proc1 proc2 : proc_body)
   | ProcSeqComp (proc1 proc2 : proc_body).
+
+Theorem proc_body_eq_dec :
+  forall (p1 p2 : proc_body),
+    {p1 = p2} + {p1 <> p2}.
+Proof.
+  intros. destruct p1, p2 ;
+    try (right ; unfold not ; intros H ; now inversion H) ;
+    try (left ; reflexivity) ;
+    decide equality ; try apply event_dec ; try apply alphabet_eq_dec.
+Defined.
 
 Inductive proc_def : Type :=
   | Proc (name : string) (body : proc_body).
@@ -52,7 +80,7 @@ Definition get_proc_body (context : specification) (proc_name : string) : proc_b
 
 (** NOTATIONS/COERCIONS **) 
 
-Definition event_dec := string_dec.
+
 
 (* Notations for declaring sets of events. *)
 Notation "{{ }}" := (empty_set event) (format "{{ }}").
