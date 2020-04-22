@@ -64,7 +64,7 @@ Definition ltsR (C : specification) (T : set transition) (name : string) : Prop 
 Local Open Scope string.
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
 
-Example lts1' :
+Example lts1 :
   ltsR
     (* context *)
     TOY_PROBLEM (* context *)
@@ -105,84 +105,554 @@ Proof.
         { simpl. apply lts_empty_rule. }
 Qed.
 
-(* TODO: update the following proofs considering
-   the new formulation of ltsR. *)
-
-(**
 Definition TOY_PROBLEM' := Spec
   [Channel {{"a", "b", "c"}}]
   ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)].
 
-Example lts2' :
-  ltsR'
+Example lts2 :
+  ltsR
     (* context *)
-    TOY_PROBLEM (* context *)
+    TOY_PROBLEM' (* context *)
     (* LTS *)
     [ (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "a", "b" --> STOP);
       (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "c", STOP);
       ("b" --> STOP, Event "b", STOP) ]
     (* INITIAL STATE *)
-    [("a" --> "b" --> STOP) [] ("c" --> STOP)].
+    "P".
 Proof.
-  eapply lts_inductive_rule with
-    (T' :=
-      [(("a" --> "b" --> STOP) [] ("c" --> STOP), Event "a", "b" --> STOP);
-       (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "c", STOP)]).
-  - simpl. left. reflexivity.
-  - intros. split.
-    + intros. inversion H. subst.
-      * inversion H0.
-      * subst. inversion H6. subst.
-        { simpl. left. reflexivity. }
-        { subst. inversion H0. }
-      * subst. inversion H6. subst.
+  unfold ltsR. split.
+  - apply NoDup_cons.
+    + unfold not. intros. inversion H. inversion H0.
+      inversion H0. inversion H1. inversion H1.
+    + apply NoDup_cons.
+      * unfold not. simpl. intros. destruct H.
+        inversion H. inversion H.
+      * apply NoDup_cons.
+        { unfold not. intros. inversion H. }
+        { apply NoDup_nil. }
+  - apply lts_inductive_rule.
+    + intros. split.
+      * intros. simpl in H. inversion H ; subst.
+        inversion H0 ; subst. inversion H6 ; subst.
         { simpl. right. left. reflexivity. }
-        { subst. inversion H0. }
-      * subst. inversion H5. subst. inversion H0.
-      * subst. inversion H5. subst. inversion H0.
-    + intros. simpl in H. destruct H.
-      * inversion H. apply ext_choice_left_rule.
-        { unfold not. intros. subst. inversion H0. }
-        { apply prefix_rule. }
-      * destruct H.
-        { inversion H. apply ext_choice_right_rule.
-          { unfold not. intros. subst. inversion H0. }
+        { contradiction. }
+        inversion H6 ; subst.
+        { simpl. left. reflexivity. }
+        { contradiction. }
+        inversion H5 ; subst. inversion H0.
+        inversion H5 ; subst. inversion H0.
+      * intros. simpl. simpl in H. inversion H.
+        { inversion H0 ; subst. apply ext_choice_right_rule.
+          { unfold not. intros. inversion H1. }
           { apply prefix_rule. }
         }
-        { inversion H. }
-  - reflexivity.
-  - simpl. destruct (proc_body_eq_dec ("b" --> STOP) (STOP)) eqn:H.
-    + inversion e.
-    + eapply lts_inductive_rule with
-        (T' := [(("b" --> STOP), Event "b", STOP)]).
-      * simpl. right. left. reflexivity.
-      * intros. split.
-        { intros. inversion H0. subst.
-          { simpl. left. reflexivity. }
-          { subst. inversion H1. }
+        { inversion H0 ; subst. inversion H1 ; subst.
+          { apply ext_choice_left_rule.
+            { unfold not. intros. inversion H2. }
+            { apply prefix_rule. }
+          }
+          { contradiction. }
         }
-        { intros. simpl in H0. destruct H0.
-          { inversion H0. apply prefix_rule. }
+    + simpl. apply lts_inductive_rule.
+      * intros. split.
+        { intros. inversion H ; subst.
+          { simpl. left. reflexivity. }
           { inversion H0. }
         }
-      * simpl. reflexivity.
-      * eapply lts_empty_rule.
-        { simpl. reflexivity. }
-        { simpl. left. reflexivity. }
-        { unfold not. intros. destruct H0. destruct H0.
-          inversion H0. subst. inversion H1. }
-      * simpl. reflexivity.
-  - simpl.
-    destruct (transition_eq_dec
-      ("b" --> STOP, Event "b", STOP)
-      ("a" --> "b" --> STOP [] "c" --> STOP, Event "a", "b" --> STOP)).
-    + inversion e.
-    + destruct (transition_eq_dec
-        ("b" --> STOP, Event "b", STOP)
-        ("a" --> "b" --> STOP [] "c" --> STOP, Event "c", STOP)).
-      * inversion e.
-      * reflexivity.
+        { intros. simpl in H. inversion H.
+          { inversion H0 ; subst. apply prefix_rule. }
+          { contradiction. }
+        }
+      * simpl. apply lts_inductive_rule.
+        { intros. split.
+          { intros. inversion H ; subst. inversion H0. }
+          { intros. inversion H. }
+        }
+        { simpl. apply lts_empty_rule. }
 Qed.
-**)
+
+Definition P := "P" ::= "P".
+Definition UNDERDEFINED_RECURSION := Spec [Channel {{}}] [P].
+
+Example lts3 : ltsR UNDERDEFINED_RECURSION [(ProcRef "P", Tau, ProcRef "P")] "P".
+Proof.
+  unfold ltsR. split.
+  - repeat (
+      apply NoDup_cons ;
+      try (unfold not ; intros H ; inversion H ; inversion H0)
+    ) ; apply NoDup_nil.
+  - simpl. apply lts_inductive_rule.
+    + intros. split.
+      * intros. inversion H ; subst.
+        inversion H0 ; subst. simpl in H.
+        simpl. left. reflexivity.
+      * intros. inversion H.
+        { inversion H0 ; subst. apply reference_rule with (name := "P").
+          { reflexivity. }
+          { reflexivity. }
+        }
+        { inversion H0. }
+    + simpl. apply lts_empty_rule.
+Qed.
+
+Definition S_LIGHT := Spec [Channel {{"on", "off"}}] ["LIGHT" ::= "on" --> "off" --> "LIGHT"].
+Example lts4 :
+  ltsR
+    S_LIGHT
+    [
+      ("on" --> "off" --> "LIGHT", Event "on", "off" --> "LIGHT") ; 
+      ("off" --> "LIGHT", Event "off", ProcRef "LIGHT") ;
+      (ProcRef "LIGHT", Tau, "on" --> "off" --> "LIGHT")
+    ]
+    "LIGHT".
+Proof.
+  unfold ltsR. split.
+  - repeat (
+      apply NoDup_cons ;
+      try (unfold not ; intros H ; inversion H ; inversion H0)
+    ). inversion H1. inversion H1. apply NoDup_nil.
+  - apply lts_inductive_rule.
+    * split.
+      + simpl. intros. inversion H ; subst.
+        { left. reflexivity. }
+        { inversion H0. }
+      + simpl. intros. inversion H ; subst. inversion H0 ; subst.
+        { apply prefix_rule. }
+        { inversion H0. }
+    * simpl. apply lts_inductive_rule.
+      + split.
+        {
+          intros. simpl. inversion H ; subst.
+          { left. reflexivity. }
+          { inversion H0. }
+        }
+        {
+          simpl. intros. inversion H ; subst. inversion H0 ; subst.
+          { apply prefix_rule. }
+          { inversion H0. }
+        }
+      + simpl. apply lts_inductive_rule.
+        {
+          split.
+          {
+            simpl. intros. inversion H ; subst. inversion H0 ; subst.
+            left. reflexivity.
+          }
+          {
+            simpl. intros. inversion H. inversion H0 ; subst.
+            {
+              apply reference_rule with (name := "LIGHT").
+              { reflexivity. }
+              { reflexivity. }
+            }
+            { inversion H0. }
+          }
+        }
+        { simpl. apply lts_empty_rule. }
+Qed.
+
+  (* Example 2.4 - Schneider, p. 32 (50) *)
+Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> "TICKET".
+Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> "CHANGE".
+Definition MACHINE :=
+  "MACHINE" ::= "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE".
+Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
+
+Example lts5 :
+  ltsR
+    PARKING_PERMIT_MCH
+    [
+      (* Tau transitions (process unfolding) *)
+      ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+      Tau,
+      "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+
+          ("cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+          Tau,
+          "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+
+      ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+      Tau,
+      "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+
+          ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
+          Tau,
+          "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+
+      (* Synchronised event *)
+      ("cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
+      Event "cash",
+      "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE") ;
+
+      (* Advancing left side of the expression first... *)
+      ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+      Event "ticket",
+      "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE") ;
+
+          (* ...then the right side. *)
+          ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+          Event "change",
+          "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+
+          (* Process unfolding (left side) *)
+          ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+          Tau,
+          "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE") ;
+
+              ("cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+              Event "change",
+              "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+
+      (* Advancing right side of the expression first *)
+      ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+      Event "change",
+      "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+
+          (* ...then the left side. *)
+          ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+          Event "ticket",
+          "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+
+          (* Process unfolding (right side) *)
+          ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+          Tau,
+          "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+
+              ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
+              Event "ticket",
+              "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE")
+    ]
+    "MACHINE".
+Proof.
+  unfold ltsR. split.
+  (* TODO Find a way to automate this proof using Ltac. *)
+  - repeat (apply NoDup_cons ; unfold not ; intros).
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5. inversion H6.
+    inversion H6. inversion H7.
+    inversion H7. inversion H8.
+    inversion H8. inversion H9.
+    inversion H9. inversion H10.
+    inversion H10. inversion H11.
+    inversion H11.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5. inversion H6.
+    inversion H6. inversion H7.
+    inversion H7. inversion H8.
+    inversion H8. inversion H9.
+    inversion H9. inversion H10.
+    inversion H10.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5. inversion H6.
+    inversion H6. inversion H7.
+    inversion H7. inversion H8.
+    inversion H8. inversion H9.
+    inversion H9. 
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5. inversion H6.
+    inversion H6. inversion H7.
+    inversion H7. inversion H8.
+    inversion H8.
+    
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5. inversion H6.
+    inversion H6. inversion H7.
+    inversion H7.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5. inversion H6.
+    inversion H6.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4. inversion H5.
+    inversion H5.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3. inversion H4.
+    inversion H4.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2. inversion H3.
+    inversion H3.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1. inversion H2.
+    inversion H2.
+
+    inversion H. inversion H0.
+    inversion H0. inversion H1.
+    inversion H1.
+
+    inversion H. inversion H0.
+    inversion H0.
+
+    inversion H.
+
+    apply NoDup_nil.
+  - apply lts_inductive_rule.
+    * intros. split.
+      + intros. simpl in H. inversion H ; subst.
+        { inversion H0. }
+        { inversion H7 ; subst. inversion H8.
+          { inversion H0. }
+        }
+        { inversion H7 ; subst. inversion H8.
+          { inversion H0. }
+        }
+        { inversion H7 ; subst. inversion H0 ; subst. simpl in H. simpl in H7.
+          { simpl. right. left. reflexivity. }
+        }
+        { inversion H7 ; subst. inversion H0 ; subst. simpl in H. simpl in H7.
+          { simpl. left. reflexivity. }
+        }
+        { inversion H7 ; subst. inversion H9. inversion H0. }
+        { inversion H8. }
+      + simpl. intros.
+        { inversion H.
+          { inversion H0. apply alpha_parall_tau_indep_right_rule.
+            apply reference_rule with (name := "CHANGE").
+            { reflexivity. }
+            { reflexivity. }
+          }
+          { inversion H0. inversion H1.
+            { apply alpha_parall_tau_indep_left_rule.
+              apply reference_rule with (name := "TICKET").
+              { reflexivity. }
+              { reflexivity. }
+            }
+            { contradiction. }
+          }
+        }
+    * simpl. apply lts_inductive_rule.
+      + split.
+        { intros. inversion H ; subst. inversion H0. inversion H7 ; subst.
+          inversion H8. inversion H0. inversion H7 ; subst. inversion H8.
+          inversion H0. inversion H7 ; subst. inversion H0.
+          inversion H7 ; subst. inversion H0 ; subst.
+          { simpl. left. reflexivity. }
+          inversion H7 ; subst. inversion H9. inversion H0.
+          inversion H8.
+        }
+        { simpl. intros. inversion H. inversion H0 ; subst.
+          { apply alpha_parall_tau_indep_right_rule.
+            apply reference_rule with (name := "CHANGE").
+            { reflexivity. }
+            { reflexivity. }
+          }
+          inversion H0.
+        }
+      + simpl. apply lts_inductive_rule.
+        { split.
+          { intros. inversion H ; subst. inversion H0. inversion H7 ; subst.
+            inversion H8. inversion H0. inversion H7 ; subst. inversion H8.
+            inversion H0. inversion H7 ; subst. inversion H0.
+            inversion H7 ; subst. inversion H0 ; subst. inversion H7 ; subst.
+            inversion H9 ; subst. inversion H8 ; subst.
+            { simpl. left. reflexivity. }
+            inversion H0. inversion H7.
+          }
+          { simpl. intros. inversion H. inversion H0.
+            { apply alpha_parall_joint_rule.
+              { simpl. left. reflexivity. }
+              { apply prefix_rule. }
+              { apply prefix_rule. }
+            }
+            { inversion H0. }
+          }
+        }
+        {
+          simpl. apply lts_inductive_rule.
+          { split.
+            { intros. inversion H ; subst. inversion H0.
+              inversion H7 ; subst. inversion H8 ; subst.
+              { simpl. left. reflexivity. }
+              inversion H0. inversion H7 ; subst. inversion H8 ; subst.
+              { simpl. right. left. reflexivity. }
+              inversion H0. inversion H7 ; subst. inversion H0.
+              inversion H7 ; subst. inversion H0. inversion H7 ; subst.
+              inversion H9. inversion H0. inversion H7 ; subst.
+            }
+            simpl. intros.
+            { inversion H.
+              { inversion H0. apply alpha_parall_indep_left_rule.
+                { simpl. left. reflexivity. }
+                { apply prefix_rule. }
+              }
+              { inversion H0.
+                { inversion H1. apply alpha_parall_indep_right_rule.
+                  { simpl. left. reflexivity. }
+                  { apply prefix_rule. }
+                }
+                { inversion H1. }
+              }
+            }
+          }
+          { simpl. apply lts_inductive_rule.
+            { split.
+              { intros. simpl. inversion H ; subst.
+                { inversion H0. }
+                { inversion H7 ; subst.
+                  { inversion H8 ; subst. right. left. reflexivity. }
+                  { inversion H0. }
+                }
+                { inversion H7 ; subst.
+                  { inversion H8 ; subst. }
+                  { inversion H0. }
+                }
+                { inversion H7 ; subst. inversion H0. }
+                { inversion H7 ; subst. inversion H0 ; subst.
+                  { left. reflexivity. }
+                }
+                { inversion H7 ; subst. inversion H9. inversion H0. }
+                { inversion H7. }
+              }
+              {
+                intros. inversion H. inversion H0 ; subst.
+                { apply alpha_parall_tau_indep_right_rule.
+                  apply reference_rule with (name := "CHANGE").
+                  { reflexivity. }
+                  { reflexivity. }
+                }
+                inversion H0. inversion H1 ; subst.
+                { apply alpha_parall_indep_left_rule.
+                  { simpl. left. reflexivity. }
+                  { apply prefix_rule. }
+                }
+                { inversion H1. }
+              }
+            }
+            { simpl. apply lts_inductive_rule.
+              { intros. split.
+                { intros. simpl. inversion H ; subst. inversion H0.
+                  inversion H7 ; subst. inversion H8 ; subst.
+                  { left. reflexivity. }
+                  { inversion H0. }
+                  { inversion H7 ; subst. inversion H8. inversion H0. }
+                  { inversion H7 ; subst. inversion H0. }
+                  { inversion H7 ; subst. inversion H0. }
+                  { inversion H7 ; subst. inversion H8. inversion H0. }
+                  { inversion H7. }
+                }
+                {
+                  simpl. intros. inversion H. inversion H0 ; subst.
+                  { apply alpha_parall_indep_left_rule.
+                    { simpl. left. reflexivity. }
+                    { apply prefix_rule. }
+                  }
+                  { contradiction. }
+                }
+              }
+              {
+                simpl. apply lts_inductive_rule.
+                { intros. split.
+                  { intros. simpl. inversion H ; subst. inversion H0.
+                    inversion H7 ; subst. inversion H8 ; subst. inversion H0.
+                    inversion H7 ; subst. inversion H8 ; subst.
+                    { right. left. reflexivity. }
+                    { inversion H0. }
+                    { inversion H7 ; subst. inversion H0 ; subst. simpl. left. reflexivity. }
+                    { inversion H7 ; subst. inversion H0. }
+                    inversion H7 ; subst. inversion H9. inversion H7 ; subst.
+                    inversion H0. inversion H0.
+                    { inversion H7. }
+                  }
+                  {
+                    simpl. intros. inversion H. inversion H0 ; subst.
+                    { apply alpha_parall_tau_indep_left_rule.
+                      apply reference_rule with (name := "TICKET").
+                      { reflexivity. }
+                      { reflexivity. }
+                    }
+                    inversion H0. inversion H1 ; subst.
+                    { apply alpha_parall_indep_right_rule.
+                      { simpl. left. reflexivity. }
+                      { apply prefix_rule. }
+                    }
+                    { contradiction. }
+                  }
+                }
+                { simpl. apply lts_inductive_rule.
+                  { simpl. intros. split.
+                    { intros. inversion H ; subst. inversion H0. inversion H7 ; subst.
+                      inversion H8. inversion H0. inversion H7 ; subst. inversion H8 ; subst.
+                      { left. reflexivity. }
+                      inversion H0. inversion H7 ; subst. inversion H0. inversion H7 ; subst.
+                      inversion H0. inversion H7 ; subst. inversion H9. inversion H0.
+                      inversion H8.
+                    }
+                    { intros. inversion H. inversion H0 ; subst.
+                      { apply alpha_parall_indep_right_rule.
+                        { simpl. left. reflexivity. }
+                        { apply prefix_rule. }
+                      }
+                      inversion H0.
+                    }
+                  }
+                  { simpl. apply lts_inductive_rule.
+                    { simpl. split.
+                      { intros. inversion H ; subst. inversion H0. inversion H7 ; subst.
+                        inversion H8. inversion H0. inversion H7 ; subst. inversion H8.
+                        inversion H0. inversion H7 ; subst. inversion H0 ; subst.
+                        { simpl. left. reflexivity. }
+                        { inversion H7 ; subst. inversion H0. }
+                        inversion H7 ; subst. inversion H8 ; subst. inversion H0.
+                        inversion H7.
+                      }
+                      { intros. inversion H. inversion H0.
+                        apply alpha_parall_tau_indep_left_rule. eapply reference_rule.
+                        reflexivity. reflexivity. inversion H0.
+                      }
+                    }
+                    simpl. apply lts_empty_rule.
+                  }
+                }
+              }
+            } 
+          }
+        }
+Qed.
 
 Local Close Scope string.
