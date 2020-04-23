@@ -59,7 +59,10 @@ Inductive ltsR' :
       ltsR' C T (P :: tl) visited.
 
 Definition ltsR (C : specification) (T : set transition) (name : string) : Prop :=
-  NoDup T /\ ltsR' C T [get_proc_body C name] nil.
+  match get_proc_body C name with
+  | Some body => NoDup T /\ ltsR' C T [body] nil
+  | None => False
+  end.
 
 Local Open Scope string.
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
@@ -185,7 +188,7 @@ Proof.
     + intros. split.
       * intros. inversion H ; subst.
         inversion H0 ; subst. simpl in H.
-        simpl. left. reflexivity.
+        simpl. left. inversion H1. reflexivity.
       * intros. inversion H.
         { inversion H0 ; subst. apply reference_rule with (name := "P").
           { reflexivity. }
@@ -236,7 +239,7 @@ Proof.
           split.
           {
             simpl. intros. inversion H ; subst. inversion H0 ; subst.
-            left. reflexivity.
+            left. inversion H1. reflexivity.
           }
           {
             simpl. intros. inversion H. inversion H0 ; subst.
@@ -251,11 +254,11 @@ Proof.
         { simpl. apply lts_empty_rule. }
 Qed.
 
-  (* Example 2.4 - Schneider, p. 32 (50) *)
+(* Example 2.4 - Schneider, p. 32 (50) *)
 Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> "TICKET".
 Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> "CHANGE".
 Definition MACHINE :=
-  "MACHINE" ::= "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE".
+  "MACHINE" ::= "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE".
 Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
 
 Example lts5 :
@@ -263,64 +266,64 @@ Example lts5 :
     PARKING_PERMIT_MCH
     [
       (* Tau transitions (process unfolding) *)
-      ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+      ("TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE",
       Tau,
-      "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+      "cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE") ;
 
-          ("cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+          ("cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE",
           Tau,
-          "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+          "cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
 
-      ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+      ("TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE",
       Tau,
-      "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+      "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
 
-          ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
+          ("TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
           Tau,
-          "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+          "cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
 
       (* Synchronised event *)
-      ("cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
+      ("cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
       Event "cash",
-      "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE") ;
+      "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE") ;
 
       (* Advancing left side of the expression first... *)
-      ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+      ("ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE",
       Event "ticket",
-      "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE") ;
+      "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE") ;
 
           (* ...then the right side. *)
-          ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+          ("TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE",
           Event "change",
-          "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+          "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE") ;
 
           (* Process unfolding (left side) *)
-          ("TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+          ("TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE",
           Tau,
-          "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE") ;
+          "cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE") ;
 
-              ("cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+              ("cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE",
               Event "change",
-              "cash" --> "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+              "cash" --> "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE") ;
 
       (* Advancing right side of the expression first *)
-      ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "change" --> "CHANGE",
+      ("ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "change" --> "CHANGE",
       Event "change",
-      "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+      "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE") ;
 
           (* ...then the left side. *)
-          ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+          ("ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE",
           Event "ticket",
-          "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE") ;
+          "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE") ;
 
           (* Process unfolding (right side) *)
-          ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "CHANGE",
+          ("ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "CHANGE",
           Tau,
-          "ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
+          "ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE") ;
 
-              ("ticket" --> "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
+              ("ticket" --> "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE",
               Event "ticket",
-              "TICKET" [[ Alphabet {{"cash", "ticket"}} \\ Alphabet {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE")
+              "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] "cash" --> "change" --> "CHANGE")
     ]
     "MACHINE".
 Proof.
@@ -443,10 +446,10 @@ Proof.
           { inversion H0. }
         }
         { inversion H7 ; subst. inversion H0 ; subst. simpl in H. simpl in H7.
-          { simpl. right. left. reflexivity. }
+          { simpl. right. left. inversion H1. reflexivity. }
         }
         { inversion H7 ; subst. inversion H0 ; subst. simpl in H. simpl in H7.
-          { simpl. left. reflexivity. }
+          { simpl. left. inversion H1. reflexivity. }
         }
         { inversion H7 ; subst. inversion H9. inversion H0. }
         { inversion H8. }
@@ -472,7 +475,7 @@ Proof.
           inversion H8. inversion H0. inversion H7 ; subst. inversion H8.
           inversion H0. inversion H7 ; subst. inversion H0.
           inversion H7 ; subst. inversion H0 ; subst.
-          { simpl. left. reflexivity. }
+          { simpl. left. inversion H1. reflexivity. }
           inversion H7 ; subst. inversion H9. inversion H0.
           inversion H8.
         }
@@ -544,7 +547,7 @@ Proof.
                 }
                 { inversion H7 ; subst. inversion H0. }
                 { inversion H7 ; subst. inversion H0 ; subst.
-                  { left. reflexivity. }
+                  { left. inversion H1. reflexivity. }
                 }
                 { inversion H7 ; subst. inversion H9. inversion H0. }
                 { inversion H7. }
@@ -593,7 +596,7 @@ Proof.
                     inversion H7 ; subst. inversion H8 ; subst.
                     { right. left. reflexivity. }
                     { inversion H0. }
-                    { inversion H7 ; subst. inversion H0 ; subst. simpl. left. reflexivity. }
+                    { inversion H7 ; subst. inversion H0 ; subst. simpl. left. inversion H1. reflexivity. }
                     { inversion H7 ; subst. inversion H0. }
                     inversion H7 ; subst. inversion H9. inversion H7 ; subst.
                     inversion H0. inversion H0.
@@ -636,7 +639,7 @@ Proof.
                       { intros. inversion H ; subst. inversion H0. inversion H7 ; subst.
                         inversion H8. inversion H0. inversion H7 ; subst. inversion H8.
                         inversion H0. inversion H7 ; subst. inversion H0 ; subst.
-                        { simpl. left. reflexivity. }
+                        { simpl. left. inversion H1. reflexivity. }
                         { inversion H7 ; subst. inversion H0. }
                         inversion H7 ; subst. inversion H8 ; subst. inversion H0.
                         inversion H7.
