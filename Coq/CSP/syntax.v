@@ -95,8 +95,10 @@ Definition alphabet_to_set (s : alphabet) : set event :=
 Coercion alphabet_to_set : alphabet >-> set.
 
 (* Process reference (coercion). *)
-Definition str_to_proc_body (s : string) : proc_body := ProcRef s.
-Coercion str_to_proc_body : string >-> proc_body.
+(* TODO I had to comment this coercion because I was unable to pattern match the ProcRef
+  constructor inside the tactic macro "solve_trace" (semantics_trace.v). *)
+(* Definition str_to_proc_body (s : string) : proc_body := ProcRef s.
+Coercion str_to_proc_body : string >-> proc_body. *)
 (* Process definition *)
 Notation "P ::= Q" := (Proc P Q) (at level 100).
 (* Prefix *)

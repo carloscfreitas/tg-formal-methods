@@ -52,7 +52,7 @@ Definition extendedTraceR (C : specification) (proc_name : string) (t : extended
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
-
+(* 
 Definition CH_PRINTER0 := Channel {{"accept", "print"}}.
 Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
 Definition S_PRINTER0 := Spec [CH_PRINTER0] [PRINTER0].
@@ -233,10 +233,12 @@ Proof.
           { apply sos_empty_rule. }
         }
 Qed.
+*)
 
-Definition LIGHT := "LIGHT" ::= "on" --> "off" --> "LIGHT".
+Definition LIGHT := "LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT".
 Definition S_LIGHT := Spec [Channel {{"on", "off"}}] [LIGHT].
 
+(* 
 Example LIGHT_trace1 : traceR S_LIGHT "LIGHT" ["on" ; "off" ; "on"].
 Proof.
   unfold traceR. simpl. eapply event_trace_rule.
@@ -459,5 +461,83 @@ Proof.
           }
         }
 Qed.
+*)
+
+Definition SPY := "SPY" ::= "listen" --> "relay" --> ProcRef "SPY".
+Definition MASTER := "MASTER" ::= "relay" --> "log" --> ProcRef "MASTER".
+Definition MASTER_SPY := "MASTER_SPY" ::= ProcRef "SPY" [| {{"relay"}} |] ProcRef "MASTER" \ {{"relay"}}.
+Definition S_MASTER_SPY := Spec [Channel {{"listen", "relay", "log"}}] [SPY ; MASTER ; MASTER_SPY].
+
+Example MASTER_SPY_trace1 : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "log"].
+Proof.
+  unfold traceR; simpl. eapply tau_trace_rule.
+  - eapply hiding_tau_tick_rule.
+    + left. reflexivity.
+    + eapply gener_parall_tau_indep_left_rule. eapply reference_rule; reflexivity.
+  - eapply tau_trace_rule.
+    + eapply hiding_tau_tick_rule.
+      * left. reflexivity.
+      * eapply gener_parall_tau_indep_right_rule. eapply reference_rule; reflexivity.
+    + eapply event_trace_rule.
+      * eapply hiding_not_hidden_rule.
+        { simpl. unfold not. intros. destruct H; inversion H. }
+        {
+          eapply gener_parall_indep_left_rule.
+          { simpl. unfold not. intros. destruct H; inversion H. }
+          { apply prefix_rule. }
+        }
+      * eapply tau_trace_rule.
+        {
+          eapply hiding_rule.
+          { simpl. left. reflexivity. }
+          {
+            eapply gener_parall_joint_rule; try apply prefix_rule.
+            { simpl; left; reflexivity. }
+          }
+        }
+        {
+          eapply event_trace_rule.
+          {
+            eapply hiding_not_hidden_rule.
+            { simpl. unfold not. intros. destruct H; inversion H. }
+            eapply gener_parall_indep_right_rule.
+            { simpl. unfold not. intros. destruct H; inversion H. }
+            { apply prefix_rule. }
+          }
+          { apply empty_trace_rule. }
+        }
+Qed.
+
+(* TODO Finish this tactic macro. (Would it be easier to solve for extendedTraceR instead of traceR?) *)
+Ltac solve_trace := unfold traceR; simpl;
+  repeat (
+    match goal with
+    | |- traceR' _ _ nil => apply empty_trace_rule
+    | |- traceR' _ ?P _ =>  match P with
+                            | _ --> _ => eapply event_trace_rule
+                            | ProcRef _ => eapply tau_trace_rule
+                            end
+    | |- (_ # ?e --> _ // Event ?e ==> _) => apply prefix_rule
+    | |- (_ # ProcRef _ // Tau ==> _) => eapply reference_rule ; reflexivity
+    end).
+
+Example LIGHT_trace2 : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
+Proof.
+  solve_trace.
+Qed.
+
+Theorem trace_eq :
+  forall (C : specification) (P : string) (exT : extendedTrace),
+    extendedTraceR C P exT <-> traceR C P (get_trace exT).
+Proof.
+  intros. split.
+  - intros. destruct C, proc_list; try inversion H.
+    * induction P, exT; destruct p, name; try apply empty_trace_rule.
+      + induction proc_list.
+        { inversion H. }
+        (* TODO It seems that, no matter what I do, I can't get rid of the
+          extra element in the process list inside the specification so that
+          I can apply the induction hypothesis. *)
+        Abort.
 
 Local Close Scope string.
