@@ -5,7 +5,7 @@ Import ListNotations.
 
 (** TYPE DEFINITIONS **)
 
-Notation event := string.
+Definition event := string.
 Definition event_dec := string_dec.
 
 Inductive event_tau_tick :=
@@ -46,7 +46,8 @@ Inductive proc_body : Type :=
   | ProcAlphaParallel (proc1 proc2 : proc_body) (alph1 alph2 : alphabet)
   | ProcGenParallel (proc1 proc2 : proc_body) (alph : alphabet)
   | ProcInterleave (proc1 proc2 : proc_body)
-  | ProcSeqComp (proc1 proc2 : proc_body).
+  | ProcSeqComp (proc1 proc2 : proc_body)
+  | ProcHiding (proc: proc_body) (alph : alphabet).
 
 Theorem proc_body_eq_dec :
   forall (p1 p2 : proc_body),
@@ -64,23 +65,21 @@ Inductive proc_def : Type :=
 Inductive specification : Type :=
   | Spec (ch_list : list channel) (proc_list : list proc_def).
 
-Fixpoint find_proc_body (proc_list : list proc_def) (proc_name : string) : proc_body :=
+Fixpoint find_proc_body (proc_list : list proc_def) (proc_name : string) : option proc_body :=
   match proc_list with
-  | [] => STOP
+  | [] => None
   | (Proc name body) :: tail => match eqb proc_name name with
-                                | true => body
+                                | true => Some body
                                 | false => find_proc_body tail proc_name
                                 end
   end.
 
-Definition get_proc_body (context : specification) (proc_name : string) : proc_body :=
+Definition get_proc_body (context : specification) (proc_name : string) : option proc_body :=
   match context with
   | Spec ch_list proc_list => find_proc_body proc_list proc_name
   end.
 
 (** NOTATIONS/COERCIONS **) 
-
-
 
 (* Notations for declaring sets of events. *)
 Notation "{{ }}" := (empty_set event) (format "{{ }}").
@@ -96,8 +95,10 @@ Definition alphabet_to_set (s : alphabet) : set event :=
 Coercion alphabet_to_set : alphabet >-> set.
 
 (* Process reference (coercion). *)
-Definition str_to_proc_body (s : string) : proc_body := ProcRef s.
-Coercion str_to_proc_body : string >-> proc_body.
+(* TODO I had to comment this coercion because I was unable to pattern match the ProcRef
+  constructor inside the tactic macro "solve_trace" (semantics_trace.v). *)
+(* Definition str_to_proc_body (s : string) : proc_body := ProcRef s.
+Coercion str_to_proc_body : string >-> proc_body. *)
 (* Process definition *)
 Notation "P ::= Q" := (Proc P Q) (at level 100).
 (* Prefix *)
@@ -107,36 +108,12 @@ Notation "P [] Q" := (ProcExtChoice P Q) (at level 90, left associativity).
 (* Internal Choice *)
 Notation "P |~| Q" := (ProcIntChoice P Q) (at level 90, left associativity).
 (* Alphabetised Parallel *)
-Notation "P [[ A \\ B ]] Q" := (ProcAlphaParallel P Q A B) (at level 90, no associativity).
+Notation "P [[ A \\ B ]] Q" := (ProcAlphaParallel P Q (Alphabet A) (Alphabet B)) (at level 90, no associativity).
 (* Generalised (or Interface) Parallel *)
-Notation "P [| A |] Q" := (ProcGenParallel P Q A) (at level 90, no associativity).
+Notation "P [| A |] Q" := (ProcGenParallel P Q (Alphabet A)) (at level 90, no associativity).
 (* Interleaving *)
 Notation "P ||| Q" := (ProcInterleave P Q) (at level 90, left associativity).
 (* Sequencial Composition *)
 Notation "P ;; Q" := (ProcSeqComp P Q) (at level 90, left associativity).
-
-Local Open Scope string.
-
-(* Example 3.20 (book) using notations. *)
-Definition SPurchase := 
-  (
-    Spec
-    [
-      Channel {{"select", "keep", "return"}}
-      ; Channel {{"cash", "cheque", "card"}}
-      ; Channel {{"swipe", "sign"}}
-      ; Channel {{"receipt", "reject"}}
-    ]
-
-    [
-      "CHOOSE" ::= "select" --> ("keep" --> SKIP 
-                                [] "return" --> "CHOOSE")
-      ; "PAY" ::= "cash" --> "receipt" --> SKIP
-                  [] "cheque" --> "receipt" --> SKIP
-                  [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
-                                            [] "reject" --> "PAY")
-      ; "PURCHASE" ::= "CHOOSE" ;; "PAY"
-    ]
-  ).
-  
-Local Close Scope string.
+(* Hiding *)
+Notation "P \ A" := (ProcHiding P (Alphabet A)) (at level 96, left associativity).

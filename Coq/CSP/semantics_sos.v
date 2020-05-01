@@ -17,7 +17,7 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
   | reference_rule (C : specification) (P : proc_body) (name : string) :
       forall (Q : proc_body),
         eq P (ProcRef name) ->
-        eq (get_proc_body C name) Q ->
+        eq (get_proc_body C name) (Some Q) ->
         C # P // Tau ==> Q
   (* External Choice *)
   | ext_choice_left_rule (C : specification) (P Q : proc_body) :
@@ -44,61 +44,61 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
   | int_choice_right_rule (C : specification) (P Q : proc_body) :
       C # P |~| Q // Tau ==> Q
   (* Alphabetised Parallel *)
-  | alpha_parall_indep_left_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+  | alpha_parall_indep_left_rule (C : specification) (P Q : proc_body) (A B : set event) :
       forall (P' : proc_body) (a : event),
         set_In a (set_diff event_dec A B) ->
         (C # P // Event a ==> P') ->
         C # P [[ A \\ B ]] Q // Event a ==> P' [[ A \\ B ]] Q
-  | alpha_parall_indep_right_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+  | alpha_parall_indep_right_rule (C : specification) (P Q : proc_body) (A B : set event) :
       forall (Q' : proc_body) (a : event),
         set_In a (set_diff event_dec B A) ->
         (C # Q // Event a ==> Q') ->
         C # P [[ A \\ B ]] Q // Event a ==> P [[ A \\ B ]] Q'
-  | alpha_parall_tau_indep_left_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+  | alpha_parall_tau_indep_left_rule (C : specification) (P Q : proc_body) (A B : set event) :
       forall (P' : proc_body),
         (C # P // Tau ==> P') ->
         C # P [[ A \\ B ]] Q // Tau ==> P' [[ A \\ B ]] Q
-  | alpha_parall_tau_indep_right_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+  | alpha_parall_tau_indep_right_rule (C : specification) (P Q : proc_body) (A B : set event) :
       forall (Q' : proc_body),
         (C # Q // Tau ==> Q') ->
         C # P [[ A \\ B ]] Q // Tau ==> P [[ A \\ B ]] Q'
-  | alpha_parall_joint_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+  | alpha_parall_joint_rule (C : specification) (P Q : proc_body) (A B : set event) :
       forall (P' Q' : proc_body) (a : event),
         set_In a (set_inter event_dec A B) ->
         (C # P // Event a ==> P') ->
         (C # Q // Event a ==> Q') ->
         C # P [[ A \\ B ]] Q // Event a ==> P' [[ A \\ B ]] Q'
-  | alpha_parall_tick_joint_rule (C : specification) (P Q : proc_body) (A B : alphabet) :
+  | alpha_parall_tick_joint_rule (C : specification) (P Q : proc_body) (A B : set event) :
       forall (P' Q' : proc_body),
         (C # P // Tick ==> P') ->
         (C # Q // Tick ==> Q') ->
         C # P [[ A \\ B ]] Q // Tick ==> P' [[ A \\ B ]] Q'
   (* Generalised Parallel *)
-  | gener_parall_indep_left_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+  | gener_parall_indep_left_rule (C : specification) (P Q : proc_body) (A : set event) :
       forall (P' : proc_body) (a : event),
         ~ set_In a A ->
         (C # P // Event a ==> P') ->
         C # P [| A |] Q // Event a ==> P' [| A |] Q
-  | gener_parall_indep_right_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+  | gener_parall_indep_right_rule (C : specification) (P Q : proc_body) (A : set event) :
       forall (Q' : proc_body) (a : event),
         ~ set_In a A ->
         (C # Q // Event a ==> Q') ->
         C # P [| A |] Q // Event a ==> P [| A |] Q'
-  | gener_parall_tau_indep_left_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+  | gener_parall_tau_indep_left_rule (C : specification) (P Q : proc_body) (A : set event) :
       forall (P' : proc_body),
         (C # P // Tau ==> P') ->
         C # P [| A |] Q // Tau ==> P' [| A |] Q
-  | gener_parall_tau_indep_right_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+  | gener_parall_tau_indep_right_rule (C : specification) (P Q : proc_body) (A : set event) :
       forall (Q' : proc_body),
         (C # Q // Tau ==> Q') ->
         C # P [| A |] Q // Tau ==> P [| A |] Q'
-  | gener_parall_joint_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+  | gener_parall_joint_rule (C : specification) (P Q : proc_body) (A : set event) :
       forall (P' Q' : proc_body) (a : event),
         set_In a A ->
         (C # P // Event a ==> P') ->
         (C # Q // Event a ==> Q') ->
         C # P [| A |] Q // Event a ==> P' [| A |] Q'
-  | gener_parall_tick_joint_rule (C : specification) (P Q : proc_body) (A : alphabet) :
+  | gener_parall_tick_joint_rule (C : specification) (P Q : proc_body) (A : set event) :
       forall (P' Q' : proc_body),
         (C # P // Tick ==> P') ->
         (C # Q // Tick ==> Q') ->
@@ -132,6 +132,22 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
       forall (P' : proc_body),
         (C # P // Tick ==> P') ->
         C # P ;; Q // Tau ==> Q
+  (* Hiding *)
+  | hiding_rule (C : specification) (P : proc_body) (A : set event) :
+      forall (P' : proc_body) (a : event),
+        set_In a A ->
+        (C # P // Event a ==> P') ->
+        C # P \ A // Tau ==> P' \ A
+  | hiding_not_hidden_rule (C : specification) (P : proc_body) (A : set event) :
+      forall (P' : proc_body) (a : event),
+        ~ set_In a A ->
+        (C # P // Event a ==> P') ->
+        C # P \ A // Event a ==> P' \ A
+  | hiding_tau_tick_rule (C : specification) (P : proc_body) (A : set event) :
+      forall (P' : proc_body) (a : event_tau_tick),
+        (eq a Tau \/ eq a Tick) ->
+        (C # P // a ==> P') ->
+        C # P \ A // a ==> P' \ A
   where "C '#' P '//' a '==>' Q" := (sosR C P a Q).
 
 Reserved Notation "C '#' P '///' t '==>' Q" (at level 150, left associativity).
