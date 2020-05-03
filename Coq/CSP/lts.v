@@ -173,7 +173,7 @@ Proof.
         }
         { simpl. apply lts_empty_rule. }
 Qed.
-
+(*
 Definition P := "P" ::= "P".
 Definition UNDERDEFINED_RECURSION := Spec [Channel {{}}] [P].
 
@@ -657,5 +657,5 @@ Proof.
           }
         }
 Qed.
-
+*)
 Local Close Scope string.
