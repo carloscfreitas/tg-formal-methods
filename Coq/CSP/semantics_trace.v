@@ -270,7 +270,7 @@ Example LIGHT_trace1' : extendedTraceR S_LIGHT "LIGHT" [Event "on" ; Event "off"
         { apply prefix_rule. }
         { apply sos_empty_rule. }
 Qed.
-
+*)
 Definition S_FORECOURT :=
   (
     Spec
@@ -279,16 +279,16 @@ Definition S_FORECOURT :=
       ; Channel {{"lift_nozzle_2", "replace_nozzle_2", "depress_trigger_2", "release_trigger_2"}}
     ]
     [
-      "PUMP1" ::= "lift_nozzle_1" --> "READY1"
-      ; "READY1" ::= "replace_nozzle_1" --> "PUMP1"
-                      [] "depress_trigger_1" --> "release_trigger_1" --> "READY1"
-      ; "PUMP2" ::= "lift_nozzle_2" --> "READY2"
-      ; "READY2" ::= "replace_nozzle_2" --> "PUMP2"
-                      [] "depress_trigger_2" --> "release_trigger_2" --> "READY2"
-      ; "FORECOURT" ::= "PUMP1" ||| "PUMP2"
+      "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
+      ; "READY1" ::= "replace_nozzle_1" --> ProcRef "PUMP1"
+                      [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1"
+      ; "PUMP2" ::= "lift_nozzle_2" --> ProcRef "READY2"
+      ; "READY2" ::= "replace_nozzle_2" --> ProcRef "PUMP2"
+                      [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2"
+      ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
     ]
   ).
-
+(*
 Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
     ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
 Proof.
@@ -532,8 +532,11 @@ Ltac solve_trace := unfold traceR; simpl;
       | _ |~| h --> ?Q => apply tau_trace_rule with (P' := h --> Q)
       | _ |~| _ => eapply tau_trace_rule
       (* Interleaving *)
-      | h --> ?Q ||| ?Q' => apply event_trace_rule with (P' := ?Q ||| ?Q')
-      | ?Q ||| h --> ?Q' => apply event_trace_rule with (P' := ?Q ||| ?Q')
+      | h --> ?Q ||| ?Q' => apply event_trace_rule with (P' := Q ||| Q')
+      | ?Q ||| h --> ?Q' => apply event_trace_rule with (P' := Q ||| Q')
+      | ProcRef _ ||| _ => eapply tau_trace_rule
+      | _ ||| ProcRef _ => eapply tau_trace_rule
+      | _ ||| _ => eapply event_trace_rule
       end
     (* SOS Prefix rule *)
     | |- (_ # (?e --> _) // Event ?e ==> _) => apply prefix_rule
@@ -548,6 +551,9 @@ Ltac solve_trace := unfold traceR; simpl;
     (* SOS Interleaving *)
     | |- (_ # ?e --> ?P ||| ?Q // Event ?e ==> ?P ||| ?Q) => eapply interleave_left_rule
     | |- (_ # ?P ||| ?e --> ?Q // Event ?e ==> ?P ||| ?Q) => eapply interleave_right_rule
+    | |- (_ # ProcRef _ ||| _ // Tau ==> _) => eapply interleave_left_rule
+    | |- (_ # _ ||| ProcRef _ // Tau ==> _) => eapply interleave_right_rule
+    | |- (_ # _ ||| _ // Event _ ==> _) => eapply interleave_left_rule + eapply interleave_right_rule
     (* Prove not equal *)
     | |- _ <> _ => unfold not; let H := fresh "H" in intros H; inversion H
     (* Prove equal *)
@@ -555,6 +561,11 @@ Ltac solve_trace := unfold traceR; simpl;
     (* None of the above *)
     | |- _ => fail
     end).
+
+Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
+  ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
+Proof.
+  solve_trace. Admitted.
 
 Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "keep"].
 Proof.
