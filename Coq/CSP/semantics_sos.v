@@ -148,9 +148,6 @@ Inductive sosR : specification -> proc_body -> event_tau_tick -> proc_body -> Pr
         (eq a Tau \/ eq a Tick) ->
         (C # P // a ==> P') ->
         C # P \ A // a ==> P' \ A
-  (* Successful Termination - Schneider, p. 11 (PDF: 29) *)
-  | success_termination_rule (C : specification) :
-      C # SKIP // Tick ==> STOP
   where "C '#' P '//' a '==>' Q" := (sosR C P a Q).
 
 Reserved Notation "C '#' P '///' t '==>' Q" (at level 150, left associativity).
