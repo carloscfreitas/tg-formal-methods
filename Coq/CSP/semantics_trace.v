@@ -125,6 +125,18 @@ Ltac solve_trace := unfold traceR; simpl; solve_trace'.
 
 Local Open Scope string.
 
+Example not_in0 : ~set_In "" {{"a"}}.
+Proof. solve_not_in. Qed.
+
+Example not_in1 : ~set_In "a" {{}}.
+Proof. solve_not_in. Qed.
+
+Example not_in2 : ~set_In "a" {{"aa"}}.
+Proof. solve_not_in. Qed.
+
+Example not_in3 : ~set_In "a" {{"b", "c", "d", "e"}}.
+Proof. solve_not_in. Qed.
+
 Definition CH_PRINTER0 := Channel {{"accept", "print"}}.
 Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
 Definition S_PRINTER0 := Spec [CH_PRINTER0] [PRINTER0].
