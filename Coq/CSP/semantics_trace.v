@@ -185,7 +185,7 @@ Proof.
       + apply prefix_rule.
       + apply sos_empty_rule.
 Qed.
-*)
+
 Definition CH_CHOOSE := Channel {{"select", "keep", "return"}}.
 Definition P_CHOOSE := "CHOOSE" ::= "select" --> ("keep" --> SKIP
                                                 [] "return" --> ProcRef "CHOOSE").
@@ -258,7 +258,7 @@ Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
 Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
-(*
+
 Example TEAM_trace1 : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof.
   unfold traceR. simpl.
@@ -370,7 +370,7 @@ Example LIGHT_trace1' : extendedTraceR S_LIGHT "LIGHT" [Event "on" ; Event "off"
         { apply prefix_rule. }
         { apply sos_empty_rule. }
 Qed.
-*)
+
 Definition S_FORECOURT :=
   (
     Spec
@@ -639,7 +639,7 @@ Definition S_PURCHASE := Spec
                                           [] "reject" --> ProcRef "PAY")
     ; "PURCHASE" ::= ProcRef "CHOOSE" ;; ProcRef "PAY"
   ].
-Example PURCHASE_trace : traceR S_PURCHASE "PURCHASE" ["select" ; "return" ; "select" ; "keep"
+Example PURCHASE_trace_auto : traceR S_PURCHASE "PURCHASE" ["select" ; "return" ; "select" ; "keep"
   ; "card" ; "swipe" ; "reject" ; "cash" ; "receipt"].
 Proof. solve_trace. Qed.
 
@@ -649,12 +649,12 @@ Definition MACHINE :=
   "MACHINE" ::= ProcRef "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] ProcRef "CHANGE".
 Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
 
-Example PARKING_trace : traceR PARKING_PERMIT_MCH "MACHINE" ["cash" ; "ticket" ; "change" ; "cash" ; "change" ; "ticket"].
+Example PARKING_trace_auto : traceR PARKING_PERMIT_MCH "MACHINE" ["cash" ; "ticket" ; "change" ; "cash" ; "change" ; "ticket"].
 Proof. solve_trace. Qed.
 
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] [("P" ::= "a" --> STOP) ; ("Q" ::= "a" --> "b" --> STOP)
   ; ("R" ::= ProcRef "P" [] ProcRef "Q")].
-Example TOY_PROBLEM_trace : traceR TOY_PROBLEM "R" ["a" ; "b"].
+Example TOY_PROBLEM_trace_auto : traceR TOY_PROBLEM "R" ["a" ; "b"].
 Proof. solve_trace. Qed.
 
 Theorem extended_to_trace :
