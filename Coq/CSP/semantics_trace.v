@@ -185,7 +185,7 @@ Proof.
       + apply prefix_rule.
       + apply sos_empty_rule.
 Qed.
-
+*)
 Definition CH_CHOOSE := Channel {{"select", "keep", "return"}}.
 Definition P_CHOOSE := "CHOOSE" ::= "select" --> ("keep" --> SKIP
                                                 [] "return" --> ProcRef "CHOOSE").
@@ -258,7 +258,7 @@ Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
 Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
-
+(*
 Example TEAM_trace1 : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof.
   unfold traceR. simpl.
@@ -370,7 +370,7 @@ Example LIGHT_trace1' : extendedTraceR S_LIGHT "LIGHT" [Event "on" ; Event "off"
         { apply prefix_rule. }
         { apply sos_empty_rule. }
 Qed.
-
+*)
 Definition S_FORECOURT :=
   (
     Spec
@@ -388,6 +388,7 @@ Definition S_FORECOURT :=
       ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
     ]
   ).
+
 Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
     ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
 Proof.
