@@ -509,143 +509,78 @@ Proof.
         }
 Qed.
 
-Ltac solve_not_in := unfold not; let H := fresh "H" in (intros H; repeat (contradiction + (destruct H; [> inversion H | ]))).
-
-Example not_in1 : ~set_In "a" {{}}.
-Proof. solve_not_in. Qed.
-
-Example not_in2 : ~set_In "a" {{"aa"}}.
-Proof. solve_not_in. Qed.
-
-Example not_in3 : ~set_In "a" {{"b", "c", "d", "e"}}.
-Proof. solve_not_in. Qed.
-
-(* TODO Finish this tactic macro. *)
-Ltac solve_trace' :=
-  multimatch goal with
-  (* Empty trace *)
-  | |- traceR' _ _ nil => apply empty_trace_rule
-  (* Non-empty trace *)
-  | |- traceR' _ _ _ =>
-    (eapply tau_trace_rule
-    + eapply tick_trace_rule
-    + eapply event_trace_rule); solve_trace'
-  (* SOS Prefix rule *)
-  | |- _ # _ --> _ // _ ==> _ => apply prefix_rule
-  (* SOS Reference rule *)
-  | |- _ # ProcRef _ // _ ==> _ => eapply reference_rule; solve_trace'
-  (* SOS External choice rule *)
-  | |- _ # _ [] _ // _ ==> _ =>
-    (eapply ext_choice_tau_left_rule
-    + eapply ext_choice_tau_right_rule
-    + eapply ext_choice_left_rule
-    + eapply ext_choice_right_rule); solve_trace'
-  (* SOS Internal choice *)
-  | |- _ # _ |~| _ // _ ==> _ =>
-    (eapply int_choice_left_rule
-    + eapply int_choice_right_rule); solve_trace'
-  (* SOS Alphabetised parallel *)
-  | |- _ # _ [[ _ \\ _ ]] _ // _ ==> _ =>
-    (eapply alpha_parall_tau_indep_left_rule
-    + eapply alpha_parall_tau_indep_right_rule
-    + eapply alpha_parall_tick_joint_rule
-    + eapply alpha_parall_joint_rule
-    + eapply alpha_parall_indep_left_rule
-    + eapply alpha_parall_indep_right_rule); solve_trace'
-  (* SOS Generalised parallel *)
-  | |- _ # _ [| _ |] _ // _ ==> _ =>
-    (eapply gener_parall_tau_indep_left_rule
-    + eapply gener_parall_tau_indep_right_rule
-    + eapply gener_parall_tick_joint_rule
-    + eapply gener_parall_joint_rule
-    + eapply gener_parall_indep_left_rule
-    + eapply gener_parall_indep_right_rule); solve_trace'
-  (* SOS Interleaving *)
-  | |- _ # _ ||| _ // _ ==> _ =>
-    (eapply interleave_tick_rule
-    + eapply interleave_left_rule
-    + eapply interleave_right_rule); solve_trace'
-  (* SOS Sequential composition *)
-  | |- _ # _ ;; _ // _ ==> _ =>
-    (eapply seq_comp_tick_rule
-    + eapply seq_comp_rule); solve_trace'
-  (* SOS Hiding *)
-  | |- _ # _ \ _ // _ ==> _ =>
-    (eapply hiding_tau_tick_rule
-    + eapply hiding_not_hidden_rule
-    + eapply hiding_rule); solve_trace'
-  (* Miscellaneous *)
-  (* Not equal *)
-  | |- _ <> _ => unfold not; let H := fresh "H" in (intros H; inversion H)
-  (* Equal *)
-  | |- _ = _ => reflexivity
-  (* In *)
-  | |- set_In _ _ => simpl; solve_trace'
-  (* Not in *)
-  | |- ~ set_In _ _ => solve_not_in
-  (* Disjunction *)
-  | |- _ \/ _ => (left + right); solve_trace'
-  end.
-
-Ltac solve_trace := unfold traceR; simpl; solve_trace'.
-
-Definition SPurchase := 
-  (
-    Spec
-    [
-      Channel {{"select", "keep", "return"}}
-      ; Channel {{"cash", "cheque", "card"}}
-      ; Channel {{"swipe", "sign"}}
-      ; Channel {{"receipt", "reject"}}
-    ]
-
-    [
-      "CHOOSE" ::= "select" --> ("keep" --> SKIP 
-                                [] "return" --> ProcRef "CHOOSE")
-      ; "PAY" ::= "cash" --> "receipt" --> SKIP
-                  [] "cheque" --> "receipt" --> SKIP
-                  [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
-                                            [] "reject" --> ProcRef "PAY")
-      ; "PURCHASE" ::= ProcRef "CHOOSE" ;; ProcRef "PAY"
-    ]
-  ).
-Example SPurchase_trace : traceR SPurchase "PURCHASE" ["select" ; "keep"].
-Proof. solve_trace. Qed.
-
-Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> ProcRef "TICKET".
-Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> ProcRef "CHANGE".
-Definition MACHINE :=
-  "MACHINE" ::= ProcRef "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] ProcRef "CHANGE".
-Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
-Example PARKING_trace : traceR PARKING_PERMIT_MCH "MACHINE" ["cash" ; "ticket" ; "change" ; "cash" ; "change" ; "ticket"].
-Proof. solve_trace. Qed.
-
-Example MASTER_SPY_trace1' : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "listen" ; "log" ; "listen" ; "log"].
-Proof. solve_trace. Qed.
-
-Example TEAM_trace1 : traceR S_TEAM "TEAM" ["lift_piano"; "lift_table"].
-Proof. solve_trace. Qed.
-
-Example LIGHT_trace2 : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
-Proof. solve_trace. Qed.
-
-Definition C := Spec [Channel {{"a", "b"}}]
-  [("P" ::= "a" --> STOP)
-  ; ("Q" ::= "a" --> "b" --> STOP)
-  ; ("R" ::= ProcRef "P" [] ProcRef "Q")].
-Example ex : traceR C "R" ["a" ; "b"].
-Proof. solve_trace. Qed.
-
-Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "return" ; "select" ; "keep"].
-Proof. solve_trace. Qed.
-
-Example TEAM_trace2 : traceR S_TEAM "PETE" ["lift_table" ; "lift_piano" ; "lift_piano" ; "lift_piano" ; "lift_table"].
-Proof. solve_trace. Qed.
+(* TODO Finish this tactic macro. (Would it be easier to solve for extendedTraceR instead of traceR?) *)
+Ltac solve_trace := unfold traceR; simpl;
+  repeat (
+    match goal with
+    (* Empty trace *)
+    | |- traceR' _ _ nil => apply empty_trace_rule
+    (* Non-empty trace *)
+    | |- traceR' _ ?P (?h :: _) =>
+      match P with
+      (* Prefix *)
+      | h --> _  => eapply event_trace_rule
+      (* Process unfolding *)
+      | ProcRef _ => eapply tau_trace_rule
+      (* External choice *)
+      | h --> _ [] _ => eapply event_trace_rule
+      | _ [] h --> _ => eapply event_trace_rule
+      | ProcRef _ [] _ => eapply tau_trace_rule
+      | _ [] ProcRef _ => eapply tau_trace_rule
+      (* Internal choice *)
+      | h --> ?Q |~| _ => apply tau_trace_rule with (P' := h --> Q)
+      | _ |~| h --> ?Q => apply tau_trace_rule with (P' := h --> Q)
+      | _ |~| _ => eapply tau_trace_rule
+      (* Interleaving *)
+      | h --> ?Q ||| ?Q' => apply event_trace_rule with (P' := Q ||| Q')
+      | ?Q ||| h --> ?Q' => apply event_trace_rule with (P' := Q ||| Q')
+      | ProcRef _ ||| _ => eapply tau_trace_rule
+      | _ ||| ProcRef _ => eapply tau_trace_rule
+      | _ ||| _ => eapply event_trace_rule
+      end
+    (* SOS Prefix rule *)
+    | |- (_ # (?e --> _) // Event ?e ==> _) => apply prefix_rule
+    (* SOS Reference rule *)
+    | |- (_ # (ProcRef _) // Tau ==> _) => eapply reference_rule
+    (* SOS External choice rule *)
+    | |- (_ # (?e --> _) [] _ // Event ?e ==> _) => eapply ext_choice_left_rule
+    | |- (_ # _ [] (?e --> _) // Event ?e ==> _) => eapply ext_choice_right_rule
+    (* SOS Internal choice *)
+    | |- (_ # ?P |~| ?Q // Tau ==> ?P) => eapply int_choice_left_rule
+    | |- (_ # ?P |~| ?Q // Tau ==> ?Q) => eapply int_choice_right_rule
+    (* SOS Interleaving *)
+    | |- (_ # ?e --> ?P ||| ?Q // Event ?e ==> ?P ||| ?Q) => eapply interleave_left_rule
+    | |- (_ # ?P ||| ?e --> ?Q // Event ?e ==> ?P ||| ?Q) => eapply interleave_right_rule
+    | |- (_ # ProcRef _ ||| _ // Tau ==> _) => eapply interleave_left_rule
+    | |- (_ # _ ||| ProcRef _ // Tau ==> _) => eapply interleave_right_rule
+    | |- (_ # _ ||| _ // Event _ ==> _) => eapply interleave_left_rule + eapply interleave_right_rule
+    (* Prove not equal *)
+    | |- _ <> _ => unfold not; let H := fresh "H" in intros H; inversion H
+    (* Prove equal *)
+    | |- _ = _ => reflexivity
+    (* None of the above *)
+    | |- _ => fail
+    end).
 
 Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
-  ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"
-  ; "release_trigger_1" ; "replace_nozzle_2" ; "replace_nozzle_1" ; "lift_nozzle_2"].
-Proof. solve_trace. Qed.
+  ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
+Proof.
+  solve_trace. Admitted.
+
+Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "keep"].
+Proof.
+  solve_trace.
+Qed.
+
+Example LIGHT_trace2 : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
+Proof.
+  solve_trace.
+Qed.
+
+Example TEAM_trace1 : traceR S_TEAM "PETE" ["lift_piano" ; "lift_table"].
+Proof.
+  solve_trace.
+Qed.
 
 Theorem extended_to_trace :
   forall (C : specification) (P : string) (exT : extendedTrace),
