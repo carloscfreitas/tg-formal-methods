@@ -4,3 +4,4 @@
 *.v#
 *.vok
 *.vos
+*Makefile*
