@@ -118,6 +118,18 @@ Fixpoint compute_ltsR''
         (* TODO Add patterns for process unfolding. *)
         | Q', Q'' => compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n
         end
+      | P' |~| P'' => set_add transition_eq_dec
+        (P, Tau, P')
+        (set_add transition_eq_dec
+          (P, Tau, P'')
+          (compute_ltsR'' S ((remove_visited [P' ; P''] visited) ++ list) (P :: visited) n))
+      | P' ;; P'' =>
+        match P' with
+        | SKIP => (set_add transition_eq_dec
+          (P, Tick, STOP ;; P'')
+          (set_add transition_eq_dec
+            (STOP ;; P'', Tau, P'')
+            (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
       | _ => empty_set transition
       end
     end
@@ -141,6 +153,20 @@ Definition compute_ltsR (S : specification) (name : string) (limit : nat) : opti
   end.
 
 Local Open Scope string.
+
+Definition CH_TEAM := Channel {{"lift_piano", "lift_table"}}.
+Definition PETE := "PETE" ::= "lift_piano" --> ProcRef "PETE"
+                              |~| "lift_table" --> ProcRef "PETE".
+
+Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
+                              |~| "lift_table" --> ProcRef "DAVE".
+
+Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
+
+Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
+
+Compute compute_ltsR S_TEAM "PETE" 100.
+
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
 
 Compute compute_ltsR TOY_PROBLEM "P" 100.
