@@ -64,8 +64,112 @@ Definition ltsR (C : specification) (T : set transition) (name : string) : Prop 
   | None => False
   end.
 
+Fixpoint is_proc_in_list (P : proc_body) (l : list proc_body) : bool :=
+  match l with
+  | nil => false
+  | head :: tail => if proc_body_eq_dec P head then true else is_proc_in_list P tail
+  end.
+
+Fixpoint remove_visited (targets : list proc_body) (visited : list proc_body) : list proc_body :=
+  match targets with
+  | nil => nil
+  | hd :: tl =>
+    if is_proc_in_list hd visited
+    then remove_visited tl visited
+    else hd :: remove_visited tl visited
+  end.
+
+(* TODO Finish *)
+Fixpoint compute_ltsR''
+  (S : specification)
+  (not_visited : list proc_body)
+  (visited : list proc_body)
+  (limit : nat)
+  : set transition :=
+  match limit with
+  | 0 => empty_set transition
+  | S n =>
+    match not_visited with
+    | nil => empty_set transition
+    | P :: list =>
+      match P with
+      | SKIP => empty_set transition
+      | STOP => empty_set transition
+      | ProcRef name =>
+        match get_proc_body S name with
+        | Some P' => set_add transition_eq_dec
+          (P, Tau, P')
+          (compute_ltsR'' S ((remove_visited [P'] visited) ++ list) (P :: visited) n)
+        | None => empty_set transition
+        end
+      | e --> P' => set_add transition_eq_dec
+        (P, Event e, P')
+        (compute_ltsR'' S ((remove_visited [P'] visited) ++ list) (P :: visited) n)
+      | P' [] P'' =>
+        match P', P'' with
+        | e --> Q', e' --> Q'' => set_add transition_eq_dec
+          (P, Event e, Q')
+          (set_add transition_eq_dec
+            (P, Event e', Q'')
+            (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
+        | e --> Q', Q'' | Q'', e --> Q' => set_add transition_eq_dec
+          (P, Event e, Q')
+          (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n)
+        (* TODO Add patterns for process unfolding. *)
+        | Q', Q'' => compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n
+        end
+      | P' |~| P'' => set_add transition_eq_dec
+        (P, Tau, P')
+        (set_add transition_eq_dec
+          (P, Tau, P'')
+          (compute_ltsR'' S ((remove_visited [P' ; P''] visited) ++ list) (P :: visited) n))
+      | P' ;; P'' =>
+        match P' with
+        | SKIP => (set_add transition_eq_dec
+          (P, Tick, STOP ;; P'')
+          (set_add transition_eq_dec
+            (STOP ;; P'', Tau, P'')
+            (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
+      | _ => empty_set transition
+      end
+    end
+  end.
+
+Fixpoint compute_ltsR'
+  (S : specification)
+  (not_visited : list proc_body)
+  (visited : list proc_body)
+  (limit : nat)
+  : option (set transition) :=
+  match (compute_ltsR'' S not_visited visited limit) with
+  | a :: A => Some (a :: A)
+  | empty_set => None
+  end.
+
+Definition compute_ltsR (S : specification) (name : string) (limit : nat) : option (set transition) :=
+  match get_proc_body S name with
+  | Some body => compute_ltsR' S [body] nil limit
+  | None => None
+  end.
+
 Local Open Scope string.
+
+Definition CH_TEAM := Channel {{"lift_piano", "lift_table"}}.
+Definition PETE := "PETE" ::= "lift_piano" --> ProcRef "PETE"
+                              |~| "lift_table" --> ProcRef "PETE".
+
+Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
+                              |~| "lift_table" --> ProcRef "DAVE".
+
+Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
+
+Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
+
+Compute compute_ltsR S_TEAM "PETE" 100.
+
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
+
+Compute compute_ltsR TOY_PROBLEM "P" 100.
 
 Example lts1 :
   ltsR
@@ -111,6 +215,8 @@ Qed.
 Definition TOY_PROBLEM' := Spec
   [Channel {{"a", "b", "c"}}]
   ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)].
+
+Compute compute_ltsR TOY_PROBLEM' "P" 100.
 
 Example lts2 :
   ltsR
@@ -173,9 +279,11 @@ Proof.
         }
         { simpl. apply lts_empty_rule. }
 Qed.
-(*
-Definition P := "P" ::= "P".
+
+Definition P := "P" ::= ProcRef "P".
 Definition UNDERDEFINED_RECURSION := Spec [Channel {{}}] [P].
+
+Compute compute_ltsR UNDERDEFINED_RECURSION "P" 100.
 
 Example lts3 : ltsR UNDERDEFINED_RECURSION [(ProcRef "P", Tau, ProcRef "P")] "P".
 Proof.
@@ -198,14 +306,17 @@ Proof.
     + simpl. apply lts_empty_rule.
 Qed.
 
-Definition S_LIGHT := Spec [Channel {{"on", "off"}}] ["LIGHT" ::= "on" --> "off" --> "LIGHT"].
+Definition S_LIGHT := Spec [Channel {{"on", "off"}}] ["LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT"].
+
+Compute compute_ltsR S_LIGHT "LIGHT" 100.
+
 Example lts4 :
   ltsR
     S_LIGHT
     [
-      ("on" --> "off" --> "LIGHT", Event "on", "off" --> "LIGHT") ; 
-      ("off" --> "LIGHT", Event "off", ProcRef "LIGHT") ;
-      (ProcRef "LIGHT", Tau, "on" --> "off" --> "LIGHT")
+      ("on" --> "off" --> ProcRef "LIGHT", Event "on", "off" --> ProcRef "LIGHT") ; 
+      ("off" --> ProcRef "LIGHT", Event "off", ProcRef "LIGHT") ;
+      (ProcRef "LIGHT", Tau, "on" --> "off" --> ProcRef "LIGHT")
     ]
     "LIGHT".
 Proof.
@@ -253,7 +364,7 @@ Proof.
         }
         { simpl. apply lts_empty_rule. }
 Qed.
-
+(*
 (* Example 2.4 - Schneider, p. 32 (50) *)
 Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> "TICKET".
 Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> "CHANGE".

@@ -49,10 +49,94 @@ Definition extendedTraceR (C : specification) (proc_name : string) (t : extended
   | None => False
   end.
 
+Ltac solve_not_in := unfold not; let H := fresh "H" in (intros H; repeat (contradiction + (destruct H; [> inversion H | ]))).
+
+Ltac solve_trace' :=
+  multimatch goal with
+  (* Empty trace *)
+  | |- traceR' _ _ nil => apply empty_trace_rule
+  (* Non-empty trace *)
+  | |- traceR' _ _ _ =>
+    (eapply tau_trace_rule
+    + eapply tick_trace_rule
+    + eapply event_trace_rule); solve_trace'
+  (* SOS Prefix rule *)
+  | |- _ # _ --> _ // _ ==> _ => apply prefix_rule
+  (* SOS Reference rule *)
+  | |- _ # ProcRef _ // _ ==> _ => eapply reference_rule; solve_trace'
+  (* SOS External choice rule *)
+  | |- _ # _ [] _ // _ ==> _ =>
+    (eapply ext_choice_tau_left_rule
+    + eapply ext_choice_tau_right_rule
+    + eapply ext_choice_left_rule
+    + eapply ext_choice_right_rule); solve_trace'
+  (* SOS Internal choice *)
+  | |- _ # _ |~| _ // _ ==> _ =>
+    (eapply int_choice_left_rule
+    + eapply int_choice_right_rule); solve_trace'
+  (* SOS Alphabetised parallel *)
+  | |- _ # _ [[ _ \\ _ ]] _ // _ ==> _ =>
+    (eapply alpha_parall_tau_indep_left_rule
+    + eapply alpha_parall_tau_indep_right_rule
+    + eapply alpha_parall_tick_joint_rule
+    + eapply alpha_parall_joint_rule
+    + eapply alpha_parall_indep_left_rule
+    + eapply alpha_parall_indep_right_rule); solve_trace'
+  (* SOS Generalised parallel *)
+  | |- _ # _ [| _ |] _ // _ ==> _ =>
+    (eapply gener_parall_tau_indep_left_rule
+    + eapply gener_parall_tau_indep_right_rule
+    + eapply gener_parall_tick_joint_rule
+    + eapply gener_parall_joint_rule
+    + eapply gener_parall_indep_left_rule
+    + eapply gener_parall_indep_right_rule); solve_trace'
+  (* SOS Interleaving *)
+  | |- _ # _ ||| _ // _ ==> _ =>
+    (eapply interleave_tick_rule
+    + eapply interleave_left_rule
+    + eapply interleave_right_rule); solve_trace'
+  (* SOS Sequential composition *)
+  | |- _ # _ ;; _ // _ ==> _ =>
+    (eapply seq_comp_tick_rule
+    + eapply seq_comp_rule); solve_trace'
+  (* SOS Hiding *)
+  | |- _ # _ \ _ // _ ==> _ =>
+    (eapply hiding_tau_tick_rule
+    + eapply hiding_not_hidden_rule
+    + eapply hiding_rule); solve_trace'
+  (* Successful termination *)
+  | |- _ # SKIP // Tick ==> _ => apply success_termination_rule
+  (* Miscellaneous *)
+  (* Not equal *)
+  | |- _ <> _ => unfold not; let H := fresh "H" in (intros H; inversion H)
+  (* Equal *)
+  | |- _ = _ => reflexivity
+  (* In *)
+  | |- set_In _ _ => simpl; solve_trace'
+  (* Not in *)
+  | |- ~ set_In _ _ => solve_not_in
+  (* Disjunction *)
+  | |- _ \/ _ => (left + right); solve_trace'
+  end.
+
+Ltac solve_trace := unfold traceR; simpl; solve_trace'.
+
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
-(* 
+
+Example not_in0 : ~set_In "" {{"a"}}.
+Proof. solve_not_in. Qed.
+
+Example not_in1 : ~set_In "a" {{}}.
+Proof. solve_not_in. Qed.
+
+Example not_in2 : ~set_In "a" {{"aa"}}.
+Proof. solve_not_in. Qed.
+
+Example not_in3 : ~set_In "a" {{"b", "c", "d", "e"}}.
+Proof. solve_not_in. Qed.
+
 Definition CH_PRINTER0 := Channel {{"accept", "print"}}.
 Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
 Definition S_PRINTER0 := Spec [CH_PRINTER0] [PRINTER0].
@@ -62,6 +146,9 @@ Proof.
   unfold traceR. simpl.
   apply empty_trace_rule.
 Qed.
+
+Example PRINTER0_empty_trace_auto : traceR S_PRINTER0 "PRINTER0" nil.
+Proof. solve_trace. Qed.
 
 Example PRINTER0_empty_trace' : extendedTraceR S_PRINTER0 "PRINTER0" nil.
 Proof.
@@ -76,6 +163,9 @@ Proof.
   - apply prefix_rule.
   - apply empty_trace_rule.
 Qed.
+
+Example PRINTER0_trace1_auto : traceR S_PRINTER0 "PRINTER0" ["accept"].
+Proof. solve_trace. Qed.
 
 Example PRINTER0_trace1' : extendedTraceR S_PRINTER0 "PRINTER0" [Event "accept"].
 Proof.
@@ -95,6 +185,9 @@ Proof.
     + apply empty_trace_rule.
 Qed.
 
+Example PRINTER0_trace2_auto : traceR S_PRINTER0 "PRINTER0" ["accept" ; "print"].
+Proof. solve_trace. Qed.
+
 Example PRINTER0_trace2' : extendedTraceR S_PRINTER0 "PRINTER0" [Event "accept" ; Event "print"].
 Proof.
   unfold extendedTraceR. simpl.
@@ -104,12 +197,12 @@ Proof.
       + apply prefix_rule.
       + apply sos_empty_rule.
 Qed.
-*)
+
 Definition CH_CHOOSE := Channel {{"select", "keep", "return"}}.
 Definition P_CHOOSE := "CHOOSE" ::= "select" --> ("keep" --> SKIP
                                                 [] "return" --> ProcRef "CHOOSE").
 Definition S_CHOOSE := Spec [CH_CHOOSE] [P_CHOOSE].
-(*
+
 Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
 Proof.
   unfold traceR. simpl.
@@ -122,10 +215,13 @@ Proof.
     * apply empty_trace_rule.
 Qed.
 
+Example CHOOSE_trace1_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
+Proof. solve_trace. Qed.
+
 Example CHOOSE_trace1' : extendedTraceR S_CHOOSE "CHOOSE" [Event "select" ; Event "keep"].
 Proof.
   unfold extendedTraceR. simpl. eexists.
-  apply sos_transitive_rule with (R := "keep" --> SKIP [] "return" --> "CHOOSE").
+  apply sos_transitive_rule with (R := "keep" --> SKIP [] "return" --> ProcRef "CHOOSE").
     - apply prefix_rule.
     - apply sos_transitive_rule with (R := SKIP).
       * apply ext_choice_left_rule.
@@ -146,6 +242,9 @@ Proof.
     * apply empty_trace_rule.
 Qed.
 
+Example CHOOSE_trace2_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "return"].
+Proof. solve_trace. Qed.
+
 Example CHOOSE_trace2' : extendedTraceR S_CHOOSE "CHOOSE" [Event "select" ; Event "return"].
 Proof.
   unfold extendedTraceR. simpl.
@@ -157,7 +256,10 @@ Proof.
         + apply prefix_rule.
       * apply sos_empty_rule.
 Qed.
-*)
+
+Example CHOOSE_trace_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "return" ; "select" ; "keep"].
+Proof. solve_trace. Qed.
+
 Definition CH_TEAM := Channel {{"lift_piano", "lift_table"}}.
 Definition PETE := "PETE" ::= "lift_piano" --> ProcRef "PETE"
                               |~| "lift_table" --> ProcRef "PETE".
@@ -168,7 +270,7 @@ Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
 Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
-(*
+
 Example TEAM_trace1 : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof.
   unfold traceR. simpl.
@@ -196,36 +298,39 @@ Proof.
         }
 Qed.
 
+Example TEAM_trace1_auto : traceR S_TEAM "TEAM" ["lift_piano"].
+Proof. solve_trace. Qed.
+
 Example TEAM_trace1' : extendedTraceR S_TEAM "TEAM" [Tau ; Tau ; Tau ; Tau; Event "lift_piano"].
 Proof.
   unfold extendedTraceR. simpl.
-  exists ("PETE" [| {{"lift_piano", "lift_table"}} |] "DAVE").
+  exists (ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE").
   apply sos_transitive_rule with
-      (R := ("lift_piano" --> "PETE" |~| "lift_table" --> "PETE") [| {{"lift_piano", "lift_table"}} |] "DAVE").
+      (R := ("lift_piano" --> ProcRef "PETE" |~| "lift_table" --> ProcRef "PETE") [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE").
   - apply gener_parall_tau_indep_left_rule.
     * apply reference_rule with (name := "PETE").
       + reflexivity.
       + simpl. reflexivity.
   - apply sos_transitive_rule with 
-      (R := ("lift_piano" --> "PETE" |~| "lift_table" --> "PETE")
+      (R := ("lift_piano" --> ProcRef "PETE" |~| "lift_table" --> ProcRef "PETE")
             [| Alphabet {{"lift_piano", "lift_table"}} |]
-            ("lift_piano" --> "DAVE" |~| "lift_table" --> "DAVE")).
+            ("lift_piano" --> ProcRef "DAVE" |~| "lift_table" --> ProcRef "DAVE")).
     * apply gener_parall_tau_indep_right_rule.
       apply reference_rule with (name := "DAVE").
       + reflexivity.
       + simpl. reflexivity.
     * apply sos_transitive_rule with
-        (R := "lift_piano" --> "PETE" 
+        (R := "lift_piano" --> ProcRef "PETE" 
               [|Alphabet {{"lift_piano", "lift_table"}}|] 
-              ("lift_piano" --> "DAVE" |~| "lift_table" --> "DAVE")).
+              ("lift_piano" --> ProcRef "DAVE" |~| "lift_table" --> ProcRef "DAVE")).
       + apply gener_parall_tau_indep_left_rule.
         apply int_choice_left_rule.
       + apply sos_transitive_rule with
-        (R := "lift_piano" --> "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "lift_piano" --> "DAVE").
+        (R := "lift_piano" --> ProcRef "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "lift_piano" --> ProcRef "DAVE").
         { apply gener_parall_tau_indep_right_rule.
           apply int_choice_left_rule. 
         }
-        { apply sos_transitive_rule with (R := "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] "DAVE").
+        { apply sos_transitive_rule with (R := ProcRef "PETE" [|Alphabet {{"lift_piano", "lift_table"}}|] ProcRef "DAVE").
           { apply gener_parall_joint_rule.
             { simpl. right. left. reflexivity. }
             { apply prefix_rule. }
@@ -234,12 +339,16 @@ Proof.
           { apply sos_empty_rule. }
         }
 Qed.
-*)
+
+Example TEAM_trace2_auto : traceR S_TEAM "TEAM" ["lift_piano"; "lift_table"].
+Proof. solve_trace. Qed.
+
+Example TEAM_trace3_auto : traceR S_TEAM "PETE" ["lift_table" ; "lift_piano" ; "lift_piano" ; "lift_piano" ; "lift_table"].
+Proof. solve_trace. Qed.
 
 Definition LIGHT := "LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT".
 Definition S_LIGHT := Spec [Channel {{"on", "off"}}] [LIGHT].
 
-(* 
 Example LIGHT_trace1 : traceR S_LIGHT "LIGHT" ["on" ; "off" ; "on"].
 Proof.
   unfold traceR. simpl. eapply event_trace_rule.
@@ -255,22 +364,25 @@ Proof.
         { apply empty_trace_rule. }
 Qed.
 
+Example LIGHT_trace1_auto : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
+Proof. solve_trace. Qed.
+
 Example LIGHT_trace1' : extendedTraceR S_LIGHT "LIGHT" [Event "on" ; Event "off" ; Tau ; Event "on"].
   unfold extendedTraceR. simpl.
-  exists ("off" --> "LIGHT").
-  apply sos_transitive_rule with (R := "off" --> "LIGHT").
+  exists ("off" --> ProcRef "LIGHT").
+  apply sos_transitive_rule with (R := "off" --> ProcRef "LIGHT").
   - apply prefix_rule.
-  - apply sos_transitive_rule with (R := "LIGHT").
+  - apply sos_transitive_rule with (R := ProcRef "LIGHT").
     * apply prefix_rule.
-    * apply sos_transitive_rule with (R := "on" --> "off" --> "LIGHT").
+    * apply sos_transitive_rule with (R := "on" --> "off" --> ProcRef "LIGHT").
       + apply reference_rule with (name := "LIGHT").
         { reflexivity. }
         { simpl. reflexivity. }
-      + apply sos_transitive_rule with (R := "off" --> "LIGHT").
+      + apply sos_transitive_rule with (R := "off" --> ProcRef "LIGHT").
         { apply prefix_rule. }
         { apply sos_empty_rule. }
 Qed.
-*)
+
 Definition S_FORECOURT :=
   (
     Spec
@@ -288,7 +400,7 @@ Definition S_FORECOURT :=
       ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
     ]
   ).
-(*
+
 Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
     ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
 Proof.
@@ -364,23 +476,27 @@ Proof.
         }
 Qed.
 
+Example FORECOURT_trace1_auto : traceR S_FORECOURT "FORECOURT"
+    ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
+Proof. solve_trace. Qed.
+
 Example FORECOURT_trace1' : extendedTraceR S_FORECOURT "FORECOURT"
   [Tau ; Event "lift_nozzle_1" ; Tau ; Event "lift_nozzle_2" ; Tau ; Event "depress_trigger_1"
   ; Tau ; Event "depress_trigger_2" ; Event "release_trigger_2"].
 Proof.
   unfold extendedTraceR.
-  exists ("release_trigger_1" --> "READY1" ||| "READY2").
-  apply sos_transitive_rule with (R := "lift_nozzle_1" --> "READY1" ||| "PUMP2").
+  exists ("release_trigger_1" --> ProcRef "READY1" ||| ProcRef "READY2").
+  apply sos_transitive_rule with (R := "lift_nozzle_1" --> ProcRef "READY1" ||| ProcRef "PUMP2").
     * apply interleave_left_rule.
       + unfold not. intro. inversion H.
       + apply reference_rule with (name := "PUMP1").
         { reflexivity. }
         { reflexivity. }
-    * apply sos_transitive_rule with (R := "READY1" ||| "PUMP2").
+    * apply sos_transitive_rule with (R := ProcRef "READY1" ||| ProcRef "PUMP2").
       + apply interleave_left_rule.
         { intro. inversion H. }
         { apply prefix_rule. }
-      + apply sos_transitive_rule with (R := "READY1" ||| "lift_nozzle_2" --> "READY2").
+      + apply sos_transitive_rule with (R := ProcRef "READY1" ||| "lift_nozzle_2" --> ProcRef "READY2").
         { 
           apply interleave_right_rule.
           { intro. inversion H. }
@@ -391,7 +507,7 @@ Proof.
           }
         }
         { 
-          apply sos_transitive_rule with (R := "READY1" ||| "READY2").
+          apply sos_transitive_rule with (R := ProcRef "READY1" ||| ProcRef "READY2").
           {
             apply interleave_right_rule.
             { intro. inversion H. }
@@ -399,8 +515,8 @@ Proof.
           }
           {
             apply sos_transitive_rule with
-              (R := ("replace_nozzle_1" --> "PUMP1"
-                    [] "depress_trigger_1" --> "release_trigger_1" --> "READY1") ||| "READY2").
+              (R := ("replace_nozzle_1" --> ProcRef "PUMP1"
+                    [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1") ||| ProcRef "READY2").
             {
               apply interleave_left_rule.
               { intro. inversion H. }
@@ -411,7 +527,7 @@ Proof.
               }
             }
             {
-              apply sos_transitive_rule with (R := ("release_trigger_1" --> "READY1") ||| "READY2").
+              apply sos_transitive_rule with (R := ("release_trigger_1" --> ProcRef "READY1") ||| ProcRef "READY2").
               {
                 apply interleave_left_rule.
                 { intro. inversion H. }
@@ -423,9 +539,9 @@ Proof.
               }
               {
                 apply sos_transitive_rule with
-                  (R := "release_trigger_1" --> "READY1"
-                        ||| ("replace_nozzle_2" --> "PUMP2"
-                            [] "depress_trigger_2" --> "release_trigger_2" --> "READY2")).
+                  (R := "release_trigger_1" --> ProcRef "READY1"
+                        ||| ("replace_nozzle_2" --> ProcRef "PUMP2"
+                            [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2")).
                 {
                   apply interleave_right_rule.
                   { intro. inversion H. }
@@ -437,7 +553,7 @@ Proof.
                 }
                 {
                   apply sos_transitive_rule with
-                    (R := "release_trigger_1" --> "READY1" ||| "release_trigger_2" --> "READY2").
+                    (R := "release_trigger_1" --> ProcRef "READY1" ||| "release_trigger_2" --> ProcRef "READY2").
                   {
                     apply interleave_right_rule.
                     { intro. inversion H. }
@@ -448,7 +564,7 @@ Proof.
                     }
                   }
                   {
-                    apply sos_transitive_rule with (R := "release_trigger_1" --> "READY1" ||| "READY2").
+                    apply sos_transitive_rule with (R := "release_trigger_1" --> ProcRef "READY1" ||| ProcRef "READY2").
                     {
                       apply interleave_right_rule. 
                       { intro. inversion H. }
@@ -462,7 +578,11 @@ Proof.
           }
         }
 Qed.
-*)
+
+Example FORECOURT_trace2_auto : traceR S_FORECOURT "FORECOURT"
+  ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"
+  ; "release_trigger_1" ; "replace_nozzle_2" ; "replace_nozzle_1" ; "lift_nozzle_2"].
+Proof. solve_trace. Qed.
 
 Definition SPY := "SPY" ::= "listen" --> "relay" --> ProcRef "SPY".
 Definition MASTER := "MASTER" ::= "relay" --> "log" --> ProcRef "MASTER".
@@ -509,78 +629,45 @@ Proof.
         }
 Qed.
 
-(* TODO Finish this tactic macro. (Would it be easier to solve for extendedTraceR instead of traceR?) *)
-Ltac solve_trace := unfold traceR; simpl;
-  repeat (
-    match goal with
-    (* Empty trace *)
-    | |- traceR' _ _ nil => apply empty_trace_rule
-    (* Non-empty trace *)
-    | |- traceR' _ ?P (?h :: _) =>
-      match P with
-      (* Prefix *)
-      | h --> _  => eapply event_trace_rule
-      (* Process unfolding *)
-      | ProcRef _ => eapply tau_trace_rule
-      (* External choice *)
-      | h --> _ [] _ => eapply event_trace_rule
-      | _ [] h --> _ => eapply event_trace_rule
-      | ProcRef _ [] _ => eapply tau_trace_rule
-      | _ [] ProcRef _ => eapply tau_trace_rule
-      (* Internal choice *)
-      | h --> ?Q |~| _ => apply tau_trace_rule with (P' := h --> Q)
-      | _ |~| h --> ?Q => apply tau_trace_rule with (P' := h --> Q)
-      | _ |~| _ => eapply tau_trace_rule
-      (* Interleaving *)
-      | h --> ?Q ||| ?Q' => apply event_trace_rule with (P' := Q ||| Q')
-      | ?Q ||| h --> ?Q' => apply event_trace_rule with (P' := Q ||| Q')
-      | ProcRef _ ||| _ => eapply tau_trace_rule
-      | _ ||| ProcRef _ => eapply tau_trace_rule
-      | _ ||| _ => eapply event_trace_rule
-      end
-    (* SOS Prefix rule *)
-    | |- (_ # (?e --> _) // Event ?e ==> _) => apply prefix_rule
-    (* SOS Reference rule *)
-    | |- (_ # (ProcRef _) // Tau ==> _) => eapply reference_rule
-    (* SOS External choice rule *)
-    | |- (_ # (?e --> _) [] _ // Event ?e ==> _) => eapply ext_choice_left_rule
-    | |- (_ # _ [] (?e --> _) // Event ?e ==> _) => eapply ext_choice_right_rule
-    (* SOS Internal choice *)
-    | |- (_ # ?P |~| ?Q // Tau ==> ?P) => eapply int_choice_left_rule
-    | |- (_ # ?P |~| ?Q // Tau ==> ?Q) => eapply int_choice_right_rule
-    (* SOS Interleaving *)
-    | |- (_ # ?e --> ?P ||| ?Q // Event ?e ==> ?P ||| ?Q) => eapply interleave_left_rule
-    | |- (_ # ?P ||| ?e --> ?Q // Event ?e ==> ?P ||| ?Q) => eapply interleave_right_rule
-    | |- (_ # ProcRef _ ||| _ // Tau ==> _) => eapply interleave_left_rule
-    | |- (_ # _ ||| ProcRef _ // Tau ==> _) => eapply interleave_right_rule
-    | |- (_ # _ ||| _ // Event _ ==> _) => eapply interleave_left_rule + eapply interleave_right_rule
-    (* Prove not equal *)
-    | |- _ <> _ => unfold not; let H := fresh "H" in intros H; inversion H
-    (* Prove equal *)
-    | |- _ = _ => reflexivity
-    (* None of the above *)
-    | |- _ => fail
-    end).
+Example MASTER_SPY_trace1_auto : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "log"].
+Proof. solve_trace. Qed.
 
-Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
-  ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
-Proof.
-  solve_trace. Admitted.
+Example MASTER_SPY_trace2_auto : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "listen" ; "log" ; "listen" ; "log"].
+Proof. solve_trace. Qed.
 
-Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "keep"].
-Proof.
-  solve_trace.
-Qed.
+Definition S_PURCHASE := Spec 
+  [
+    Channel {{"select", "keep", "return"}}
+    ; Channel {{"cash", "cheque", "card"}}
+    ; Channel {{"swipe", "sign"}}
+    ; Channel {{"receipt", "reject"}}
+  ]
+  [
+    "CHOOSE" ::= "select" --> ("keep" --> SKIP 
+                              [] "return" --> ProcRef "CHOOSE")
+    ; "PAY" ::= "cash" --> "receipt" --> SKIP
+                [] "cheque" --> "receipt" --> SKIP
+                [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
+                                          [] "reject" --> ProcRef "PAY")
+    ; "PURCHASE" ::= ProcRef "CHOOSE" ;; ProcRef "PAY"
+  ].
+Example PURCHASE_trace_auto : traceR S_PURCHASE "PURCHASE" ["select" ; "return" ; "select" ; "keep"
+  ; "card" ; "swipe" ; "reject" ; "cash" ; "receipt"].
+Proof. solve_trace. Qed.
 
-Example LIGHT_trace2 : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
-Proof.
-  solve_trace.
-Qed.
+Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> ProcRef "TICKET".
+Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> ProcRef "CHANGE".
+Definition MACHINE :=
+  "MACHINE" ::= ProcRef "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] ProcRef "CHANGE".
+Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
 
-Example TEAM_trace1 : traceR S_TEAM "PETE" ["lift_piano" ; "lift_table"].
-Proof.
-  solve_trace.
-Qed.
+Example PARKING_trace_auto : traceR PARKING_PERMIT_MCH "MACHINE" ["cash" ; "ticket" ; "change" ; "cash" ; "change" ; "ticket"].
+Proof. solve_trace. Qed.
+
+Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] [("P" ::= "a" --> STOP) ; ("Q" ::= "a" --> "b" --> STOP)
+  ; ("R" ::= ProcRef "P" [] ProcRef "Q")].
+Example TOY_PROBLEM_trace_auto : traceR TOY_PROBLEM "R" ["a" ; "b"].
+Proof. solve_trace. Qed.
 
 Theorem extended_to_trace :
   forall (C : specification) (P : string) (exT : extendedTrace),
@@ -592,17 +679,6 @@ Theorem trace_to_extended :
     traceR C P t ->
     exists (exT : extendedTrace),
       t = get_trace exT /\ extendedTraceR C P exT.
-Proof.
-  intros.
-  - destruct C. induction t.
-    * exists nil. split.
-      + reflexivity.
-      + destruct P, proc_list; try inversion H.
-        {
-          destruct p, name.
-          { 
-            unfold extendedTraceR; simpl. unfold extendedTraceR'.
-            exists body. apply sos_empty_rule.
-          } Admitted.
+Proof. Admitted.
 
 Local Close Scope string.
