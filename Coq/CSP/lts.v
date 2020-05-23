@@ -80,76 +80,76 @@ Fixpoint remove_visited (targets : list proc_body) (visited : list proc_body) : 
   end.
 
 (* TODO Finish *)
-Fixpoint compute_ltsR''
-  (S : specification)
-  (not_visited : list proc_body)
-  (visited : list proc_body)
-  (limit : nat)
-  : set transition :=
-  match limit with
-  | 0 => empty_set transition
-  | S n =>
-    match not_visited with
-    | nil => empty_set transition
-    | P :: list =>
-      match P with
-      | SKIP => empty_set transition
-      | STOP => empty_set transition
-      | ProcRef name =>
-        match get_proc_body S name with
-        | Some P' => set_add transition_eq_dec
-          (P, Tau, P')
-          (compute_ltsR'' S ((remove_visited [P'] visited) ++ list) (P :: visited) n)
-        | None => empty_set transition
-        end
-      | e --> P' => set_add transition_eq_dec
-        (P, Event e, P')
-        (compute_ltsR'' S ((remove_visited [P'] visited) ++ list) (P :: visited) n)
-      | P' [] P'' =>
-        match P', P'' with
-        | e --> Q', e' --> Q'' => set_add transition_eq_dec
-          (P, Event e, Q')
-          (set_add transition_eq_dec
-            (P, Event e', Q'')
-            (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
-        | e --> Q', Q'' | Q'', e --> Q' => set_add transition_eq_dec
-          (P, Event e, Q')
-          (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n)
-        (* TODO Add patterns for process unfolding. *)
-        | Q', Q'' => compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n
-        end
-      | P' |~| P'' => set_add transition_eq_dec
-        (P, Tau, P')
-        (set_add transition_eq_dec
-          (P, Tau, P'')
-          (compute_ltsR'' S ((remove_visited [P' ; P''] visited) ++ list) (P :: visited) n))
-      | P' ;; P'' =>
-        match P' with
-        | SKIP => (set_add transition_eq_dec
-          (P, Tick, STOP ;; P'')
-          (set_add transition_eq_dec
-            (STOP ;; P'', Tau, P'')
-            (compute_ltsR'' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
-      | _ => empty_set transition
-      end
-    end
-  end.
-
 Fixpoint compute_ltsR'
   (S : specification)
   (not_visited : list proc_body)
   (visited : list proc_body)
   (limit : nat)
   : option (set transition) :=
-  match (compute_ltsR'' S not_visited visited limit) with
-  | a :: A => Some (a :: A)
-  | empty_set => None
+  match limit, not_visited with
+  | _, nil => Some (empty_set transition)
+  | 0, P :: list => None
+  | S n, P :: list =>
+    match P with
+    | SKIP =>
+      match compute_ltsR' S ((remove_visited [STOP] visited) ++ list) (P :: visited) n with
+      | Some transitions => Some (set_add transition_eq_dec (SKIP, Tick, STOP) transitions)
+      | None => None
+      end
+    | STOP => compute_ltsR' S list (P :: visited) n
+    | ProcRef name =>
+      match get_proc_body S name with
+      | Some P' => 
+        match compute_ltsR' S ((remove_visited [P'] visited) ++ list) (P :: visited) n with
+        | Some transitions => Some (set_add transition_eq_dec (P, Tau, P') transitions)
+        | None => None
+        end
+      | None => None
+      end
+    | e --> P' =>
+      match compute_ltsR' S ((remove_visited [P'] visited) ++ list) (P :: visited) n with
+      | Some transitions => Some (set_add transition_eq_dec (P, Event e, P') transitions)
+      | None => None
+      end
+    (* | P' [] P'' =>
+      match P', P'' with
+      | e --> Q', e' --> Q'' => set_add transition_eq_dec
+        (P, Event e, Q')
+        (set_add transition_eq_dec
+          (P, Event e', Q'')
+          (compute_ltsR' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
+      | e --> Q', Q'' | Q'', e --> Q' => set_add transition_eq_dec
+        (P, Event e, Q')
+        (compute_ltsR' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n)
+      (* TODO Add patterns for process unfolding. *)
+      | Q', Q'' => compute_ltsR' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n
+      end *)
+    | P' |~| P'' =>
+      match compute_ltsR' S ((remove_visited [P' ; P''] visited) ++ list) (P :: visited) n with
+      | Some transitions => Some (set_add transition_eq_dec (P, Tau, P')
+        (set_add transition_eq_dec (P, Tau, P'') transitions))
+      | None => None
+      end
+    | _ => Some (empty_set transition)
+    end
   end.
 
 Definition compute_ltsR (S : specification) (name : string) (limit : nat) : option (set transition) :=
   match get_proc_body S name with
   | Some body => compute_ltsR' S [body] nil limit
   | None => None
+  end.
+
+Fixpoint generate_dot' (lts : set transition) : string :=
+  match lts with
+  | nil => ""
+  | (P, e, Q) :: tl => " <" ++ P ++ "> -> <" ++ Q ++ ">" ++ " [label=<" ++ e ++ ">];" ++ (generate_dot' tl)
+  end.
+
+Definition generate_dot (option_lts : option (set transition)) : string :=
+  match option_lts with
+  | Some lts => "digraph LTS {" ++ (generate_dot' lts) ++ " }"
+  | None => ""
   end.
 
 Local Open Scope string.
@@ -165,11 +165,11 @@ Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
 
-Compute compute_ltsR S_TEAM "PETE" 100.
+Compute generate_dot (compute_ltsR S_TEAM "PETE" 100).
 
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
 
-Compute compute_ltsR TOY_PROBLEM "P" 100.
+Compute generate_dot (compute_ltsR TOY_PROBLEM "P" 100).
 
 Example lts1 :
   ltsR
@@ -308,7 +308,7 @@ Qed.
 
 Definition S_LIGHT := Spec [Channel {{"on", "off"}}] ["LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT"].
 
-Compute compute_ltsR S_LIGHT "LIGHT" 100.
+Compute generate_dot (compute_ltsR S_LIGHT "LIGHT" 100).
 
 Example lts4 :
   ltsR
