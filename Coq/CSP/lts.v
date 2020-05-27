@@ -64,73 +64,68 @@ Definition ltsR (C : specification) (T : set transition) (name : string) : Prop 
   | None => False
   end.
 
-Fixpoint is_proc_in_list (P : proc_body) (l : list proc_body) : bool :=
+Definition isTau (e : event_tau_tick) : bool := eqb e Tau.
+
+Fixpoint in_list (e : event_tau_tick) (l : list event_tau_tick) : bool :=
   match l with
   | nil => false
-  | head :: tail => if proc_body_eq_dec P head then true else is_proc_in_list P tail
+  | h :: tl => if event_tau_tick_eq_dec e h then true else in_list e tl
   end.
 
-Fixpoint remove_visited (targets : list proc_body) (visited : list proc_body) : list proc_body :=
-  match targets with
-  | nil => nil
-  | hd :: tl =>
-    if is_proc_in_list hd visited
-    then remove_visited tl visited
-    else hd :: remove_visited tl visited
+(* TODO Expand definition for the remaining operators. *)
+Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_tick * proc_body) :=
+  match P with
+  | SKIP => [(Tick, STOP)]
+  | STOP => nil
+  | e --> Q => [(Event e, Q)]
+  | ProcRef name =>
+    match get_proc_body S name with
+    | Some Q => [(Tau, Q)]
+    | None => nil
+    end
+  | P' [] P'' =>
+    map (fun e => if isTau (fst e) then ((fst e), (snd e) [] P'') else e) (get_transitions S P')
+    ++ map (fun e => if isTau (fst e) then ((fst e), P' [] (snd e)) else e) (get_transitions S P'')
+  | P' |~| P'' => [(Tau, P') ; (Tau, P'')]
+  (* TODO Fix synced transition. *)
+  | P' [| A' |] P'' =>
+    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
+    let t' := map (fun e => ((fst e), (snd e) [| A' |] P'')) (get_transitions S P') in
+    let B := map (fun x => fst x) t' in
+    let t'' := map (fun e => ((fst e), P' [| A' |] (snd e))) (get_transitions S P'') in
+    let C := map (fun x => fst x) t'' in
+    let U := (* (B - A) \/ (C - A) \/ (A /\ B /\ C) *)
+      set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec B A)
+      (set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec C A)
+      ((set_inter event_tau_tick_eq_dec A) ((set_inter event_tau_tick_eq_dec B) C))) in
+    filter (fun x => in_list (fst x) U) (t' ++ t'')
+  | P' ||| P'' =>
+    map (fun e => ((fst e), (snd e) ||| P'')) (get_transitions S P')
+    ++ map (fun e => ((fst e), P' ||| (snd e))) (get_transitions S P'')
+  (* TODO Remove this pattern after finishing implementation. *)
+  | _ => nil
   end.
 
-(* TODO Finish *)
 Fixpoint compute_ltsR'
   (S : specification)
-  (not_visited : list proc_body)
-  (visited : list proc_body)
+  (states_to_visit : set proc_body)
+  (visited_states : set proc_body)
   (limit : nat)
   : option (set transition) :=
-  match limit, not_visited with
+  match limit, states_to_visit with
   | _, nil => Some (empty_set transition)
-  | 0, P :: list => None
-  | S n, P :: list =>
-    match P with
-    | SKIP =>
-      match compute_ltsR' S ((remove_visited [STOP] visited) ++ list) (P :: visited) n with
-      | Some transitions => Some (set_add transition_eq_dec (SKIP, Tick, STOP) transitions)
-      | None => None
-      end
-    | STOP => compute_ltsR' S list (P :: visited) n
-    | ProcRef name =>
-      match get_proc_body S name with
-      | Some P' => 
-        match compute_ltsR' S ((remove_visited [P'] visited) ++ list) (P :: visited) n with
-        | Some transitions => Some (set_add transition_eq_dec (P, Tau, P') transitions)
-        | None => None
-        end
-      | None => None
-      end
-    | e --> P' =>
-      match compute_ltsR' S ((remove_visited [P'] visited) ++ list) (P :: visited) n with
-      | Some transitions => Some (set_add transition_eq_dec (P, Event e, P') transitions)
-      | None => None
-      end
-    (* | P' [] P'' =>
-      match P', P'' with
-      | e --> Q', e' --> Q'' => set_add transition_eq_dec
-        (P, Event e, Q')
-        (set_add transition_eq_dec
-          (P, Event e', Q'')
-          (compute_ltsR' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n))
-      | e --> Q', Q'' | Q'', e --> Q' => set_add transition_eq_dec
-        (P, Event e, Q')
-        (compute_ltsR' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n)
-      (* TODO Add patterns for process unfolding. *)
-      | Q', Q'' => compute_ltsR' S ((remove_visited [Q' ; Q''] visited) ++ list) (P :: visited) n
-      end *)
-    | P' |~| P'' =>
-      match compute_ltsR' S ((remove_visited [P' ; P''] visited) ++ list) (P :: visited) n with
-      | Some transitions => Some (set_add transition_eq_dec (P, Tau, P')
-        (set_add transition_eq_dec (P, Tau, P'') transitions))
-      | None => None
-      end
-    | _ => Some (empty_set transition)
+  | 0, state :: tl => None
+  | S n, state :: tl =>
+    let action_state_list := get_transitions S state in
+    let state_transitions := map (fun e => (state, (fst e), (snd e))) action_state_list in
+    match
+      compute_ltsR'
+        S
+        (set_union proc_body_eq_dec (set_diff proc_body_eq_dec (target_proc_bodies state_transitions) visited_states) tl)
+        (set_add proc_body_eq_dec state visited_states)
+        n with
+    | Some all_transitions => Some (set_union transition_eq_dec state_transitions all_transitions)
+    | None => None
     end
   end.
 
@@ -154,6 +149,34 @@ Definition generate_dot (option_lts : option (set transition)) : string :=
 
 Local Open Scope string.
 
+Definition S_FORECOURT :=
+(
+  Spec
+  [
+    Channel {{"lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
+    ; Channel {{"lift_nozzle_2", "replace_nozzle_2", "depress_trigger_2", "release_trigger_2"}}
+  ]
+  [
+    "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
+    ; "READY1" ::= "replace_nozzle_1" --> ProcRef "PUMP1"
+                    [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1"
+    ; "PUMP2" ::= "lift_nozzle_2" --> ProcRef "READY2"
+    ; "READY2" ::= "replace_nozzle_2" --> ProcRef "PUMP2"
+                    [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2"
+    ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
+  ]
+).
+Compute generate_dot (compute_ltsR S_FORECOURT "FORECOURT" 100).
+
+Definition TOY' := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> STOP].
+Compute compute_ltsR TOY' "P" 10.
+
+Definition CH := Channel {{"a", "b"}}.
+Definition P := "P" ::= "a" --> STOP [] "b" --> "b" --> STOP.
+Definition S := Spec [CH] [P].
+
+Compute generate_dot (compute_ltsR S "P" 100).
+
 Definition CH_TEAM := Channel {{"lift_piano", "lift_table"}}.
 Definition PETE := "PETE" ::= "lift_piano" --> ProcRef "PETE"
                               |~| "lift_table" --> ProcRef "PETE".
@@ -165,7 +188,7 @@ Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |
 
 Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
 
-Compute generate_dot (compute_ltsR S_TEAM "PETE" 100).
+Compute generate_dot (compute_ltsR S_TEAM "TEAM" 100).
 
 Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
 
@@ -216,7 +239,7 @@ Definition TOY_PROBLEM' := Spec
   [Channel {{"a", "b", "c"}}]
   ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)].
 
-Compute compute_ltsR TOY_PROBLEM' "P" 100.
+Compute generate_dot (compute_ltsR TOY_PROBLEM' "P" 100).
 
 Example lts2 :
   ltsR
@@ -280,10 +303,10 @@ Proof.
         { simpl. apply lts_empty_rule. }
 Qed.
 
-Definition P := "P" ::= ProcRef "P".
-Definition UNDERDEFINED_RECURSION := Spec [Channel {{}}] [P].
+Definition P' := "P" ::= ProcRef "P".
+Definition UNDERDEFINED_RECURSION := Spec [Channel {{}}] [P'].
 
-Compute compute_ltsR UNDERDEFINED_RECURSION "P" 100.
+Compute generate_dot (compute_ltsR UNDERDEFINED_RECURSION "P" 100).
 
 Example lts3 : ltsR UNDERDEFINED_RECURSION [(ProcRef "P", Tau, ProcRef "P")] "P".
 Proof.
