@@ -22,6 +22,15 @@ Proof.
   decide equality. apply event_dec.
 Defined.
 
+Definition event_tau_tick_to_str (e : event_tau_tick) : string :=
+  match e with
+  | Tau => "τ"
+  | Tick => "✓"
+  | Event a => a
+  end.
+
+Coercion event_tau_tick_to_str : event_tau_tick >-> string.
+
 Inductive alphabet : Type :=
   | Alphabet (events : set event).
   
@@ -117,3 +126,21 @@ Notation "P ||| Q" := (ProcInterleave P Q) (at level 90, left associativity).
 Notation "P ;; Q" := (ProcSeqComp P Q) (at level 90, left associativity).
 (* Hiding *)
 Notation "P \ A" := (ProcHiding P (Alphabet A)) (at level 96, left associativity).
+
+Fixpoint proc_body_to_str (proc : proc_body) : string :=
+  match proc with
+  | SKIP => "SKIP"
+  | STOP => "STOP"
+  | ProcRef name => name
+  | e --> P => e ++ " → " ++ proc_body_to_str P
+  | P [] Q => proc_body_to_str P ++ " [] " ++ proc_body_to_str Q
+  | P |~| Q => proc_body_to_str P ++ " |~| " ++ proc_body_to_str Q
+  | P [[ A \\ B ]] Q => proc_body_to_str P ++ " [{" ++ (concat ", " A) ++ "} || {"
+    ++ (concat ", " B) ++ "}] " ++ proc_body_to_str Q
+  | P [| A |] Q => proc_body_to_str P ++ " [| {" ++ (concat ", " A) ++ "} |] " ++ proc_body_to_str Q
+  | P ||| Q => proc_body_to_str P ++ " ||| " ++ proc_body_to_str Q
+  | P ;; Q => proc_body_to_str P ++ "; " ++ proc_body_to_str Q
+  | P \ A => proc_body_to_str P ++ " \ " ++ "{" ++ (concat ", " A) ++ "}"
+  end.
+
+Coercion proc_body_to_str : proc_body >-> string.
