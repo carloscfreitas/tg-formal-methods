@@ -100,7 +100,42 @@ Fixpoint gen_parall_trans
   | nil => gen_parall_trans' left_hand_proc right_hand_proc_trans alpha sync_events
   end.
 
-(* TODO Expand definition for the remaining operators. *)
+Fixpoint alpha_parall_trans'
+  (left_hand_proc : proc_body)
+  (right_hand_proc_trans : list (event_tau_tick * proc_body))
+  (alpha1 : set event)
+  (alpha2 : set event)
+  (sync_events : set event_tau_tick)
+  : list (event_tau_tick * proc_body) :=
+  match right_hand_proc_trans with
+  | (e, P) :: l =>
+    if set_mem event_tau_tick_eq_dec e sync_events
+    then alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events
+    else (e, left_hand_proc [[ alpha1 \\ alpha2 ]] P)
+      :: (alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events)
+  | nil => nil
+  end.
+
+Fixpoint alpha_parall_trans
+  (left_hand_proc : proc_body)
+  (right_hand_proc : proc_body)
+  (left_hand_proc_trans : list (event_tau_tick * proc_body))
+  (right_hand_proc_trans : list (event_tau_tick * proc_body))
+  (alpha1 : set event)
+  (alpha2 : set event)
+  (sync_events : set event_tau_tick)
+  : list (event_tau_tick * proc_body) :=
+  match left_hand_proc_trans with
+  | (e, P) :: l =>
+    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
+    then (map (fun x => (e, P [[ alpha1 \\ alpha2 ]] (snd x)))
+      (filter (fun x => is_equal e (fst x)) right_hand_proc_trans))
+      ++ (alpha_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha1 alpha2 sync_events)
+    else (e, P [[ alpha1 \\ alpha2 ]] right_hand_proc) 
+      :: (alpha_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha1 alpha2 sync_events)
+  | nil => alpha_parall_trans' left_hand_proc right_hand_proc_trans alpha1 alpha2 sync_events
+  end.
+
 Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_tick * proc_body) :=
   match P with
   | SKIP => [(Tick, STOP)]
@@ -115,13 +150,28 @@ Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_t
     map (fun e => if (is_equal (fst e) Tau) then ((fst e), (snd e) [] P'') else e) (get_transitions S P')
     ++ map (fun e => if (is_equal (fst e) Tau) then ((fst e), P' [] (snd e)) else e) (get_transitions S P'')
   | P' |~| P'' => [(Tau, P') ; (Tau, P'')]
+  | P' [[ A' \\ B' ]] P'' =>
+    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
+    let B := set_map event_tau_tick_eq_dec (fun x => Event x) B' in
+    let t' := get_transitions S P' in
+    let C := map (fun x => fst x) t' in
+    let t'' := get_transitions S P'' in
+    let D := map (fun x => fst x) t'' in
+    let U :=
+      (* (C ⋂ ((A - B) ⋃ {τ}))           // Set of events P' can communicate independently.
+        ⋃ (D ⋂ ((B - A) ⋃ {τ}))          // Set of events P'' can communicate independently.
+        ⋃ ((C ⋂ D) ⋂ ((A ⋂ B) ⋃ {✓}))   // Set of events P' and P'' can communicate synchronously. *)
+      set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec C (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec A B)))
+      (set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec B A)))
+      (set_inter event_tau_tick_eq_dec C (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tick (set_inter event_tau_tick_eq_dec A B))))) in
+    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (alpha_parall_trans P' P'' t' t'' A' B' (set_inter event_tau_tick_eq_dec A B))
   | P' [| A' |] P'' =>
     let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
     let t' := get_transitions S P' in
     let B := map (fun x => fst x) t' in
     let t'' := get_transitions S P'' in
     let C := map (fun x => fst x) t'' in
-    let U := (* (B - A) \/ (C - A) \/ (A /\ B /\ C) *)
+    let U := (* (B - A) ⋃ (C - A) ⋃ (A ⋂ B ⋂ C) *)
       set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec B A)
       (set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec C A)
       ((set_inter event_tau_tick_eq_dec A) ((set_inter event_tau_tick_eq_dec B) C))) in
@@ -139,8 +189,6 @@ Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_t
       if set_mem event_tau_tick_eq_dec (fst e) A'
       then (Tau, (snd e) \ A)
       else ((fst e), (snd e) \ A)) (get_transitions S P')
-  (* TODO Remove this pattern after finishing implementation. *)
-  | _ => nil
   end.
 
 Fixpoint compute_ltsR'
@@ -178,10 +226,13 @@ Fixpoint generate_dot' (lts : set transition) : string :=
   | (P, e, Q) :: tl => " <" ++ P ++ "> -> <" ++ Q ++ ">" ++ " [label=<" ++ e ++ ">];" ++ (generate_dot' tl)
   end.
 
-Definition generate_dot (option_lts : option (set transition)) : string :=
-  match option_lts with
-  | Some lts => "digraph LTS {" ++ (generate_dot' lts) ++ " }"
-  | None => ""
+Definition style_initial_state (P : proc_body) : string := "<" ++ P ++ "> [style=bold, color=red];".
+
+Definition generate_dot (lts : option (set transition)) : string :=
+  match lts with
+  | Some ((P, e, Q) :: tl) =>
+    "digraph LTS { " ++ (style_initial_state P) ++ (generate_dot' ((P, e, Q) :: tl)) ++ " }"
+  | _ => ""
   end.
 
 Local Open Scope string.
@@ -428,7 +479,7 @@ Qed.
 (* Example 2.4 - Schneider, p. 32 (50) *)
 Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> ProcRef "TICKET".
 Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> ProcRef "CHANGE".
-Definition MACHINE := "MACHINE" ::= ProcRef "TICKET" [| {{"cash"}} |] ProcRef "CHANGE" \ {{"cash"}}.
+Definition MACHINE := "MACHINE" ::= ProcRef "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] ProcRef "CHANGE".
 Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
 
 Compute generate_dot (compute_ltsR PARKING_PERMIT_MCH "MACHINE" 100).
