@@ -235,6 +235,124 @@ Definition generate_dot (lts : option (set transition)) : string :=
   | _ => ""
   end.
 
+Theorem compute_ltsR_correctness:
+  forall (spec : specification) (proc_id : string) (n : nat) (trans_set : set transition),
+  compute_ltsR spec proc_id n = Some trans_set -> ltsR spec trans_set proc_id.
+Proof.
+  intros. destruct spec, proc_list.
+  - inversion H.
+  - destruct p, name, proc_id.
+    * destruct body.
+      + destruct n.
+        { inversion H. }
+        {
+          unfold compute_ltsR in H; simpl in H. destruct n.
+          { inversion H. }
+          {
+            inversion H. destruct n.
+            { 
+              inversion H. unfold ltsR. simpl. split.
+              {
+                apply NoDup_cons.
+                { unfold not. intros. inversion H0. }
+                { apply NoDup_nil. }
+              }
+              {
+                apply lts_inductive_rule.
+                {
+                  split.
+                  {
+                    intros. inversion H0; subst.
+                    { inversion H3. }
+                    { simpl. left. reflexivity. }
+                  }
+                  {
+                    intros. inversion H0.
+                    { inversion H3. apply success_termination_rule. }
+                    { inversion H3. }
+                  }
+                }
+                {
+                  simpl. apply lts_inductive_rule.
+                  {
+                    split.
+                    { intros. inversion H0; subst. inversion H3. }
+                    { intros. inversion H0. }
+                  }
+                  { simpl. apply lts_empty_rule. }
+                }
+              }
+            }
+            { 
+              inversion H1. unfold ltsR. simpl. split.
+              {
+                apply NoDup_cons.
+                { unfold not. intros. inversion H0. }
+                { apply NoDup_nil. }
+              }
+              {
+                apply lts_inductive_rule.
+                {
+                  split.
+                  {
+                    intros. inversion H0; subst.
+                    { inversion H3. }
+                    { simpl. left. reflexivity. }
+                  }
+                  {
+                    intros. inversion H0.
+                    { inversion H3. apply success_termination_rule. }
+                    { inversion H3. }
+                  }
+                }
+                {
+                  simpl. apply lts_inductive_rule.
+                  {
+                    split.
+                    { intros. inversion H0; subst. inversion H3. }
+                    { intros. inversion H0. }
+                  }
+                  { simpl. apply lts_empty_rule. }
+                }
+              }
+            }
+          }
+        }
+      + destruct n.
+        { inversion H. }
+        {
+          inversion H. unfold compute_ltsR in H; simpl in H. destruct n.
+          {
+            inversion H. unfold ltsR. simpl. split.
+            { apply NoDup_nil. }
+            {
+              apply lts_inductive_rule.
+              {
+                split.
+                { intros. inversion H0; subst. inversion H3. }
+                { simpl. intros. contradiction. }
+              }
+              { simpl. apply lts_empty_rule. }
+            }
+          }
+          {
+            inversion H. unfold ltsR. simpl. split.
+            { apply NoDup_nil. }
+            {
+              apply lts_inductive_rule.
+              {
+                split.
+                { intros. inversion H0; subst. inversion H3. }
+                { simpl. intros. contradiction. }
+              }
+              { simpl. apply lts_empty_rule. }
+            }
+          }
+        }
+      + destruct n.
+        { inversion H. }
+        { Admitted.
+
 Local Open Scope string.
 
 Definition S_FORECOURT :=
