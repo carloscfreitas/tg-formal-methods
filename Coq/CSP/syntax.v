@@ -140,7 +140,7 @@ Fixpoint proc_body_to_str (proc : proc_body) : string :=
   | P [| A |] Q => proc_body_to_str P ++ " [| {" ++ (concat ", " A) ++ "} |] " ++ proc_body_to_str Q
   | P ||| Q => proc_body_to_str P ++ " ||| " ++ proc_body_to_str Q
   | P ;; Q => proc_body_to_str P ++ "; " ++ proc_body_to_str Q
-  | P \ A => proc_body_to_str P ++ " \ " ++ "{" ++ (concat ", " A) ++ "}"
+  | P \ A => proc_body_to_str P ++ " \\ " ++ "{" ++ (concat ", " A) ++ "}"
   end.
 
 Coercion proc_body_to_str : proc_body >-> string.
