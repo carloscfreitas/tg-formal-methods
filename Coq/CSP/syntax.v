@@ -71,8 +71,72 @@ Defined.
 Inductive proc_def : Type :=
   | Proc (name : string) (body : proc_body).
 
-Inductive specification : Type :=
-  | Spec (ch_list : list channel) (proc_list : list proc_def).
+Definition get_proc_id (p : proc_def) : string :=
+  match p with
+  | Proc id body => id
+  end.
+
+Fixpoint concat_channels (ch_list : list channel) : list event :=
+  match ch_list with
+  | (Channel ch) :: tl => ch ++ concat_channels tl
+  | nil => nil
+  end.
+
+Fixpoint get_proc_refs' (P : proc_body) : set string :=
+  match P with
+  | SKIP => empty_set string
+  | STOP => empty_set string
+  | ProcRef id => set_add string_dec id (empty_set string)
+  | ProcPrefix _ P' => get_proc_refs' P'
+  | ProcExtChoice P' P'' => set_union string_dec (get_proc_refs' P') (get_proc_refs' P'')
+  | ProcIntChoice P' P'' => set_union string_dec (get_proc_refs' P') (get_proc_refs' P'')
+  | ProcAlphaParallel P' P'' _ _ => set_union string_dec (get_proc_refs' P') (get_proc_refs' P'')
+  | ProcGenParallel P' P'' _ => set_union string_dec (get_proc_refs' P') (get_proc_refs' P'')
+  | ProcInterleave P' P'' => set_union string_dec (get_proc_refs' P') (get_proc_refs' P'')
+  | ProcSeqComp P' P'' => set_union string_dec (get_proc_refs' P') (get_proc_refs' P'')
+  | ProcHiding P' _ => get_proc_refs' P'
+  end.
+
+Fixpoint get_proc_refs (proc_def_list : list proc_def) : set string :=
+  match proc_def_list with
+  | (Proc id body) :: tail => set_union string_dec (get_proc_refs' body) (get_proc_refs tail)
+  | nil => nil
+  end.
+
+Fixpoint get_events' (P : proc_body) : set event :=
+  match P with
+  | SKIP => empty_set event
+  | STOP => empty_set event
+  | ProcRef id => empty_set event
+  | ProcPrefix e P' => set_add event_dec e (get_events' P')
+  | ProcExtChoice P' P'' => set_union event_dec (get_events' P') (get_events' P'')
+  | ProcIntChoice P' P'' => set_union event_dec (get_events' P') (get_events' P'')
+  | ProcAlphaParallel P' P'' (Alphabet A) (Alphabet B) =>
+    set_union event_dec A (set_union event_dec B (set_union event_dec (get_events' P') (get_events' P'')))
+  | ProcGenParallel P' P'' (Alphabet A) =>
+    set_union event_dec A (set_union event_dec (get_events' P') (get_events' P''))
+  | ProcInterleave P' P'' => set_union event_dec (get_events' P') (get_events' P'')
+  | ProcSeqComp P' P'' => set_union event_dec (get_events' P') (get_events' P'')
+  | ProcHiding P' (Alphabet A) => set_union event_dec A (get_events' P')
+  end.
+
+Fixpoint get_events (proc_def_list : list proc_def) : set string :=
+  match proc_def_list with
+  | (Proc id body) :: tail => set_union string_dec (get_events' body) (get_events tail)
+  | nil => nil
+  end.
+
+Record specification : Type := Build_Spec
+{
+  ch_list : list channel;
+  proc_list : list proc_def;
+  non_empty_proc_ids : ~ In EmptyString (map get_proc_id proc_list);
+  non_empty_events : ~ In EmptyString (concat_channels ch_list);
+  no_dup_proc_ids : NoDup (map get_proc_id proc_list);
+  no_dup_events : NoDup (concat_channels ch_list);
+  no_missing_proc_defs : incl (get_proc_refs proc_list) (map get_proc_id proc_list);
+  no_missing_events : incl (get_events proc_list) (concat_channels ch_list)
+}.
 
 Fixpoint find_proc_body (proc_list : list proc_def) (proc_name : string) : option proc_body :=
   match proc_list with
@@ -83,10 +147,8 @@ Fixpoint find_proc_body (proc_list : list proc_def) (proc_name : string) : optio
                                 end
   end.
 
-Definition get_proc_body (context : specification) (proc_name : string) : option proc_body :=
-  match context with
-  | Spec ch_list proc_list => find_proc_body proc_list proc_name
-  end.
+Definition get_proc_body (spec : specification) (proc_name : string) : option proc_body :=
+  find_proc_body spec.(proc_list) proc_name.
 
 (** NOTATIONS/COERCIONS **) 
 
@@ -144,3 +206,51 @@ Fixpoint proc_body_to_str (proc : proc_body) : string :=
   end.
 
 Coercion proc_body_to_str : proc_body >-> string.
+
+Local Open Scope string_scope.
+
+Ltac solve_not_in := unfold not;
+  let H := fresh "H" in (
+    intros H; repeat (contradiction + (destruct H; [> inversion H | ]))
+  ).
+
+Ltac solve_nodup := repeat (apply NoDup_cons; [> solve_not_in | ]); apply NoDup_nil.
+
+Ltac solve_incl := unfold incl;
+  let H := fresh "H" in (
+    let a := fresh "a" in (
+      intros a H;
+      repeat (contradiction + (destruct H; [> repeat (repeat (right + left)); apply H | ]))
+    )).
+
+Ltac solve_spec_ctx_rules spec_cons := apply spec_cons;
+  repeat (
+    match goal with
+    | |- ~ In _ _ => solve_not_in
+    | |- NoDup _ => solve_nodup
+    | |- incl _ _ => solve_incl
+    end
+  ); fail "One or more contextual rules were not fulfilled".
+
+Definition S_FORECOURT : specification.
+Proof.
+  solve_spec_ctx_rules
+  (
+    Build_Spec
+    [
+      Channel {{"lift_nozzle_1", "lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
+      ; Channel ["foo_bar" ; "lift_nozzle_2" ; "replace_nozzle_2" ; "depress_trigger_2" ; "release_trigger_2"]
+    ]
+    [
+      "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
+      ; "READY1" ::= "replace_nozzle_1" --> ProcRef "PUMP1"
+                      [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1"
+      ; "PUMP2" ::= "lift_nozzle_2" --> ProcRef "READY2"
+      ; "READY2" ::= "replace_nozzle_2" --> ProcRef "PUMP2"
+                      [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2"
+      ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
+    ]
+  ).
+Defined.
+
+Local Close Scope string_scope.
