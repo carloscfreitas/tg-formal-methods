@@ -30,8 +30,6 @@ Definition traceR (C : specification) (proc_name : string) (t : trace) :=
   | None => False
   end.
 
-Ltac solve_not_in := unfold not; let H := fresh "H" in (intros H; repeat (contradiction + (destruct H; [> inversion H | ]))).
-
 Ltac solve_trace' :=
   multimatch goal with
   (* Empty trace *)
@@ -106,21 +104,12 @@ Ltac solve_trace := unfold traceR; simpl; solve_trace'.
 
 Local Open Scope string.
 
-Example not_in0 : ~set_In "" {{"a"}}.
-Proof. solve_not_in. Qed.
-
-Example not_in1 : ~set_In "a" {{}}.
-Proof. solve_not_in. Qed.
-
-Example not_in2 : ~set_In "a" {{"aa"}}.
-Proof. solve_not_in. Qed.
-
-Example not_in3 : ~set_In "a" {{"b", "c", "d", "e"}}.
-Proof. solve_not_in. Qed.
-
 Definition CH_PRINTER0 := Channel {{"accept", "print"}}.
 Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
-Definition S_PRINTER0 := Spec [CH_PRINTER0] [PRINTER0].
+Definition S_PRINTER0 : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [CH_PRINTER0] [PRINTER0]).
+Defined.
 
 Example PRINTER0_empty_trace : traceR S_PRINTER0 "PRINTER0" nil.
 Proof.
@@ -158,7 +147,10 @@ Proof. solve_trace. Qed.
 Definition CH_CHOOSE := Channel {{"select", "keep", "return"}}.
 Definition P_CHOOSE := "CHOOSE" ::= "select" --> ("keep" --> SKIP
                                                 [] "return" --> ProcRef "CHOOSE").
-Definition S_CHOOSE := Spec [CH_CHOOSE] [P_CHOOSE].
+Definition S_CHOOSE : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [CH_CHOOSE] [P_CHOOSE]).
+Defined.
 
 Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
 Proof.
@@ -202,7 +194,10 @@ Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
 
 Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
 
-Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
+Definition S_TEAM : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [CH_TEAM] [PETE ; DAVE ; TEAM]).
+Defined.
 
 Example TEAM_trace1 : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof.
@@ -241,7 +236,10 @@ Example TEAM_trace3_auto : traceR S_TEAM "PETE" ["lift_table" ; "lift_piano" ; "
 Proof. solve_trace. Qed.
 
 Definition LIGHT := "LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT".
-Definition S_LIGHT := Spec [Channel {{"on", "off"}}] [LIGHT].
+Definition S_LIGHT : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"on", "off"}}] [LIGHT]).
+Defined.
 
 Example LIGHT_trace1 : traceR S_LIGHT "LIGHT" ["on" ; "off" ; "on"].
 Proof.
@@ -261,12 +259,13 @@ Qed.
 Example LIGHT_trace1_auto : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
 Proof. solve_trace. Qed.
 
-Definition S_FORECOURT :=
-  (
-    Spec
+Definition S_FORECOURT : specification.
+Proof.
+  solve_spec_ctx_rules (
+    Build_Spec
     [
-      Channel {{"lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
-      ; Channel {{"lift_nozzle_2", "replace_nozzle_2", "depress_trigger_2", "release_trigger_2"}}
+      Channel {{"lift_nozzle_1", "lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
+      ; Channel ["lift_nozzle_2" ; "replace_nozzle_2" ; "depress_trigger_2" ; "release_trigger_2"]
     ]
     [
       "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
@@ -278,6 +277,7 @@ Definition S_FORECOURT :=
       ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
     ]
   ).
+Defined.
 
 Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
     ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
@@ -366,7 +366,10 @@ Proof. solve_trace. Qed.
 Definition SPY := "SPY" ::= "listen" --> "relay" --> ProcRef "SPY".
 Definition MASTER := "MASTER" ::= "relay" --> "log" --> ProcRef "MASTER".
 Definition MASTER_SPY := "MASTER_SPY" ::= ProcRef "SPY" [| {{"relay"}} |] ProcRef "MASTER" \ {{"relay"}}.
-Definition S_MASTER_SPY := Spec [Channel {{"listen", "relay", "log"}}] [SPY ; MASTER ; MASTER_SPY].
+Definition S_MASTER_SPY : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"listen", "relay", "log"}}] [SPY ; MASTER ; MASTER_SPY]).
+Defined.
 
 Example MASTER_SPY_trace1 : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "log"].
 Proof.
@@ -414,22 +417,28 @@ Proof. solve_trace. Qed.
 Example MASTER_SPY_trace2_auto : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "listen" ; "log" ; "listen" ; "log"].
 Proof. solve_trace. Qed.
 
-Definition S_PURCHASE := Spec 
-  [
-    Channel {{"select", "keep", "return"}}
-    ; Channel {{"cash", "cheque", "card"}}
-    ; Channel {{"swipe", "sign"}}
-    ; Channel {{"receipt", "reject"}}
-  ]
-  [
-    "CHOOSE" ::= "select" --> ("keep" --> SKIP 
-                              [] "return" --> ProcRef "CHOOSE")
-    ; "PAY" ::= "cash" --> "receipt" --> SKIP
-                [] "cheque" --> "receipt" --> SKIP
-                [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
-                                          [] "reject" --> ProcRef "PAY")
-    ; "PURCHASE" ::= ProcRef "CHOOSE" ;; ProcRef "PAY"
-  ].
+Definition S_PURCHASE : specification.
+Proof.
+  solve_spec_ctx_rules (
+    Build_Spec 
+    [
+      Channel {{"select", "keep", "return"}}
+      ; Channel {{"cash", "cheque", "card"}}
+      ; Channel {{"swipe", "sign"}}
+      ; Channel {{"receipt", "reject"}}
+    ]
+    [
+      "CHOOSE" ::= "select" --> ("keep" --> SKIP 
+                                [] "return" --> ProcRef "CHOOSE")
+      ; "PAY" ::= "cash" --> "receipt" --> SKIP
+                  [] "cheque" --> "receipt" --> SKIP
+                  [] "card" --> "swipe" --> ("sign" --> "receipt" --> SKIP
+                                            [] "reject" --> ProcRef "PAY")
+      ; "PURCHASE" ::= ProcRef "CHOOSE" ;; ProcRef "PAY"
+    ]
+  ).
+Defined.
+
 Example PURCHASE_trace_auto : traceR S_PURCHASE "PURCHASE" ["select" ; "return" ; "select" ; "keep"
   ; "card" ; "swipe" ; "reject" ; "cash" ; "receipt"].
 Proof. solve_trace. Qed.
@@ -438,13 +447,26 @@ Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> ProcRef "TICKET".
 Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> ProcRef "CHANGE".
 Definition MACHINE :=
   "MACHINE" ::= ProcRef "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] ProcRef "CHANGE".
-Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
+Definition PARKING_PERMIT_MCH : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE]).
+Defined.
 
 Example PARKING_trace_auto : traceR PARKING_PERMIT_MCH "MACHINE" ["cash" ; "ticket" ; "change" ; "cash" ; "change" ; "ticket"].
 Proof. solve_trace. Qed.
 
-Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] [("P" ::= "a" --> STOP) ; ("Q" ::= "a" --> "b" --> STOP)
-  ; ("R" ::= ProcRef "P" [] ProcRef "Q")].
+Definition TOY_PROBLEM : specification.
+Proof.
+  solve_spec_ctx_rules (
+    Build_Spec
+    [Channel {{"a", "b"}}]
+    [
+      ("P" ::= "a" --> STOP)
+      ; ("Q" ::= "a" --> "b" --> STOP)
+      ; ("R" ::= ProcRef "P" [] ProcRef "Q")
+    ]
+  ).
+Defined.
 Example TOY_PROBLEM_trace_auto : traceR TOY_PROBLEM "R" ["a" ; "b"].
 Proof. solve_trace. Qed.
 

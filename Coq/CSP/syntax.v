@@ -232,25 +232,4 @@ Ltac solve_spec_ctx_rules spec_cons := apply spec_cons;
     end
   ); fail "One or more contextual rules were not fulfilled".
 
-Definition S_FORECOURT : specification.
-Proof.
-  solve_spec_ctx_rules
-  (
-    Build_Spec
-    [
-      Channel {{"lift_nozzle_1", "lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
-      ; Channel ["foo_bar" ; "lift_nozzle_2" ; "replace_nozzle_2" ; "depress_trigger_2" ; "release_trigger_2"]
-    ]
-    [
-      "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
-      ; "READY1" ::= "replace_nozzle_1" --> ProcRef "PUMP1"
-                      [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1"
-      ; "PUMP2" ::= "lift_nozzle_2" --> ProcRef "READY2"
-      ; "READY2" ::= "replace_nozzle_2" --> ProcRef "PUMP2"
-                      [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2"
-      ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
-    ]
-  ).
-Defined.
-
 Local Close Scope string_scope.
