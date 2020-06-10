@@ -5,6 +5,7 @@ Import ListNotations.
 
 Require Import syntax.
 Require Import semantics_sos.
+Require Import semantics_trace.
 
 (** LTS RELATION **)
 
@@ -235,151 +236,216 @@ Definition generate_dot (lts : option (set transition)) : string :=
   | _ => ""
   end.
 
+Theorem compute_ltsR_step_more:
+  forall (spec : specification) (l l' : set proc_body) (n : nat) (trans_set : set transition),
+  compute_ltsR' spec l l' n = Some trans_set ->
+  compute_ltsR' spec l l' (S n) = Some trans_set.
+Proof. Admitted.
+
 Theorem compute_ltsR_correctness:
   forall (spec : specification) (proc_id : string) (n : nat) (trans_set : set transition),
   compute_ltsR spec proc_id n = Some trans_set -> ltsR spec trans_set proc_id.
 Proof.
-  intros. destruct spec, proc_list.
-  - inversion H.
-  - destruct p, name, proc_id.
-    * destruct body.
-      + destruct n.
+  intros. destruct (get_proc_body spec proc_id) eqn:H1.
+  - destruct p.
+    * (* SKIP *)
+      unfold compute_ltsR in H; rewrite -> H1 in H. destruct n.
+      + inversion H.
+      + simpl in H. destruct n.
         { inversion H. }
         {
-          unfold compute_ltsR in H; simpl in H. destruct n.
-          { inversion H. }
+          inversion H. destruct n.
           {
-            inversion H. destruct n.
+            inversion H2. unfold ltsR. rewrite -> H1. split.
+            { solve_nodup. }
             { 
-              inversion H. unfold ltsR. simpl. split.
+              apply lts_inductive_rule.
               {
-                apply NoDup_cons.
-                { unfold not. intros. inversion H0. }
-                { apply NoDup_nil. }
-              }
-              {
-                apply lts_inductive_rule.
+                split.
                 {
-                  split.
-                  {
-                    intros. inversion H0; subst.
-                    { inversion H3. }
-                    { simpl. left. reflexivity. }
-                  }
-                  {
-                    intros. inversion H0.
-                    { inversion H3. apply success_termination_rule. }
-                    { inversion H3. }
-                  }
+                  intros. inversion H0; subst.
+                  { inversion H4. }
+                  { simpl. left. reflexivity. }
                 }
                 {
-                  simpl. apply lts_inductive_rule.
+                  intros.
                   {
-                    split.
-                    { intros. inversion H0; subst. inversion H3. }
-                    { intros. inversion H0. }
+                    inversion H0.
+                    { inversion H4; subst. apply success_termination_rule. }
+                    { inversion H4. }
                   }
-                  { simpl. apply lts_empty_rule. }
                 }
               }
+              simpl. apply lts_inductive_rule.
+              {
+                split.
+                { intros. inversion H0; subst. inversion H4. }
+                { simpl. intros. contradiction. }
+              }
+              simpl. apply lts_empty_rule.
             }
+          } 
+          {
+            inversion H2. unfold ltsR. rewrite -> H1. split.
+            { solve_nodup. }
             { 
-              inversion H1. unfold ltsR. simpl. split.
+              apply lts_inductive_rule.
               {
-                apply NoDup_cons.
-                { unfold not. intros. inversion H0. }
-                { apply NoDup_nil. }
-              }
-              {
-                apply lts_inductive_rule.
+                split.
                 {
-                  split.
-                  {
-                    intros. inversion H0; subst.
-                    { inversion H3. }
-                    { simpl. left. reflexivity. }
-                  }
-                  {
-                    intros. inversion H0.
-                    { inversion H3. apply success_termination_rule. }
-                    { inversion H3. }
-                  }
+                  intros. inversion H0; subst.
+                  { inversion H4. }
+                  { simpl. left. reflexivity. }
                 }
                 {
-                  simpl. apply lts_inductive_rule.
+                  intros.
                   {
-                    split.
-                    { intros. inversion H0; subst. inversion H3. }
-                    { intros. inversion H0. }
+                    inversion H0.
+                    { inversion H4; subst. apply success_termination_rule. }
+                    { inversion H4. }
                   }
-                  { simpl. apply lts_empty_rule. }
                 }
               }
+              simpl. apply lts_inductive_rule.
+              {
+                split.
+                { intros. inversion H0; subst. inversion H4. }
+                { simpl. intros. contradiction. }
+              }
+              simpl. apply lts_empty_rule.
             }
           }
         }
-      + destruct n.
-        { inversion H. }
-        {
-          inversion H. unfold compute_ltsR in H; simpl in H. destruct n.
+    * (* STOP *)
+      unfold compute_ltsR in H; rewrite -> H1 in H. destruct n.
+      + inversion H.
+      + inversion H. destruct n.
+        { 
+          inversion H2. unfold ltsR. rewrite -> H1.
+          split.
+          { apply NoDup_nil. }
           {
-            inversion H. unfold ltsR. simpl. split.
-            { apply NoDup_nil. }
+            apply lts_inductive_rule.
+            {
+              split.
+              { intros. inversion H0; subst. inversion H4. }
+              { simpl. intros. contradiction. }
+            }
+            simpl. apply lts_empty_rule. 
+          }
+        }
+        { 
+          inversion H2. unfold ltsR. rewrite -> H1.
+          split.
+          { apply NoDup_nil. }
+          {
+            apply lts_inductive_rule.
+            {
+              split.
+              { intros. inversion H0; subst. inversion H4. }
+              { simpl. intros. contradiction. }
+            }
+            simpl. apply lts_empty_rule. 
+          }
+        }
+    * (* ProcRef name *) admit.
+    * (* e --> P *)
+      unfold compute_ltsR in H; rewrite -> H1 in H. induction n.
+      + inversion H.
+      + inversion H. destruct (compute_ltsR' spec [p] [event --> p] n) eqn:H3.
+        {
+          induction s.
+          {
+            inversion H2. unfold ltsR. rewrite H1. split.
+            { solve_nodup. }
             {
               apply lts_inductive_rule.
               {
                 split.
-                { intros. inversion H0; subst. inversion H3. }
-                { simpl. intros. contradiction. }
+                {
+                  intros. inversion H0; subst.
+                  {
+                    unfold transitions_from_P. destruct proc_body_eq_dec.
+                    { simpl. left. reflexivity. }
+                    { contradiction. }
+                  }
+                  { inversion H5. }
+                }
+                {
+                  unfold transitions_from_P. destruct proc_body_eq_dec.
+                  {
+                    intros. inversion H0.
+                    { inversion H5. apply prefix_rule. }
+                    { inversion H5. }
+                  }
+                  { contradiction. }
+                }
               }
-              { simpl. apply lts_empty_rule. }
-            }
-          }
-          {
-            inversion H. unfold ltsR. simpl. split.
-            { apply NoDup_nil. }
-            {
-              apply lts_inductive_rule.
               {
-                split.
-                { intros. inversion H0; subst. inversion H3. }
-                { simpl. intros. contradiction. }
+                unfold transitions_from_P. destruct proc_body_eq_dec.
+                { 
+                  unfold set_add. unfold target_proc_bodies. 
+                  unfold set_add. unfold set_union. unfold set_add.
+                  unfold set_diff. unfold set_mem. destruct transition_eq_dec.
+                  {
+                    destruct proc_body_eq_dec.
+                    { apply lts_empty_rule. }
+                    {
+                      simpl. apply lts_inductive_rule.
+                      {
+                        split.
+                        { 
+                          intros. simpl. inversion H0; subst; admit.
+                        }
+                        { admit. }
+                      }
+                      admit.
+                    }
+                  }
+                  { contradiction. }
+                }
+                { contradiction. }
               }
-              { simpl. apply lts_empty_rule. }
             }
           }
+          admit.
         }
-      + destruct n.
-        { inversion H. }
-        { Admitted.
+        { inversion H2. }
+Admitted.
 
 Local Open Scope string.
 
-Definition S_FORECOURT :=
-(
-  Spec
-  [
-    Channel {{"lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
-    ; Channel {{"lift_nozzle_2", "replace_nozzle_2", "depress_trigger_2", "release_trigger_2"}}
-  ]
-  [
-    "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
-    ; "READY1" ::= "replace_nozzle_1" --> ProcRef "PUMP1"
-                    [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1"
-    ; "PUMP2" ::= "lift_nozzle_2" --> ProcRef "READY2"
-    ; "READY2" ::= "replace_nozzle_2" --> ProcRef "PUMP2"
-                    [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2"
-    ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
-  ]
-).
+Definition S_FORECOURT :  specification.
+Proof.
+  solve_spec_ctx_rules (
+    Build_Spec
+    [
+      Channel {{"lift_nozzle_1", "replace_nozzle_1", "depress_trigger_1", "release_trigger_1"}}
+      ; Channel {{"lift_nozzle_2", "replace_nozzle_2", "depress_trigger_2", "release_trigger_2"}}
+    ]
+    [
+      "PUMP1" ::= "lift_nozzle_1" --> ProcRef "READY1"
+      ; "READY1" ::= "replace_nozzle_1" --> ProcRef "PUMP1"
+                      [] "depress_trigger_1" --> "release_trigger_1" --> ProcRef "READY1"
+      ; "PUMP2" ::= "lift_nozzle_2" --> ProcRef "READY2"
+      ; "READY2" ::= "replace_nozzle_2" --> ProcRef "PUMP2"
+                      [] "depress_trigger_2" --> "release_trigger_2" --> ProcRef "READY2"
+      ; "FORECOURT" ::= ProcRef "PUMP1" ||| ProcRef "PUMP2"
+    ]
+  ).
+Defined.
 Compute generate_dot (compute_ltsR S_FORECOURT "FORECOURT" 100).
 
-Definition TOY' := Spec [Channel {{"a", "b"}}] ["P" ::= "b" --> SKIP [] "a" --> STOP \ {{"a"}}].
+Definition TOY' : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"a", "b"}}] ["P" ::= "b" --> SKIP [] "a" --> STOP \ {{"a"}}]).
+Defined.
 Compute generate_dot( compute_ltsR TOY' "P" 10).
 
 Definition CH := Channel {{"a", "b"}}.
 Definition P := "P" ::= "a" --> STOP [] "b" --> "b" --> STOP.
-Definition S := Spec [CH] [P].
+Definition S : specification.
+Proof. solve_spec_ctx_rules (Build_Spec [CH] [P]). Defined.
 
 Compute generate_dot (compute_ltsR S "P" 100).
 
@@ -392,11 +458,13 @@ Definition DAVE := "DAVE" ::= "lift_piano" --> ProcRef "DAVE"
 
 Definition TEAM := "TEAM" ::= ProcRef "PETE" [| {{"lift_piano", "lift_table"}} |] ProcRef "DAVE".
 
-Definition S_TEAM := Spec [CH_TEAM] [PETE ; DAVE ; TEAM].
+Definition S_TEAM : specification.
+Proof. solve_spec_ctx_rules (Build_Spec [CH_TEAM] [PETE ; DAVE ; TEAM]). Defined.
 
 Compute generate_dot (compute_ltsR S_TEAM "TEAM" 100).
 
-Definition TOY_PROBLEM := Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP].
+Definition TOY_PROBLEM : specification.
+Proof. solve_spec_ctx_rules (Build_Spec [Channel {{"a", "b"}}] ["P" ::= "a" --> "b" --> STOP]). Defined.
 
 Compute generate_dot (compute_ltsR TOY_PROBLEM "P" 100).
 
@@ -441,9 +509,14 @@ Proof.
         { simpl. apply lts_empty_rule. }
 Qed.
 
-Definition TOY_PROBLEM' := Spec
-  [Channel {{"a", "b", "c"}}]
-  ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)].
+Definition TOY_PROBLEM' : specification.
+Proof.
+  solve_spec_ctx_rules (
+    Build_Spec
+    [Channel {{"a", "b", "c"}}]
+    ["P" ::= ("a" --> "b" --> STOP) [] ("c" --> STOP)]
+  ).
+Defined.
 
 Compute generate_dot (compute_ltsR TOY_PROBLEM' "P" 100).
 
@@ -510,7 +583,8 @@ Proof.
 Qed.
 
 Definition P' := "P" ::= ProcRef "P".
-Definition UNDERDEFINED_RECURSION := Spec [Channel {{}}] [P'].
+Definition UNDERDEFINED_RECURSION : specification.
+Proof. solve_spec_ctx_rules (Build_Spec [Channel {{}}] [P']). Defined.
 
 Compute generate_dot (compute_ltsR UNDERDEFINED_RECURSION "P" 100).
 
@@ -535,7 +609,10 @@ Proof.
     + simpl. apply lts_empty_rule.
 Qed.
 
-Definition S_LIGHT := Spec [Channel {{"on", "off"}}] ["LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT"].
+Definition S_LIGHT : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"on", "off"}}] ["LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT"]).
+Defined.
 
 Compute generate_dot (compute_ltsR S_LIGHT "LIGHT" 100).
 
@@ -598,7 +675,10 @@ Qed.
 Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> ProcRef "TICKET".
 Definition CHANGE := "CHANGE" ::= "cash" --> "change" --> ProcRef "CHANGE".
 Definition MACHINE := "MACHINE" ::= ProcRef "TICKET" [[ {{"cash", "ticket"}} \\ {{"cash", "change"}} ]] ProcRef "CHANGE".
-Definition PARKING_PERMIT_MCH := Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE].
+Definition PARKING_PERMIT_MCH : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE]).
+Defined.
 
 Compute generate_dot (compute_ltsR PARKING_PERMIT_MCH "MACHINE" 100).
 
