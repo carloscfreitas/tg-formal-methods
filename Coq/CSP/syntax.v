@@ -132,8 +132,7 @@ Record specification : Type := Build_Spec
   proc_list : list proc_def;
   non_empty_proc_ids : ~ In EmptyString (map get_proc_id proc_list);
   non_empty_events : ~ In EmptyString (concat_channels ch_list);
-  no_dup_proc_ids : NoDup (map get_proc_id proc_list);
-  no_dup_events : NoDup (concat_channels ch_list);
+  no_dup_events_proc_ids : NoDup ((concat_channels ch_list) ++ (map get_proc_id proc_list));
   no_missing_proc_defs : incl (get_proc_refs proc_list) (map get_proc_id proc_list);
   no_missing_events : incl (get_events proc_list) (concat_channels ch_list)
 }.
