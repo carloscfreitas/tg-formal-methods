@@ -146,8 +146,8 @@ Fixpoint find_proc_body (proc_list : list proc_def) (proc_name : string) : optio
                                 end
   end.
 
-Definition get_proc_body (spec : specification) (proc_name : string) : option proc_body :=
-  find_proc_body spec.(proc_list) proc_name.
+Definition get_proc_body (S : specification) (proc_name : string) : option proc_body :=
+  find_proc_body S.(proc_list) proc_name.
 
 (** NOTATIONS/COERCIONS **) 
 

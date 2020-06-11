@@ -41,10 +41,10 @@ Inductive ltsR' :
   set proc_body -> (* the states still to be visited *)
   set proc_body -> (* the visited states *)
   Prop :=
-  | lts_empty_rule (C : specification) (visited : set proc_body) :
-      ltsR' C nil nil visited
+  | lts_empty_rule (S : specification) (visited : set proc_body) :
+      ltsR' S nil nil visited
   | lts_inductive_rule
-        (C : specification)
+        (S : specification)
         (T : set transition)
         (P : proc_body)
         (tl visited : set proc_body) :
@@ -55,13 +55,13 @@ Inductive ltsR' :
                         (set_union proc_body_eq_dec tl (target_proc_bodies T'))
                         visited' in
       (forall (a : event_tau_tick) (P' : proc_body),
-         (C # P // a ==> P') <-> In (P,a,P') T') ->
-      ltsR' C T'' to_visit visited' ->
-      ltsR' C T (P :: tl) visited.
+         (S # P // a ==> P') <-> In (P,a,P') T') ->
+      ltsR' S T'' to_visit visited' ->
+      ltsR' S T (P :: tl) visited.
 
-Definition ltsR (C : specification) (T : set transition) (name : string) : Prop :=
-  match get_proc_body C name with
-  | Some body => NoDup T /\ ltsR' C T [body] nil
+Definition ltsR (S : specification) (T : set transition) (name : string) : Prop :=
+  match get_proc_body S name with
+  | Some body => NoDup T /\ ltsR' S T [body] nil
   | None => False
   end.
 
@@ -243,10 +243,10 @@ Theorem compute_ltsR_step_more:
 Proof. Admitted.
 
 Theorem compute_ltsR_correctness:
-  forall (spec : specification) (proc_id : string) (n : nat) (trans_set : set transition),
-  compute_ltsR spec proc_id n = Some trans_set -> ltsR spec trans_set proc_id.
+  forall (S : specification) (proc_id : string) (n : nat) (trans_set : set transition),
+  compute_ltsR S proc_id n = Some trans_set -> ltsR S trans_set proc_id.
 Proof.
-  intros. destruct (get_proc_body spec proc_id) eqn:H1.
+  intros. destruct (get_proc_body S proc_id) eqn:H1.
   - destruct p.
     * (* SKIP *)
       unfold compute_ltsR in H; rewrite -> H1 in H. destruct n.
@@ -352,7 +352,7 @@ Proof.
     * (* e --> P *)
       unfold compute_ltsR in H; rewrite -> H1 in H. induction n.
       + inversion H.
-      + inversion H. destruct (compute_ltsR' spec [p] [event --> p] n) eqn:H3.
+      + inversion H. destruct (compute_ltsR' S [p] [event --> p] n) eqn:H3.
         {
           induction s.
           {

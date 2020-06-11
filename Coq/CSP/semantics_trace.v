@@ -9,24 +9,24 @@ Require Import semantics_sos.
 Definition trace := list event.
 
 Inductive traceR' : specification -> proc_body -> trace -> Prop :=
-  | empty_trace_rule (C : specification) (P : proc_body) :
-    traceR' C P nil
-  | event_trace_rule (C : specification) (P P' : proc_body) (h : event) (tl : trace) :
-    (C # P // Event h ==> P') ->
-    traceR' C P' tl ->
-    traceR' C P (h::tl)
-  | tick_trace_rule (C : specification) (P P' : proc_body) (t : trace) :
-    (C # P // Tick ==> P') ->
-    traceR' C P' t ->
-    traceR' C P t
-  | tau_trace_rule (C : specification) (P P' : proc_body) (t : trace) :
-    (C # P // Tau ==> P') ->
-    traceR' C P' t ->
-    traceR' C P t.
+  | empty_trace_rule (S : specification) (P : proc_body) :
+    traceR' S P nil
+  | event_trace_rule (S : specification) (P P' : proc_body) (h : event) (tl : trace) :
+    (S # P // Event h ==> P') ->
+    traceR' S P' tl ->
+    traceR' S P (h::tl)
+  | tick_trace_rule (S : specification) (P P' : proc_body) (t : trace) :
+    (S # P // Tick ==> P') ->
+    traceR' S P' t ->
+    traceR' S P t
+  | tau_trace_rule (S : specification) (P P' : proc_body) (t : trace) :
+    (S # P // Tau ==> P') ->
+    traceR' S P' t ->
+    traceR' S P t.
   
-Definition traceR (C : specification) (proc_name : string) (t : trace) :=
-  match (get_proc_body C proc_name) with
-  | Some body => traceR' C body t
+Definition traceR (S : specification) (proc_name : string) (t : trace) :=
+  match (get_proc_body S proc_name) with
+  | Some body => traceR' S body t
   | None => False
   end.
 
