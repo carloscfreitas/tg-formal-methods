@@ -100,6 +100,11 @@ Ltac solve_trace' :=
 
 Ltac solve_trace := unfold traceR; simpl; solve_trace'.
 
+Definition trace_refinement (S : specification) (Spec Imp : string) : Prop :=
+  forall (t : trace), traceR S Imp t -> traceR S Spec t.
+
+Notation "S '#' P '[T=' Q" := (trace_refinement S P Q) (at level 150, left associativity).
+
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
