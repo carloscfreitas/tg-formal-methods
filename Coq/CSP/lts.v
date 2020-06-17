@@ -348,7 +348,40 @@ Proof.
             simpl. apply lts_empty_rule. 
           }
         }
-    * (* ProcRef name *) admit.
+    * (* ProcRef name *)
+      unfold ltsR. rewrite -> H1. split.
+      + unfold compute_ltsR in H. rewrite -> H1 in H.
+        induction n.
+        { inversion H. }
+        {
+          inversion H. destruct (get_proc_body S name) eqn:H3.
+          {
+            inversion H2. destruct (compute_ltsR' S [p] [ProcRef name] n) eqn:H5.
+            {
+              inversion H4. induction s.
+              { simpl. solve_nodup. }
+              { unfold set_union. unfold set_add. admit. }
+            }
+            { inversion H4. }
+          }
+          { inversion H2. admit. }
+        }
+      + apply lts_inductive_rule.
+        {
+          split.
+          {
+            intros. inversion H0; subst. unfold compute_ltsR in H; rewrite -> H1 in H.
+            destruct n.
+            { inversion H. }
+            { 
+              inversion H. destruct (get_proc_body S name).
+              { inversion H5. admit. }
+              admit.
+            }
+          }
+          admit.
+        }
+        admit.
     * (* e --> P *)
       unfold compute_ltsR in H; rewrite -> H1 in H. induction n.
       + inversion H.
