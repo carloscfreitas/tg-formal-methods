@@ -237,9 +237,9 @@ Definition generate_dot (lts : option (set transition)) : string :=
   end.
 
 Theorem compute_ltsR_step_more:
-  forall (spec : specification) (l l' : set proc_body) (n : nat) (trans_set : set transition),
-  compute_ltsR' spec l l' n = Some trans_set ->
-  compute_ltsR' spec l l' (S n) = Some trans_set.
+  forall (S : specification) (l l' : set proc_body) (n : nat) (trans_set : set transition),
+  compute_ltsR' S l l' n = Some trans_set ->
+  compute_ltsR' S l l' (n + 1) = Some trans_set.
 Proof. Admitted.
 
 Theorem compute_ltsR_correctness:
