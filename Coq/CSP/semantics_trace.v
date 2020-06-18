@@ -9,24 +9,24 @@ Require Import semantics_sos.
 Definition trace := list event.
 
 Inductive traceR' : specification -> proc_body -> trace -> Prop :=
-  | empty_trace_rule (C : specification) (P : proc_body) :
-    traceR' C P nil
-  | event_trace_rule (C : specification) (P P' : proc_body) (h : event) (tl : trace) :
-    (C # P // Event h ==> P') ->
-    traceR' C P' tl ->
-    traceR' C P (h::tl)
-  | tick_trace_rule (C : specification) (P P' : proc_body) (t : trace) :
-    (C # P // Tick ==> P') ->
-    traceR' C P' t ->
-    traceR' C P t
-  | tau_trace_rule (C : specification) (P P' : proc_body) (t : trace) :
-    (C # P // Tau ==> P') ->
-    traceR' C P' t ->
-    traceR' C P t.
+  | empty_trace_rule (S : specification) (P : proc_body) :
+    traceR' S P nil
+  | event_trace_rule (S : specification) (P P' : proc_body) (h : event) (tl : trace) :
+    (S # P // Event h ==> P') ->
+    traceR' S P' tl ->
+    traceR' S P (h::tl)
+  | tick_trace_rule (S : specification) (P P' : proc_body) (t : trace) :
+    (S # P // Tick ==> P') ->
+    traceR' S P' t ->
+    traceR' S P t
+  | tau_trace_rule (S : specification) (P P' : proc_body) (t : trace) :
+    (S # P // Tau ==> P') ->
+    traceR' S P' t ->
+    traceR' S P t.
   
-Definition traceR (C : specification) (proc_name : string) (t : trace) :=
-  match (get_proc_body C proc_name) with
-  | Some body => traceR' C body t
+Definition traceR (S : specification) (proc_name : string) (t : trace) :=
+  match (get_proc_body S proc_name) with
+  | Some body => traceR' S body t
   | None => False
   end.
 
@@ -100,6 +100,11 @@ Ltac solve_trace' :=
 
 Ltac solve_trace := unfold traceR; simpl; solve_trace'.
 
+Definition trace_refinement (S : specification) (Spec Imp : string) : Prop :=
+  forall (t : trace), traceR S Imp t -> traceR S Spec t.
+
+Notation "S '#' P '[T=' Q" := (trace_refinement S P Q) (at level 150, left associativity).
+
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
@@ -111,35 +116,11 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [CH_PRINTER0] [PRINTER0]).
 Defined.
 
-Example PRINTER0_empty_trace : traceR S_PRINTER0 "PRINTER0" nil.
-Proof.
-  unfold traceR. simpl.
-  apply empty_trace_rule.
-Qed.
-
 Example PRINTER0_empty_trace_auto : traceR S_PRINTER0 "PRINTER0" nil.
 Proof. solve_trace. Qed.
 
-Example PRINTER0_trace1 : traceR S_PRINTER0 "PRINTER0" ["accept"].
-Proof.
-  unfold traceR. simpl.
-  eapply event_trace_rule.
-  - apply prefix_rule.
-  - apply empty_trace_rule.
-Qed.
-
 Example PRINTER0_trace1_auto : traceR S_PRINTER0 "PRINTER0" ["accept"].
 Proof. solve_trace. Qed.
-
-Example PRINTER0_trace2 : traceR S_PRINTER0 "PRINTER0" ["accept" ; "print"].
-Proof.
-  unfold traceR. simpl.
-  eapply event_trace_rule.
-  - apply prefix_rule.
-  - eapply event_trace_rule.
-    + apply prefix_rule.
-    + apply empty_trace_rule.
-Qed.
 
 Example PRINTER0_trace2_auto : traceR S_PRINTER0 "PRINTER0" ["accept" ; "print"].
 Proof. solve_trace. Qed.
@@ -152,32 +133,8 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [CH_CHOOSE] [P_CHOOSE]).
 Defined.
 
-Example CHOOSE_trace1 : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
-Proof.
-  unfold traceR. simpl.
-  eapply event_trace_rule.
-  - apply prefix_rule.
-  - eapply event_trace_rule.
-    * apply ext_choice_left_rule.
-      + unfold not. intros. inversion H.
-      + apply prefix_rule.
-    * apply empty_trace_rule.
-Qed.
-
 Example CHOOSE_trace1_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
 Proof. solve_trace. Qed.
-
-Example CHOOSE_trace2 : traceR S_CHOOSE "CHOOSE" ["select" ; "return"].
-Proof.
-  unfold traceR. simpl.
-  eapply event_trace_rule.
-  - apply prefix_rule.
-  - eapply event_trace_rule.
-    * apply ext_choice_right_rule.
-      + unfold not. intros. inversion H.
-      + apply prefix_rule.
-    * apply empty_trace_rule.
-Qed.
 
 Example CHOOSE_trace2_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "return"].
 Proof. solve_trace. Qed.
@@ -199,33 +156,6 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [CH_TEAM] [PETE ; DAVE ; TEAM]).
 Defined.
 
-Example TEAM_trace1 : traceR S_TEAM "TEAM" ["lift_piano"].
-Proof.
-  unfold traceR. simpl.
-  eapply tau_trace_rule.
-  - apply gener_parall_tau_indep_left_rule. eapply reference_rule.
-    + reflexivity.
-    + reflexivity.
-  - eapply tau_trace_rule.
-    + apply gener_parall_tau_indep_right_rule. eapply reference_rule.
-      * reflexivity.
-      * reflexivity.
-    + simpl. eapply tau_trace_rule.
-      * apply gener_parall_tau_indep_left_rule. apply int_choice_left_rule.
-      * eapply tau_trace_rule.
-        { apply gener_parall_tau_indep_right_rule. apply int_choice_left_rule. }
-        {
-          eapply event_trace_rule.
-          {
-            apply gener_parall_joint_rule.
-            { simpl. right. left. reflexivity. }
-            { apply prefix_rule. }
-            { apply prefix_rule. }
-          }
-          apply empty_trace_rule.
-        }
-Qed.
-
 Example TEAM_trace1_auto : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof. solve_trace. Qed.
 
@@ -240,21 +170,6 @@ Definition S_LIGHT : specification.
 Proof.
   solve_spec_ctx_rules (Build_Spec [Channel {{"on", "off"}}] [LIGHT]).
 Defined.
-
-Example LIGHT_trace1 : traceR S_LIGHT "LIGHT" ["on" ; "off" ; "on"].
-Proof.
-  unfold traceR. simpl. eapply event_trace_rule.
-  - apply prefix_rule.
-  - eapply event_trace_rule.
-    * apply prefix_rule.
-    * eapply tau_trace_rule.
-      + apply reference_rule with (name := "LIGHT").
-        { reflexivity. }
-        { reflexivity. }
-      + simpl. eapply event_trace_rule.
-        { apply prefix_rule. }
-        { apply empty_trace_rule. }
-Qed.
 
 Example LIGHT_trace1_auto : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
 Proof. solve_trace. Qed.
@@ -279,81 +194,6 @@ Proof.
   ).
 Defined.
 
-Example FORECOURT_trace1 : traceR S_FORECOURT "FORECOURT"
-    ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
-Proof.
-  unfold traceR. simpl. eapply tau_trace_rule.
-  - apply interleave_left_rule.
-    * unfold not. intros. inversion H.
-    * apply reference_rule with (name := "PUMP1").
-      + reflexivity.
-      + reflexivity.
-  - simpl. eapply tau_trace_rule.
-    * apply interleave_right_rule.
-      + unfold not. intros. inversion H.
-      + apply reference_rule with (name := "PUMP2").
-        { reflexivity. }
-        { reflexivity. }
-    * simpl. eapply event_trace_rule.
-      + apply interleave_left_rule.
-        { unfold not. intros. inversion H. }
-        { apply prefix_rule. }
-      + eapply event_trace_rule.
-        { 
-          apply interleave_right_rule.
-          { unfold not. intros. inversion H. }
-          { apply prefix_rule. }
-        }
-        {
-          eapply tau_trace_rule.
-          {
-            apply interleave_left_rule.
-            { unfold not. intros. inversion H. }
-            { apply reference_rule with (name := "READY1").
-              { reflexivity. }
-              { reflexivity. }
-            }
-          }
-          simpl. eapply event_trace_rule.
-          {
-            apply interleave_left_rule.
-            { unfold not. intros. inversion H. }
-            {
-              apply ext_choice_right_rule.
-              { unfold not. intros. inversion H. }
-              { apply prefix_rule. }
-            }
-          }
-          eapply tau_trace_rule.
-          {
-            apply interleave_right_rule.
-            { unfold not. intros. inversion H. }
-            { 
-              apply reference_rule with (name := "READY2").
-              { reflexivity. }
-              { reflexivity. }
-            }
-          }
-          simpl. eapply event_trace_rule.
-          {
-            apply interleave_right_rule.
-            { unfold not. intros. inversion H. }
-            { 
-              apply ext_choice_right_rule.
-              { unfold not. intros. inversion H. }
-              { apply prefix_rule. }
-            }
-          }
-          eapply event_trace_rule.
-          {
-            apply interleave_right_rule.
-            { unfold not. intros. inversion H. }
-            { apply prefix_rule. }
-          }
-          apply empty_trace_rule. 
-        }
-Qed.
-
 Example FORECOURT_trace1_auto : traceR S_FORECOURT "FORECOURT"
     ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
 Proof. solve_trace. Qed.
@@ -370,46 +210,6 @@ Definition S_MASTER_SPY : specification.
 Proof.
   solve_spec_ctx_rules (Build_Spec [Channel {{"listen", "relay", "log"}}] [SPY ; MASTER ; MASTER_SPY]).
 Defined.
-
-Example MASTER_SPY_trace1 : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "log"].
-Proof.
-  unfold traceR; simpl. eapply tau_trace_rule.
-  - eapply hiding_tau_tick_rule.
-    + left. reflexivity.
-    + eapply gener_parall_tau_indep_left_rule. eapply reference_rule; reflexivity.
-  - eapply tau_trace_rule.
-    + eapply hiding_tau_tick_rule.
-      * left. reflexivity.
-      * eapply gener_parall_tau_indep_right_rule. eapply reference_rule; reflexivity.
-    + eapply event_trace_rule.
-      * eapply hiding_not_hidden_rule.
-        { simpl. unfold not. intros. destruct H; inversion H. }
-        {
-          eapply gener_parall_indep_left_rule.
-          { simpl. unfold not. intros. destruct H; inversion H. }
-          { apply prefix_rule. }
-        }
-      * eapply tau_trace_rule.
-        {
-          eapply hiding_rule.
-          { simpl. left. reflexivity. }
-          {
-            eapply gener_parall_joint_rule; try apply prefix_rule.
-            { simpl; left; reflexivity. }
-          }
-        }
-        {
-          eapply event_trace_rule.
-          {
-            eapply hiding_not_hidden_rule.
-            { simpl. unfold not. intros. destruct H; inversion H. }
-            eapply gener_parall_indep_right_rule.
-            { simpl. unfold not. intros. destruct H; inversion H. }
-            { apply prefix_rule. }
-          }
-          { apply empty_trace_rule. }
-        }
-Qed.
 
 Example MASTER_SPY_trace1_auto : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "log"].
 Proof. solve_trace. Qed.

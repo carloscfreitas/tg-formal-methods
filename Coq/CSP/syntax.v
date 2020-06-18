@@ -132,8 +132,7 @@ Record specification : Type := Build_Spec
   proc_list : list proc_def;
   non_empty_proc_ids : ~ In EmptyString (map get_proc_id proc_list);
   non_empty_events : ~ In EmptyString (concat_channels ch_list);
-  no_dup_proc_ids : NoDup (map get_proc_id proc_list);
-  no_dup_events : NoDup (concat_channels ch_list);
+  no_dup_events_proc_ids : NoDup ((concat_channels ch_list) ++ (map get_proc_id proc_list));
   no_missing_proc_defs : incl (get_proc_refs proc_list) (map get_proc_id proc_list);
   no_missing_events : incl (get_events proc_list) (concat_channels ch_list)
 }.
@@ -147,8 +146,8 @@ Fixpoint find_proc_body (proc_list : list proc_def) (proc_name : string) : optio
                                 end
   end.
 
-Definition get_proc_body (spec : specification) (proc_name : string) : option proc_body :=
-  find_proc_body spec.(proc_list) proc_name.
+Definition get_proc_body (S : specification) (proc_name : string) : option proc_body :=
+  find_proc_body S.(proc_list) proc_name.
 
 (** NOTATIONS/COERCIONS **) 
 
