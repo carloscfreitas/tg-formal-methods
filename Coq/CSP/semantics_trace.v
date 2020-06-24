@@ -105,6 +105,315 @@ Definition trace_refinement (S : specification) (Spec Imp : string) : Prop :=
 
 Notation "S '#' P '[T=' Q" := (trace_refinement S P Q) (at level 150, left associativity).
 
+Definition is_equal (a : event_tau_tick) (b : event_tau_tick) : bool := eqb a b.
+
+Fixpoint gen_parall_trans'
+  (left_hand_proc : proc_body)
+  (right_hand_proc_trans : list (event_tau_tick * proc_body))
+  (alpha : set event)
+  (sync_events : set event_tau_tick)
+  : list (event_tau_tick * proc_body) :=
+  match right_hand_proc_trans with
+  | (e, P) :: l =>
+    if set_mem event_tau_tick_eq_dec e sync_events
+    then gen_parall_trans' left_hand_proc l alpha sync_events
+    else (e, left_hand_proc [| alpha |] P)
+      :: (gen_parall_trans' left_hand_proc l alpha sync_events)
+  | nil => nil
+  end.
+
+Fixpoint gen_parall_trans
+  (left_hand_proc : proc_body)
+  (right_hand_proc : proc_body)
+  (left_hand_proc_trans : list (event_tau_tick * proc_body))
+  (right_hand_proc_trans : list (event_tau_tick * proc_body))
+  (alpha : set event)
+  (sync_events : set event_tau_tick)
+  : list (event_tau_tick * proc_body) :=
+  match left_hand_proc_trans with
+  | (e, P) :: l =>
+    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
+    then (map (fun x => (e, P [| alpha |] (snd x)))
+      (filter (fun x => is_equal e (fst x)) right_hand_proc_trans))
+      ++ (gen_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha sync_events)
+    else (e, P [| alpha |] right_hand_proc) 
+      :: (gen_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha sync_events)
+  | nil => gen_parall_trans' left_hand_proc right_hand_proc_trans alpha sync_events
+  end.
+
+Fixpoint alpha_parall_trans'
+  (left_hand_proc : proc_body)
+  (right_hand_proc_trans : list (event_tau_tick * proc_body))
+  (alpha1 : set event)
+  (alpha2 : set event)
+  (sync_events : set event_tau_tick)
+  : list (event_tau_tick * proc_body) :=
+  match right_hand_proc_trans with
+  | (e, P) :: l =>
+    if set_mem event_tau_tick_eq_dec e sync_events
+    then alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events
+    else (e, left_hand_proc [[ alpha1 \\ alpha2 ]] P)
+      :: (alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events)
+  | nil => nil
+  end.
+
+Fixpoint alpha_parall_trans
+  (left_hand_proc : proc_body)
+  (right_hand_proc : proc_body)
+  (left_hand_proc_trans : list (event_tau_tick * proc_body))
+  (right_hand_proc_trans : list (event_tau_tick * proc_body))
+  (alpha1 : set event)
+  (alpha2 : set event)
+  (sync_events : set event_tau_tick)
+  : list (event_tau_tick * proc_body) :=
+  match left_hand_proc_trans with
+  | (e, P) :: l =>
+    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
+    then (map (fun x => (e, P [[ alpha1 \\ alpha2 ]] (snd x)))
+      (filter (fun x => is_equal e (fst x)) right_hand_proc_trans))
+      ++ (alpha_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha1 alpha2 sync_events)
+    else (e, P [[ alpha1 \\ alpha2 ]] right_hand_proc) 
+      :: (alpha_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha1 alpha2 sync_events)
+  | nil => alpha_parall_trans' left_hand_proc right_hand_proc_trans alpha1 alpha2 sync_events
+  end.
+
+Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_tick * proc_body) :=
+  match P with
+  | SKIP => [(Tick, STOP)]
+  | STOP => nil
+  | e --> Q => [(Event e, Q)]
+  | ProcRef name =>
+    match get_proc_body S name with
+    | Some Q => [(Tau, Q)]
+    | None => nil
+    end
+  | P' [] P'' =>
+    map (fun e => if (is_equal (fst e) Tau) then ((fst e), (snd e) [] P'') else e) (get_transitions S P')
+    ++ map (fun e => if (is_equal (fst e) Tau) then ((fst e), P' [] (snd e)) else e) (get_transitions S P'')
+  | P' |~| P'' => [(Tau, P') ; (Tau, P'')]
+  | P' [[ A' \\ B' ]] P'' =>
+    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
+    let B := set_map event_tau_tick_eq_dec (fun x => Event x) B' in
+    let t' := get_transitions S P' in
+    let C := map (fun x => fst x) t' in
+    let t'' := get_transitions S P'' in
+    let D := map (fun x => fst x) t'' in
+    let U :=
+      (* (C ⋂ ((A - B) ⋃ {τ}))           // Set of events P' can communicate independently.
+        ⋃ (D ⋂ ((B - A) ⋃ {τ}))          // Set of events P'' can communicate independently.
+        ⋃ ((C ⋂ D) ⋂ ((A ⋂ B) ⋃ {✓}))   // Set of events P' and P'' can communicate synchronously. *)
+      set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec C (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec A B)))
+      (set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec B A)))
+      (set_inter event_tau_tick_eq_dec C (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tick (set_inter event_tau_tick_eq_dec A B))))) in
+    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (alpha_parall_trans P' P'' t' t'' A' B' (set_inter event_tau_tick_eq_dec A B))
+  | P' [| A' |] P'' =>
+    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
+    let t' := get_transitions S P' in
+    let B := map (fun x => fst x) t' in
+    let t'' := get_transitions S P'' in
+    let C := map (fun x => fst x) t'' in
+    let U := (* (B - A) ⋃ (C - A) ⋃ (A ⋂ B ⋂ C) *)
+      set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec B A)
+      (set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec C A)
+      ((set_inter event_tau_tick_eq_dec A) ((set_inter event_tau_tick_eq_dec B) C))) in
+    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (gen_parall_trans P' P'' t' t'' A' A)
+    | P' ||| P'' =>
+    map (fun e => ((fst e), (snd e) ||| P'')) (get_transitions S P')
+    ++ map (fun e => ((fst e), P' ||| (snd e))) (get_transitions S P'')
+  | P' ;; P'' =>
+    match P' with
+    | SKIP => [(Tau, P'')]
+    | _ => map (fun e => ((fst e), (snd e) ;; P'')) (get_transitions S P')
+    end
+  | P' \ A => let A' := set_map event_tau_tick_eq_dec (fun x => Event x) A in
+    map (fun e =>
+      if set_mem event_tau_tick_eq_dec (fst e) A'
+      then (Tau, (snd e) \ A)
+      else ((fst e), (snd e) \ A)) (get_transitions S P')
+  end.
+
+Local Open Scope bool_scope.
+
+Fixpoint check_trace'
+  (S : specification)
+  (P : proc_body)
+  (event_list : trace)
+  (fuel : nat) : option bool :=
+  match fuel, event_list with
+  | _, nil => Some true
+  | O, _ => None 
+  | S fuel', e :: es =>
+    let available_moves := get_transitions S P in
+    let valid_moves := filter (
+      fun t => (is_equal (fst t) (Event e))
+        || (is_equal (fst t) Tau)
+        || (is_equal (fst t) Tick)
+    ) available_moves in
+    match valid_moves with
+    | nil => Some false
+    | _ =>
+      let result := map (fun t =>
+        if is_equal (fst t) (Event e)
+        then check_trace' S (snd t) es fuel'
+        else check_trace' S (snd t) (e :: es) fuel'
+      ) valid_moves in
+      if existsb (fun o =>
+        match o with
+        | Some true => true
+        | _ => false
+        end) result
+      then Some true
+      else if forallb (fun o =>
+        match o with
+        | Some false => true
+        | _ => false
+        end) result
+      then Some false
+      else None
+    end
+  end.
+
+Definition check_trace
+  (S : specification)
+  (proc_id : string)
+  (event_list : trace)
+  (fuel : nat) : option bool :=
+  match fuel, get_proc_body S proc_id with
+  | O, _ | _, None => None
+  | S fuel', Some P => check_trace' S P event_list fuel'
+  end.
+
+From QuickChick Require Import QuickChick.
+
+(* Suppress some annoying warnings: *)
+Set Warnings "-extraction-opaque-accessed,-extraction".
+
+Definition gen_valid_trans
+  (S : specification)
+  (P : proc_body)
+  : G (option (list (event_tau_tick * proc_body))) :=
+  match get_transitions S P with
+  | nil => ret nil
+  | t :: ts => bind (elems_ t (t :: ts)) (fun a => ret (Some [a]))
+    (*
+      a <- (elems (t :: ts)) ;;
+      ret (Some [a])
+    *)
+  end.
+
+Fixpoint gen_valid_trace'
+  (S : specification)
+  (P : proc_body)
+  (size : nat)
+  : G (option semantics_trace.trace) :=
+  match size with
+  | O => ret nil
+  | S size' =>
+    freq_ (ret nil) [
+      (1, ret nil) ;
+      (size,
+        (*
+          t <- gen_valid_trans S P ;;
+          match t with
+          | nil => ret nil
+          | (Event e, Q) :: _ =>
+            ts <- (gen_valid_trace' S Q size') ;;
+            ret (e :: ts)
+          | (_, Q) :: _ =>
+            ts <- (gen_valid_trace' S Q size') ;;
+            ret ts
+          end
+        *)
+        bind (gen_valid_trans S P) (
+          fun t => (
+            match t with
+            | nil => ret nil
+            | (Event e, Q) :: _ =>
+              bind (gen_valid_trace' S Q size') (
+                fun ts => ret (e :: ts)
+              )
+            | (_, Q) :: _ =>
+              bind (gen_valid_trace' S Q size') (
+                fun ts => ret ts
+              )
+            end
+          )
+        )
+      )
+    ]
+  end.
+
+Definition gen_valid_trace
+  (S : specification)
+  (proc_id : string)
+  (size : nat)
+  : G (option semantics_trace.trace) :=
+  match get_proc_body S proc_id with
+  | None => ret None
+  | Some P => gen_valid_trace' S P size
+  end. 
+
+Fixpoint gen_valid_ext_trace
+  (S : specification)
+  (P : proc_body)
+  (size : nat)
+  : G (option (list (event_tau_tick * proc_body))) :=
+  match size with
+  | O => ret nil
+  | S size' =>
+    freq_ (ret nil) [
+      (1, ret nil) ;
+      (size,
+        (*
+          t <- gen_valid_trans S P ;;
+          match t with
+          | nil => ret nil
+          | x :: _ =>
+            ts <- (gen_valid_ext_trace S (snd x) size') ;;
+            ret (x :: ts)
+          end
+        *)
+        bind (gen_valid_trans S P) (
+          fun t => (
+            match t with
+            | nil => ret nil
+            | x :: _ => bind (gen_valid_ext_trace S (snd x) size') (
+              fun ts => ret (x :: ts)
+            )
+            end
+          )
+        )
+      )
+    ]
+  end.
+
+Instance show_event_tau_tick : Show event_tau_tick :=
+{| show e := event_tau_tick_to_str e |}.
+
+Instance show_proc_body : Show proc_body :=
+{| show p := proc_body_to_str p |}.
+
+Definition traceP
+  (S : specification)
+  (proc_id : string)
+  (fuel : nat)
+  (t : option semantics_trace.trace) : bool :=
+  match t with
+  | None => false
+  | Some t' =>
+    match check_trace S proc_id t' fuel with
+    | None => false
+    | Some b => b
+    end
+  end.
+
+Definition trace_refinement_checker
+  (S : specification)
+  (Imp Spec : string)
+  (trace_max_size : nat)
+  (fuel : nat) : Checker :=
+    forAll (gen_valid_trace S Imp trace_max_size) (traceP S Spec fuel).
+
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
@@ -115,6 +424,14 @@ Definition S_PRINTER0 : specification.
 Proof.
   solve_spec_ctx_rules (Build_Spec [CH_PRINTER0] [PRINTER0]).
 Defined.
+
+QuickChick (trace_refinement_checker S_PRINTER0 "PRINTER0" "PRINTER0" 3 1000).
+
+Sample (gen_valid_trans S_PRINTER0 ("accept" --> "print" --> STOP)).
+
+Sample (gen_valid_trace S_PRINTER0 "PRINTER0" 3).
+
+Compute (check_trace S_PRINTER0 "PRINTER0" ["accept" ; "print"] 1000).
 
 Example PRINTER0_empty_trace_auto : traceR S_PRINTER0 "PRINTER0" nil.
 Proof. solve_trace. Qed.
@@ -132,6 +449,14 @@ Definition S_CHOOSE : specification.
 Proof.
   solve_spec_ctx_rules (Build_Spec [CH_CHOOSE] [P_CHOOSE]).
 Defined.
+
+QuickChick (trace_refinement_checker S_CHOOSE "CHOOSE" "CHOOSE" 20 1000).
+
+Compute (get_transitions S_CHOOSE (("keep" --> SKIP [] "return" --> ProcRef "CHOOSE"))).
+
+Sample (gen_valid_trace S_CHOOSE "CHOOSE" 5).
+
+Compute (check_trace S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "return" ; "select" ; "keep"] 1000).
 
 Example CHOOSE_trace1_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
 Proof. solve_trace. Qed.
@@ -155,6 +480,10 @@ Definition S_TEAM : specification.
 Proof.
   solve_spec_ctx_rules (Build_Spec [CH_TEAM] [PETE ; DAVE ; TEAM]).
 Defined.
+
+Sample (gen_valid_trace S_TEAM "PETE" 5).
+
+QuickChick (trace_refinement_checker S_TEAM "PETE" "DAVE" 20 1000).
 
 Example TEAM_trace1_auto : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof. solve_trace. Qed.

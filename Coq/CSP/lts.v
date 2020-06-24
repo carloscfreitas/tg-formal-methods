@@ -65,133 +65,6 @@ Definition ltsR (S : specification) (T : set transition) (name : string) : Prop 
   | None => False
   end.
 
-Definition is_equal (a : event_tau_tick) (b : event_tau_tick) : bool := eqb a b.
-
-Fixpoint gen_parall_trans'
-  (left_hand_proc : proc_body)
-  (right_hand_proc_trans : list (event_tau_tick * proc_body))
-  (alpha : set event)
-  (sync_events : set event_tau_tick)
-  : list (event_tau_tick * proc_body) :=
-  match right_hand_proc_trans with
-  | (e, P) :: l =>
-    if set_mem event_tau_tick_eq_dec e sync_events
-    then gen_parall_trans' left_hand_proc l alpha sync_events
-    else (e, left_hand_proc [| alpha |] P)
-      :: (gen_parall_trans' left_hand_proc l alpha sync_events)
-  | nil => nil
-  end.
-
-Fixpoint gen_parall_trans
-  (left_hand_proc : proc_body)
-  (right_hand_proc : proc_body)
-  (left_hand_proc_trans : list (event_tau_tick * proc_body))
-  (right_hand_proc_trans : list (event_tau_tick * proc_body))
-  (alpha : set event)
-  (sync_events : set event_tau_tick)
-  : list (event_tau_tick * proc_body) :=
-  match left_hand_proc_trans with
-  | (e, P) :: l =>
-    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
-    then (map (fun x => (e, P [| alpha |] (snd x)))
-      (filter (fun x => is_equal e (fst x)) right_hand_proc_trans))
-      ++ (gen_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha sync_events)
-    else (e, P [| alpha |] right_hand_proc) 
-      :: (gen_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha sync_events)
-  | nil => gen_parall_trans' left_hand_proc right_hand_proc_trans alpha sync_events
-  end.
-
-Fixpoint alpha_parall_trans'
-  (left_hand_proc : proc_body)
-  (right_hand_proc_trans : list (event_tau_tick * proc_body))
-  (alpha1 : set event)
-  (alpha2 : set event)
-  (sync_events : set event_tau_tick)
-  : list (event_tau_tick * proc_body) :=
-  match right_hand_proc_trans with
-  | (e, P) :: l =>
-    if set_mem event_tau_tick_eq_dec e sync_events
-    then alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events
-    else (e, left_hand_proc [[ alpha1 \\ alpha2 ]] P)
-      :: (alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events)
-  | nil => nil
-  end.
-
-Fixpoint alpha_parall_trans
-  (left_hand_proc : proc_body)
-  (right_hand_proc : proc_body)
-  (left_hand_proc_trans : list (event_tau_tick * proc_body))
-  (right_hand_proc_trans : list (event_tau_tick * proc_body))
-  (alpha1 : set event)
-  (alpha2 : set event)
-  (sync_events : set event_tau_tick)
-  : list (event_tau_tick * proc_body) :=
-  match left_hand_proc_trans with
-  | (e, P) :: l =>
-    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
-    then (map (fun x => (e, P [[ alpha1 \\ alpha2 ]] (snd x)))
-      (filter (fun x => is_equal e (fst x)) right_hand_proc_trans))
-      ++ (alpha_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha1 alpha2 sync_events)
-    else (e, P [[ alpha1 \\ alpha2 ]] right_hand_proc) 
-      :: (alpha_parall_trans left_hand_proc right_hand_proc l right_hand_proc_trans alpha1 alpha2 sync_events)
-  | nil => alpha_parall_trans' left_hand_proc right_hand_proc_trans alpha1 alpha2 sync_events
-  end.
-
-Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_tick * proc_body) :=
-  match P with
-  | SKIP => [(Tick, STOP)]
-  | STOP => nil
-  | e --> Q => [(Event e, Q)]
-  | ProcRef name =>
-    match get_proc_body S name with
-    | Some Q => [(Tau, Q)]
-    | None => nil
-    end
-  | P' [] P'' =>
-    map (fun e => if (is_equal (fst e) Tau) then ((fst e), (snd e) [] P'') else e) (get_transitions S P')
-    ++ map (fun e => if (is_equal (fst e) Tau) then ((fst e), P' [] (snd e)) else e) (get_transitions S P'')
-  | P' |~| P'' => [(Tau, P') ; (Tau, P'')]
-  | P' [[ A' \\ B' ]] P'' =>
-    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
-    let B := set_map event_tau_tick_eq_dec (fun x => Event x) B' in
-    let t' := get_transitions S P' in
-    let C := map (fun x => fst x) t' in
-    let t'' := get_transitions S P'' in
-    let D := map (fun x => fst x) t'' in
-    let U :=
-      (* (C ⋂ ((A - B) ⋃ {τ}))           // Set of events P' can communicate independently.
-        ⋃ (D ⋂ ((B - A) ⋃ {τ}))          // Set of events P'' can communicate independently.
-        ⋃ ((C ⋂ D) ⋂ ((A ⋂ B) ⋃ {✓}))   // Set of events P' and P'' can communicate synchronously. *)
-      set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec C (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec A B)))
-      (set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec B A)))
-      (set_inter event_tau_tick_eq_dec C (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tick (set_inter event_tau_tick_eq_dec A B))))) in
-    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (alpha_parall_trans P' P'' t' t'' A' B' (set_inter event_tau_tick_eq_dec A B))
-  | P' [| A' |] P'' =>
-    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
-    let t' := get_transitions S P' in
-    let B := map (fun x => fst x) t' in
-    let t'' := get_transitions S P'' in
-    let C := map (fun x => fst x) t'' in
-    let U := (* (B - A) ⋃ (C - A) ⋃ (A ⋂ B ⋂ C) *)
-      set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec B A)
-      (set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec C A)
-      ((set_inter event_tau_tick_eq_dec A) ((set_inter event_tau_tick_eq_dec B) C))) in
-    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (gen_parall_trans P' P'' t' t'' A' A)
-    | P' ||| P'' =>
-    map (fun e => ((fst e), (snd e) ||| P'')) (get_transitions S P')
-    ++ map (fun e => ((fst e), P' ||| (snd e))) (get_transitions S P'')
-  | P' ;; P'' =>
-    match P' with
-    | SKIP => [(Tau, P'')]
-    | _ => map (fun e => ((fst e), (snd e) ;; P'')) (get_transitions S P')
-    end
-  | P' \ A => let A' := set_map event_tau_tick_eq_dec (fun x => Event x) A in
-    map (fun e =>
-      if set_mem event_tau_tick_eq_dec (fst e) A'
-      then (Tau, (snd e) \ A)
-      else ((fst e), (snd e) \ A)) (get_transitions S P')
-  end.
-
 Fixpoint compute_ltsR'
   (S : specification)
   (states_to_visit : set proc_body)
@@ -237,9 +110,9 @@ Definition generate_dot (lts : option (set transition)) : string :=
   end.
 
 Theorem compute_ltsR_step_more:
-  forall (spec : specification) (l l' : set proc_body) (n : nat) (trans_set : set transition),
-  compute_ltsR' spec l l' n = Some trans_set ->
-  compute_ltsR' spec l l' (S n) = Some trans_set.
+  forall (S : specification) (l l' : set proc_body) (n : nat) (trans_set : set transition),
+  compute_ltsR' S l l' n = Some trans_set ->
+  compute_ltsR' S l l' (n + 1) = Some trans_set.
 Proof. Admitted.
 
 Theorem compute_ltsR_correctness:
