@@ -301,7 +301,7 @@ Definition gen_valid_trans
     *)
   end.
 
-Fixpoint gen_valid_trace
+Fixpoint gen_valid_trace'
   (S : specification)
   (P : proc_body)
   (size : nat)
@@ -317,10 +317,10 @@ Fixpoint gen_valid_trace
           match t with
           | nil => ret nil
           | (Event e, Q) :: _ =>
-            ts <- (gen_valid_trace S Q size') ;;
+            ts <- (gen_valid_trace' S Q size') ;;
             ret (e :: ts)
           | (_, Q) :: _ =>
-            ts <- (gen_valid_trace S Q size') ;;
+            ts <- (gen_valid_trace' S Q size') ;;
             ret ts
           end
         *)
@@ -329,11 +329,11 @@ Fixpoint gen_valid_trace
             match t with
             | nil => ret nil
             | (Event e, Q) :: _ =>
-              bind (gen_valid_trace S Q size') (
+              bind (gen_valid_trace' S Q size') (
                 fun ts => ret (e :: ts)
               )
             | (_, Q) :: _ =>
-              bind (gen_valid_trace S Q size') (
+              bind (gen_valid_trace' S Q size') (
                 fun ts => ret ts
               )
             end
@@ -342,6 +342,16 @@ Fixpoint gen_valid_trace
       )
     ]
   end.
+
+Definition gen_valid_trace
+  (S : specification)
+  (proc_id : string)
+  (size : nat)
+  : G (option semantics_trace.trace) :=
+  match get_proc_body S proc_id with
+  | None => ret None
+  | Some P => gen_valid_trace' S P size
+  end. 
 
 Fixpoint gen_valid_ext_trace
   (S : specification)
@@ -383,6 +393,27 @@ Instance show_event_tau_tick : Show event_tau_tick :=
 Instance show_proc_body : Show proc_body :=
 {| show p := proc_body_to_str p |}.
 
+Definition traceP
+  (S : specification)
+  (proc_id : string)
+  (fuel : nat)
+  (t : option semantics_trace.trace) : bool :=
+  match t with
+  | None => false
+  | Some t' =>
+    match check_trace S proc_id t' fuel with
+    | None => false
+    | Some b => b
+    end
+  end.
+
+Definition trace_refinement_checker
+  (S : specification)
+  (Imp Spec : string)
+  (trace_max_size : nat)
+  (fuel : nat) : Checker :=
+    forAll (gen_valid_trace S Imp trace_max_size) (traceP S Spec fuel).
+
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
@@ -394,9 +425,11 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [CH_PRINTER0] [PRINTER0]).
 Defined.
 
+QuickChick (trace_refinement_checker S_PRINTER0 "PRINTER0" "PRINTER0" 3 1000).
+
 Sample (gen_valid_trans S_PRINTER0 ("accept" --> "print" --> STOP)).
 
-Sample (gen_valid_trace S_PRINTER0 ("accept" --> "print" --> STOP) 3).
+Sample (gen_valid_trace S_PRINTER0 "PRINTER0" 3).
 
 Compute (check_trace S_PRINTER0 "PRINTER0" ["accept" ; "print"] 1000).
 
@@ -417,15 +450,11 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [CH_CHOOSE] [P_CHOOSE]).
 Defined.
 
+QuickChick (trace_refinement_checker S_CHOOSE "CHOOSE" "CHOOSE" 20 1000).
+
 Compute (get_transitions S_CHOOSE (("keep" --> SKIP [] "return" --> ProcRef "CHOOSE"))).
 
-Sample (gen_valid_trans S_CHOOSE (("keep" --> SKIP [] "return" --> ProcRef "CHOOSE"))).
-
-Sample (gen_valid_trace S_CHOOSE ("select" --> ("keep" --> SKIP [] "return" --> ProcRef "CHOOSE")) 5).
-
-Compute (check_trace S_CHOOSE "CHOOSE" ["select" ; "keep"] 1000).
-
-Compute (check_trace S_CHOOSE "CHOOSE" ["select" ; "return"] 1000).
+Sample (gen_valid_trace S_CHOOSE "CHOOSE" 5).
 
 Compute (check_trace S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "return" ; "select" ; "keep"] 1000).
 
@@ -451,6 +480,10 @@ Definition S_TEAM : specification.
 Proof.
   solve_spec_ctx_rules (Build_Spec [CH_TEAM] [PETE ; DAVE ; TEAM]).
 Defined.
+
+Sample (gen_valid_trace S_TEAM "PETE" 5).
+
+QuickChick (trace_refinement_checker S_TEAM "PETE" "DAVE" 20 1000).
 
 Example TEAM_trace1_auto : traceR S_TEAM "TEAM" ["lift_piano"].
 Proof. solve_trace. Qed.
