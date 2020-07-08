@@ -26,13 +26,13 @@ Fixpoint target_proc_bodies (T : set transition) : set proc_body :=
   | (_, _, P') :: tl => set_add proc_body_eq_dec P' (target_proc_bodies tl)
   end.
   
-Fixpoint transitions_from_P (P : proc_body) (T : set transition) : set transition :=
+Fixpoint transitions_from (P : proc_body) (T : set transition) : set transition :=
   match T with
   | nil                => nil
   | (P', e, P'') :: tl => if proc_body_eq_dec P P'
                           then set_add transition_eq_dec (P',e,P'')
-                                                         (transitions_from_P P tl)
-                          else transitions_from_P P tl
+                                                         (transitions_from P tl)
+                          else transitions_from P tl
   end.
   
 Inductive ltsR' :
@@ -48,7 +48,7 @@ Inductive ltsR' :
         (T : set transition)
         (P : proc_body)
         (tl visited : set proc_body) :
-      let T' := transitions_from_P P T in
+      let T' := transitions_from P T in
       let T'' := set_diff transition_eq_dec T T' in
       let visited' := set_add proc_body_eq_dec P visited in
       let to_visit := set_diff proc_body_eq_dec
@@ -59,7 +59,7 @@ Inductive ltsR' :
       ltsR' S T'' to_visit visited' ->
       ltsR' S T (P :: tl) visited.
 
-Definition ltsR (S : specification) (T : set transition) (name : string) : Prop :=
+Definition ltsR (S : specification) (name : string) (T : set transition) : Prop :=
   match get_proc_body S name with
   | Some body => NoDup T /\ ltsR' S T [body] nil
   | None => False
@@ -117,7 +117,7 @@ Proof. Admitted.
 
 Theorem compute_ltsR_correctness:
   forall (S : specification) (proc_id : string) (n : nat) (trans_set : set transition),
-  compute_ltsR S proc_id n = Some trans_set -> ltsR S trans_set proc_id.
+  compute_ltsR S proc_id n = Some trans_set -> ltsR S proc_id trans_set.
 Proof.
   intros. destruct (get_proc_body S proc_id) eqn:H1.
   - destruct p.
@@ -271,14 +271,14 @@ Proof.
                 {
                   intros. inversion H0; subst.
                   {
-                    unfold transitions_from_P. destruct proc_body_eq_dec.
+                    unfold transitions_from. destruct proc_body_eq_dec.
                     { simpl. left. reflexivity. }
                     { contradiction. }
                   }
                   { inversion H5. }
                 }
                 {
-                  unfold transitions_from_P. destruct proc_body_eq_dec.
+                  unfold transitions_from. destruct proc_body_eq_dec.
                   {
                     intros. inversion H0.
                     { inversion H5. apply prefix_rule. }
@@ -288,7 +288,7 @@ Proof.
                 }
               }
               {
-                unfold transitions_from_P. destruct proc_body_eq_dec.
+                unfold transitions_from. destruct proc_body_eq_dec.
                 { 
                   unfold set_add. unfold target_proc_bodies. 
                   unfold set_add. unfold set_union. unfold set_add.
@@ -370,11 +370,11 @@ Example lts1 :
   ltsR
     (* context *)
     TOY_PROBLEM (* context *)
+    (* PROCESS NAME *)
+    "P"
     (* LTS *)
     [ ("a" --> "b" --> STOP, Event "a", "b" --> STOP) ;
-      ("b" --> STOP, Event "b", STOP) ]
-    (* PROCESS NAME *)
-    "P".
+      ("b" --> STOP, Event "b", STOP) ].
 Proof.
   unfold ltsR. split.
   - repeat (
@@ -420,12 +420,12 @@ Example lts2 :
   ltsR
     (* context *)
     TOY_PROBLEM' (* context *)
+    (* INITIAL STATE *)
+    "P"
     (* LTS *)
     [ (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "a", "b" --> STOP);
       (("a" --> "b" --> STOP) [] ("c" --> STOP), Event "c", STOP);
-      ("b" --> STOP, Event "b", STOP) ]
-    (* INITIAL STATE *)
-    "P".
+      ("b" --> STOP, Event "b", STOP) ].
 Proof.
   unfold ltsR. split.
   - apply NoDup_cons.
@@ -482,7 +482,7 @@ Definition P' := "P" ::= ProcRef "P".
 Definition UNDERDEFINED_RECURSION : specification.
 Proof. solve_spec_ctx_rules (Build_Spec [Channel {{}}] [P']). Defined.
 
-Example lts3 : ltsR UNDERDEFINED_RECURSION [(ProcRef "P", Tau, ProcRef "P")] "P".
+Example lts3 : ltsR UNDERDEFINED_RECURSION "P" [(ProcRef "P", Tau, ProcRef "P")].
 Proof.
   unfold ltsR. split.
   - repeat (
@@ -511,12 +511,12 @@ Defined.
 Example lts4 :
   ltsR
     S_LIGHT
+    "LIGHT"
     [
       ("on" --> "off" --> ProcRef "LIGHT", Event "on", "off" --> ProcRef "LIGHT") ; 
       ("off" --> ProcRef "LIGHT", Event "off", ProcRef "LIGHT") ;
       (ProcRef "LIGHT", Tau, "on" --> "off" --> ProcRef "LIGHT")
-    ]
-    "LIGHT".
+    ].
 Proof.
   unfold ltsR. split.
   - repeat (
