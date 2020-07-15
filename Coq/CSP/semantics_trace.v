@@ -255,6 +255,112 @@ Fixpoint get_transitions (S : specification) (P : proc_body) : option (list (eve
     end
   end.
 
+Theorem get_transitions_correctness :
+  forall (S : specification) (P : proc_body) (l : list (event_tau_tick * proc_body)),
+    get_transitions S P = Some l -> forall (e : event_tau_tick) (P' : proc_body),
+      In (e,P') l -> S # P // e ==> P'.
+Proof.
+  intros. generalize dependent l. induction P. (* TODO: destruct? *)
+  (* SKIP *)
+  - intros. simpl in H. inversion H. rewrite <- H2 in H0.
+    simpl in H0. destruct H0.
+    + inversion H0. apply success_termination_rule.
+    + inversion H0.
+  (* STOP *)
+  - intros. simpl in H. inversion H. rewrite <- H2 in H0.
+    simpl in H0. inversion H0.
+  (* ProcRef *)
+  - intros. simpl in H. destruct (get_proc_body S name) eqn:H'.
+    + inversion H. rewrite <- H2 in H0.
+      simpl in H0. destruct H0.
+      * inversion H0. eapply reference_rule.
+        { reflexivity. }
+        { rewrite <- H4. apply H'. }
+      * inversion H0.
+    + inversion H.
+  (* Prefix *)
+  - intros. simpl in H. inversion H. rewrite <- H2 in H0.
+    simpl in H0. destruct H0.
+    + inversion H0. apply prefix_rule.
+    + destruct H0.
+  (* External Choice *)
+  - intros. destruct P1. (* TODO: destruct P1 and P2? *)
+    + destruct P2 ; simpl.
+      * simpl in H. inversion H. rewrite <- H2 in H0. simpl in H0. destruct H0.
+        { 
+          inversion H0. apply ext_choice_left_rule.
+          { 
+            unfold not. intros. inversion H1.
+          }
+          {
+            apply success_termination_rule.
+          }
+        }
+        {
+          destruct H0.
+          {
+            inversion H0. apply ext_choice_left_rule.
+            {
+              unfold not. intros. inversion H1.
+            }
+            {
+              apply success_termination_rule.
+            }
+          }
+          inversion H0.
+        }
+      * simpl in H. inversion H. rewrite <- H2 in H0. simpl in H0. destruct H0.
+        { 
+          inversion H0. apply ext_choice_left_rule.
+          { 
+            unfold not. intros. inversion H1.
+          }
+          {
+            apply success_termination_rule.
+          }
+        }
+        { 
+          inversion H0.
+        }
+      * simpl in H. inversion H. destruct (get_proc_body S name) eqn:H2'.
+        {
+          simpl in H2. inversion H2. rewrite <- H3 in H0. destruct H0.
+          {
+            inversion H0. apply ext_choice_left_rule.
+            {
+              unfold not. intros H6. inversion H6.
+            }
+            {
+              apply success_termination_rule.
+            }
+          }
+          {
+            simpl in H0. destruct H0.
+            {
+              inversion H0. apply ext_choice_tau_right_rule.
+              {
+                eapply reference_rule.
+                {
+                  reflexivity.
+                }
+                {
+                  apply H2'.
+                }
+              }
+            }
+            {
+              inversion H0.
+            }
+          }
+        }
+        {
+          inversion H.
+        }
+Admitted.
+
+(* TODO: get_transitions_completeness *)
+
+
 Local Open Scope bool_scope.
 
 Fixpoint check_trace'
