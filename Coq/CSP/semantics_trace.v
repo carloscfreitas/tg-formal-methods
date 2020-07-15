@@ -442,6 +442,37 @@ Definition trace_refinement_checker
   (fuel : nat) : Checker :=
     forAll (gen_valid_trace S Imp trace_max_size) (traceP S Spec fuel).
 
+Theorem traceP_correctness:
+  forall (S : specification) (proc_id : string) (fuel : nat) (t : semantics_trace.trace),
+  traceP S proc_id fuel (Some t) = true -> traceR S proc_id t.
+Proof.
+  intros. unfold traceR. destruct (get_proc_body S proc_id) eqn:H1.
+  - unfold traceP in H. unfold check_trace in H. rewrite -> H1 in H.
+    destruct fuel.
+    * inversion H.
+    * destruct (check_trace' S p t fuel) eqn:H2.
+      + rewrite H in H2. destruct t.
+        { apply empty_trace_rule. }
+        {
+          destruct fuel.
+          { inversion H2. }
+          {
+            unfold check_trace' in H2. destruct (get_transitions S p) eqn:H3.
+            destruct (filter (fun t : event_tau_tick * proc_body =>
+              is_equal (fst t) (Event e) || is_equal (fst t) Tau || is_equal (fst t) Tick) l) eqn:H4.
+            { inversion H2. }
+            {
+              admit.
+            }
+            { inversion H2. }
+          }
+        }
+      + inversion H.
+  - unfold traceP in H. unfold check_trace in H. rewrite -> H1 in H.
+    destruct fuel; inversion H.
+Admitted.
+
+
 (** TRACE EXAMPLES **)
 
 Local Open Scope string.
