@@ -177,82 +177,59 @@ Fixpoint alpha_parall_trans
   | nil => alpha_parall_trans' left_hand_proc right_hand_proc_trans alpha1 alpha2 sync_events
   end.
 
-Fixpoint get_transitions (S : specification) (P : proc_body) : option (list (event_tau_tick * proc_body)) :=
+Fixpoint get_transitions (S : specification) (P : proc_body) : list (event_tau_tick * proc_body) :=
   match P with
-  | SKIP => Some [(Tick, STOP)]
-  | STOP => Some nil
-  | e --> Q => Some [(Event e, Q)]
+  | SKIP => [(Tick, STOP)]
+  | STOP => nil
+  | e --> Q => [(Event e, Q)]
   | ProcRef name =>
     match get_proc_body S name with
-    | Some Q => Some [(Tau, Q)]
-    | None => None
+    | Some Q => [(Tau, Q)]
+    | None => nil
     end
   | P' [] P'' =>
-    match get_transitions S P', get_transitions S P'' with
-    | Some t', Some t'' => Some (
-      map (fun e => if (is_equal (fst e) Tau) then ((fst e), (snd e) [] P'') else e) t'
-      ++ map (fun e => if (is_equal (fst e) Tau) then ((fst e), P' [] (snd e)) else e) t'')
-    | _, _ => None
-    end
-  | P' |~| P'' => Some [(Tau, P') ; (Tau, P'')]
+    map (fun e => if (is_equal (fst e) Tau) then ((fst e), (snd e) [] P'') else e) (get_transitions S P')
+    ++ map (fun e => if (is_equal (fst e) Tau) then ((fst e), P' [] (snd e)) else e) (get_transitions S P'')
+  | P' |~| P'' => [(Tau, P') ; (Tau, P'')]
   | P' [[ A' \\ B' ]] P'' =>
-    match get_transitions S P', get_transitions S P'' with
-    | Some t', Some t'' =>
-      let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
-      let B := set_map event_tau_tick_eq_dec (fun x => Event x) B' in
-      let C := map (fun x => fst x) t' in
-      let D := map (fun x => fst x) t'' in
-      let U :=
-        (* (C ⋂ ((A - B) ⋃ {τ}))           // Set of events P' can communicate independently.
-          ⋃ (D ⋂ ((B - A) ⋃ {τ}))          // Set of events P'' can communicate independently.
-          ⋃ ((C ⋂ D) ⋂ ((A ⋂ B) ⋃ {✓}))   // Set of events P' and P'' can communicate synchronously. *)
-        set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec C (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec A B)))
-        (set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec B A)))
-        (set_inter event_tau_tick_eq_dec C (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tick (set_inter event_tau_tick_eq_dec A B))))) in
-      Some (filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (alpha_parall_trans P' P'' t' t'' A' B' (set_inter event_tau_tick_eq_dec A B)))
-    | _, _ => None
-    end
+    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
+    let B := set_map event_tau_tick_eq_dec (fun x => Event x) B' in
+    let t' := get_transitions S P' in
+    let C := map (fun x => fst x) t' in
+    let t'' := get_transitions S P'' in
+    let D := map (fun x => fst x) t'' in
+    let U :=
+      (* (C ⋂ ((A - B) ⋃ {τ}))           // Set of events P' can communicate independently.
+        ⋃ (D ⋂ ((B - A) ⋃ {τ}))          // Set of events P'' can communicate independently.
+        ⋃ ((C ⋂ D) ⋂ ((A ⋂ B) ⋃ {✓}))   // Set of events P' and P'' can communicate synchronously. *)
+      set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec C (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec A B)))
+      (set_union event_tau_tick_eq_dec (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tau (set_diff event_tau_tick_eq_dec B A)))
+      (set_inter event_tau_tick_eq_dec C (set_inter event_tau_tick_eq_dec D (set_add event_tau_tick_eq_dec Tick (set_inter event_tau_tick_eq_dec A B))))) in
+    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (alpha_parall_trans P' P'' t' t'' A' B' (set_inter event_tau_tick_eq_dec A B))
   | P' [| A' |] P'' =>
-    match get_transitions S P', get_transitions S P'' with
-    | Some t', Some t'' =>
-      let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
-      let B := map (fun x => fst x) t' in
-      let C := map (fun x => fst x) t'' in
-      let U := (* (B - A) ⋃ (C - A) ⋃ (A ⋂ B ⋂ C) *)
-        set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec B A)
-        (set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec C A)
-        ((set_inter event_tau_tick_eq_dec A) ((set_inter event_tau_tick_eq_dec B) C))) in
-      Some (filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (gen_parall_trans P' P'' t' t'' A' A))
-    | _, _ => None
-    end
-  | P' ||| P'' =>
-    match get_transitions S P', get_transitions S P'' with
-    | Some t', Some t'' => Some (
-      map (fun e => ((fst e), (snd e) ||| P'')) t'
-      ++ map (fun e => ((fst e), P' ||| (snd e))) t'')
-    | _, _ => None
-    end
+    let A := set_map event_tau_tick_eq_dec (fun x => Event x) A' in
+    let t' := get_transitions S P' in
+    let B := map (fun x => fst x) t' in
+    let t'' := get_transitions S P'' in
+    let C := map (fun x => fst x) t'' in
+    let U := (* (B - A) ⋃ (C - A) ⋃ (A ⋂ B ⋂ C) *)
+      set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec B A)
+      (set_union event_tau_tick_eq_dec (set_diff event_tau_tick_eq_dec C A)
+      ((set_inter event_tau_tick_eq_dec A) ((set_inter event_tau_tick_eq_dec B) C))) in
+    filter (fun x => set_mem event_tau_tick_eq_dec (fst x) U) (gen_parall_trans P' P'' t' t'' A' A)
+    | P' ||| P'' =>
+    map (fun e => ((fst e), (snd e) ||| P'')) (get_transitions S P')
+    ++ map (fun e => ((fst e), P' ||| (snd e))) (get_transitions S P'')
   | P' ;; P'' =>
     match P' with
-    | SKIP => Some [(Tau, P'')]
-    | _ =>
-      match get_transitions S P' with
-      | Some t' => Some (map (fun e => ((fst e), (snd e) ;; P'')) t')
-      | None => None
-      end
+    | SKIP => [(Tau, P'')]
+    | _ => map (fun e => ((fst e), (snd e) ;; P'')) (get_transitions S P')
     end
-  | P' \ A =>
-    match get_transitions S P' with
-    | Some t' =>
-      let A' := set_map event_tau_tick_eq_dec (fun x => Event x) A in
-      Some (
-        map (fun e =>
-          if set_mem event_tau_tick_eq_dec (fst e) A'
-          then (Tau, (snd e) \ A)
-          else ((fst e), (snd e) \ A)) t'
-      )
-    | None => None
-    end
+  | P' \ A => let A' := set_map event_tau_tick_eq_dec (fun x => Event x) A in
+    map (fun e =>
+      if set_mem event_tau_tick_eq_dec (fst e) A'
+      then (Tau, (snd e) \ A)
+      else ((fst e), (snd e) \ A)) (get_transitions S P')
   end.
 
 Local Open Scope bool_scope.
@@ -266,37 +243,33 @@ Fixpoint check_trace'
   | _, nil => Some true
   | O, _ => None 
   | S fuel', e :: es =>
-    match get_transitions S P with
-    | None => None
-    | Some t =>
-      let available_moves := t in
-      let valid_moves := filter (
-        fun t => (is_equal (fst t) (Event e))
-          || (is_equal (fst t) Tau)
-          || (is_equal (fst t) Tick)
-      ) available_moves in
-      match valid_moves with
-      | nil => Some false
-      | _ =>
-        let result := map (fun t =>
-          if is_equal (fst t) (Event e)
-          then check_trace' S (snd t) es fuel'
-          else check_trace' S (snd t) (e :: es) fuel'
-        ) valid_moves in
-        if existsb (fun o =>
-          match o with
-          | Some true => true
-          | _ => false
-          end) result
-        then Some true
-        else if forallb (fun o =>
-          match o with
-          | Some false => true
-          | _ => false
-          end) result
-        then Some false
-        else None
-      end
+    let available_moves := get_transitions S P in
+    let valid_moves := filter (
+      fun t => (is_equal (fst t) (Event e))
+        || (is_equal (fst t) Tau)
+        || (is_equal (fst t) Tick)
+    ) available_moves in
+    match valid_moves with
+    | nil => Some false
+    | _ =>
+      let result := map (fun t =>
+        if is_equal (fst t) (Event e)
+        then check_trace' S (snd t) es fuel'
+        else check_trace' S (snd t) (e :: es) fuel'
+      ) valid_moves in
+      if existsb (fun o =>
+        match o with
+        | Some true => true
+        | _ => false
+        end) result
+      then Some true
+      else if forallb (fun o =>
+        match o with
+        | Some false => true
+        | _ => false
+        end) result
+      then Some false
+      else None
     end
   end.
 
@@ -320,9 +293,8 @@ Definition gen_valid_trans
   (P : proc_body)
   : G (option (list (event_tau_tick * proc_body))) :=
   match get_transitions S P with
-  | None => ret None
-  | Some nil => ret nil
-  | Some (t :: ts) => bind (elems_ t (t :: ts)) (fun a => ret (Some [a]))
+  | nil => ret nil
+  | t :: ts => bind (elems_ t (t :: ts)) (fun a => ret (Some [a]))
     (*
       a <- (elems (t :: ts)) ;;
       ret (Some [a])
@@ -441,37 +413,6 @@ Definition trace_refinement_checker
   (trace_max_size : nat)
   (fuel : nat) : Checker :=
     forAll (gen_valid_trace S Imp trace_max_size) (traceP S Spec fuel).
-
-Theorem traceP_correctness:
-  forall (S : specification) (proc_id : string) (fuel : nat) (t : semantics_trace.trace),
-  traceP S proc_id fuel (Some t) = true -> traceR S proc_id t.
-Proof.
-  intros. unfold traceR. destruct (get_proc_body S proc_id) eqn:H1.
-  - unfold traceP in H. unfold check_trace in H. rewrite -> H1 in H.
-    destruct fuel.
-    * inversion H.
-    * destruct (check_trace' S p t fuel) eqn:H2.
-      + rewrite H in H2. destruct t.
-        { apply empty_trace_rule. }
-        {
-          destruct fuel.
-          { inversion H2. }
-          {
-            unfold check_trace' in H2. destruct (get_transitions S p) eqn:H3.
-            destruct (filter (fun t : event_tau_tick * proc_body =>
-              is_equal (fst t) (Event e) || is_equal (fst t) Tau || is_equal (fst t) Tick) l) eqn:H4.
-            { inversion H2. }
-            {
-              admit.
-            }
-            { inversion H2. }
-          }
-        }
-      + inversion H.
-  - unfold traceP in H. unfold check_trace in H. rewrite -> H1 in H.
-    destruct fuel; inversion H.
-Admitted.
-
 
 (** TRACE EXAMPLES **)
 
