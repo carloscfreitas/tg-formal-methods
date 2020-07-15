@@ -75,16 +75,20 @@ Fixpoint compute_ltsR'
   | _, nil => Some (empty_set transition)
   | 0, state :: tl => None
   | S n, state :: tl =>
-    let action_state_list := get_transitions S state in
-    let state_transitions := map (fun e => (state, (fst e), (snd e))) action_state_list in
-    match
-      compute_ltsR'
-        S
-        (set_union proc_body_eq_dec (set_diff proc_body_eq_dec (target_proc_bodies state_transitions) visited_states) tl)
-        (set_add proc_body_eq_dec state visited_states)
-        n with
-    | Some all_transitions => Some (set_union transition_eq_dec state_transitions all_transitions)
+    match get_transitions S state with
     | None => None
+    | Some t =>
+      let action_state_list := t in
+      let state_transitions := map (fun e => (state, (fst e), (snd e))) action_state_list in
+      match
+        compute_ltsR'
+          S
+          (set_union proc_body_eq_dec (set_diff proc_body_eq_dec (target_proc_bodies state_transitions) visited_states) tl)
+          (set_add proc_body_eq_dec state visited_states)
+          n with
+      | Some all_transitions => Some (set_union transition_eq_dec state_transitions all_transitions)
+      | None => None
+      end
     end
   end.
 
@@ -237,7 +241,7 @@ Proof.
             }
             { inversion H4. }
           }
-          { inversion H2. admit. }
+          { inversion H2. }
         }
       + apply lts_inductive_rule.
         {
