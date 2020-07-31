@@ -1,7 +1,31 @@
+# Gallina
 *.vo
 *.aux
 *.glob
 *.v#
 *.vok
 *.vos
+
+# Makefile
 *Makefile*
+
+# LaTeX
+*.log
+*.dvi
+*.lof
+*.lot
+*.bit
+*.idx
+*.glo
+*.bbl
+*.bcf
+*.ilg
+*.toc
+*.ind
+*.out
+*.blg
+*.fdb_latexmk
+*.fls
+*.gz
+*.loq
+*.brf
