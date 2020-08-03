@@ -3,3 +3,4 @@ Coq/CSP/syntax.v
 Coq/CSP/semantics_sos.v
 Coq/CSP/semantics_trace.v
 Coq/CSP/lts.v
+Coq/CSP/example.v
