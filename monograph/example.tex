@@ -1,0 +1,50 @@
+\begin{coqdoccode}
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.lts}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.semantics\_sos}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.semantics\_trace}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.syntax}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{Lists.List}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{Lists.ListSet}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Require} \coqdockw{Import} \coqdocvar{Strings.String}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Import} \coqdocvar{ListNotations}.\coqdoceol
+\coqdocemptyline
+\coqdocnoindent
+\coqdockw{Local Open} \coqdockw{Scope} \coqdocvar{string}.\coqdoceol
+\coqdocemptyline
+\coqdocnoindent
+\coqdockw{Definition} \coqdocvar{example} : \coqdocvar{specification}.\coqdoceol
+\coqdocnoindent
+\coqdockw{Proof}.\coqdoceol
+\coqdocindent{1.00em}
+\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+\coqdocindent{2.00em}
+\coqdocvar{Build\_Spec}\coqdoceol
+\coqdocindent{2.00em}
+[ \coqdocvar{Channel} \{\{"coat\_off", "coat\_on", "request\_coat", "retrieve", "store", "eat"\}\} ]\coqdoceol
+\coqdocindent{2.00em}
+[ "SYSTEM" ::=\coqdoceol
+\coqdocindent{3.00em}
+"coat\_off" --> "store" --> "request\_coat" --> "retrieve" --> "coat\_on" --> \coqdocvar{SKIP}\coqdoceol
+\coqdocindent{3.00em}
+[| \{\{"coat\_off", "request\_coat", "coat\_on"\}\} |]\coqdoceol
+\coqdocindent{3.00em}
+"coat\_off" --> "eat" --> "request\_coat" --> "coat\_on" --> \coqdocvar{SKIP} ]\coqdoceol
+\coqdocindent{1.00em}
+).\coqdoceol
+\coqdocnoindent
+\coqdockw{Defined}.\coqdoceol
+\coqdocemptyline
+\coqdocnoindent
+\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{example} "SYSTEM" 100).\coqdoceol
+\coqdocemptyline
+\coqdocnoindent
+\coqdockw{Local Close} \coqdockw{Scope} \coqdocvar{string}.\coqdoceol
+\end{coqdoccode}

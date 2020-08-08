@@ -13,15 +13,14 @@ Definition example : specification.
 Proof.
   solve_spec_ctx_rules (
     Build_Spec
-    [
-      Channel {{"start", "ev1", "ev2", "ev3", "end"}}
-    ]
-    [
-      "P" ::= "start" --> ("ev1" --> SKIP [] "ev2" --> SKIP) ;; "end" --> ProcRef "P"
-      ; "Q" ::= "start" --> "ev3" --> "end" --> ProcRef "Q"
-      ; "R" ::= ProcRef "P" [| {{"start", "end"}} |] ProcRef "Q"
-    ]
+    [ Channel {{"coat_off", "coat_on", "request_coat", "retrieve", "store", "eat"}} ]
+    [ "SYSTEM" ::=
+      "coat_off" --> "store" --> "request_coat" --> "retrieve" --> "coat_on" --> SKIP
+      [| {{"coat_off", "request_coat", "coat_on"}} |]
+      "coat_off" --> "eat" --> "request_coat" --> "coat_on" --> SKIP ]
   ).
 Defined.
 
-Compute generate_dot (compute_ltsR example "R" 100).
+Compute generate_dot (compute_ltsR example "SYSTEM" 100).
+
+Local Close Scope string.
