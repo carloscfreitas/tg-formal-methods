@@ -30,7 +30,6 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 % ---
 
 Consider the following CSP process adapted from \citeonline[p.~32, example 2.3]{schneider1999}. This process represents a cloakroom attendant that might help a costumer off or on with his coat, storing an retrieving coats as appropriate:
-
 \begin{align}
 	SYSTEM =\ &coat\_off \then store \then request\_coat \then retrieve \then coat\_on \then \SKIP\notag\\
 			  &\parallel[\{coat\_off, request\_coat, coat\_on\}]\notag\\
