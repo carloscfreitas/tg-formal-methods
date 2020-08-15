@@ -20,8 +20,8 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 
 \begin{itemize}  
 	\item SO1: study CSP and frameworks based on this process algebra. 
-	\item SO2: define a syntax for CSP in Coq, based on a restricted version of the CSP\textsubscript{M} language (machine readable language for CSP). 
-	\item SO3: provide support for the LTS-based (Labelled Transition System) representation, considering the Structural Operational Semantics (SOS) of CSP.
+	\item SO2: define a syntax for CSP in Coq, based on a restricted version of the \CSPM{} language (machine readable language for CSP). 
+	\item SO3: provide support for the LTS-based (Labelled Transition System) representation, considering the Structured Operational Semantics (SOS) of CSP.
 	\item SO4: make use of the QuickChick tool to search for counterexamples of the traces refinement relation.
 \end{itemize}
 
@@ -29,27 +29,16 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 \section{An overview of CSP\textsubscript{Coq}}
 % ---
 
+Consider the following CSP process adapted from \citeonline[p.~32, example 2.3]{schneider1999}. This process represents a cloakroom attendant that might help a costumer off or on with his coat, storing an retrieving coats as appropriate:
+\begin{align}
+	SYSTEM =\ &coat\_off \then store \then request\_coat \then retrieve \then coat\_on \then \SKIP\notag\\
+			  &\parallel[\{coat\_off, request\_coat, coat\_on\}]\notag\\
+	  		  &coat\_off \then eat \then request\_coat \then coat\_on \then \SKIP\notag
+\end{align}
+
+We can declare such system in CSP\textsubscript{Coq} by defining a specification, which consists in lists of channels and processes. This specification must also abide by a set of contextual rules that will be discussed further in this work.
+
 \begin{coqdoccode}
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.lts}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.semantics\_sos}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.semantics\_trace}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{CSP.syntax}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{Lists.List}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{Lists.ListSet}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Require} \coqdockw{Import} \coqdocvar{Strings.String}.\coqdoceol
-	\coqdocnoindent
-	\coqdockw{Import} \coqdocvar{ListNotations}.\coqdoceol
-	\coqdocemptyline
-	\coqdocnoindent
-	\coqdockw{Local Open} \coqdockw{Scope} \coqdocvar{string}.\coqdoceol
-	\coqdocemptyline
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{example} : \coqdocvar{specification}.\coqdoceol
 	\coqdocnoindent
@@ -59,36 +48,35 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 	\coqdocindent{2.00em}
 	\coqdocvar{Build\_Spec}\coqdoceol
 	\coqdocindent{2.00em}
-	[\coqdoceol
-	\coqdocindent{3.00em}
-	\coqdocvar{Channel} \{\{"start", "ev1", "ev2", "ev3", "end"\}\}\coqdoceol
+	[ \coqdocvar{Channel} \{\{"coat\_off", "coat\_on", "request\_coat", "retrieve", "store", "eat"\}\} ]\coqdoceol
 	\coqdocindent{2.00em}
-	]\coqdoceol
-	\coqdocindent{2.00em}
-	[\coqdoceol
+	[ "SYSTEM" ::=\coqdoceol
 	\coqdocindent{3.00em}
-	"P" ::= "start" --> ("ev1" --> \coqdocvar{SKIP} [] "ev2" --> \coqdocvar{SKIP}) ;; "end" --> \coqdocvar{ProcRef} "P"\coqdoceol
+	"coat\_off" --> "store" --> "request\_coat" --> "retrieve" --> "coat\_on" --> \coqdocvar{SKIP}\coqdoceol
 	\coqdocindent{3.00em}
-	; "Q" ::= "start" --> "ev3" --> "end" --> \coqdocvar{ProcRef} "Q"\coqdoceol
+	[| \{\{"coat\_off", "request\_coat", "coat\_on"\}\} |]\coqdoceol
 	\coqdocindent{3.00em}
-	; "R" ::= \coqdocvar{ProcRef} "P" [| \{\{"start", "end"\}\} |] \coqdocvar{ProcRef} "Q"\coqdoceol
-	\coqdocindent{2.00em}
-	]\coqdoceol
+	"coat\_off" --> "eat" --> "request\_coat" --> "coat\_on" --> \coqdocvar{SKIP} ]\coqdoceol
 	\coqdocindent{1.00em}
 	).\coqdoceol
 	\coqdocnoindent
 	\coqdockw{Defined}.\coqdoceol
-	\coqdocemptyline
-	\coqdocnoindent
-	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{example} "R" 100).\coqdoceol
 \end{coqdoccode}
 
+Furthermore, we can execute the following command to compute the process LTS and output the graph in dot language:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{example} "SYSTEM" 100).\coqdoceol
+\end{coqdoccode}
+
+The Figure \ref{lts-example} is a visual representation of the graph outputted by this command. The image is generated using GraphViz software.
+
 \begin{figure}[htb]
-	\caption{\label{lts-example}The "R" process LTS.}
+	\caption{\label{lts-example}The process LTS graph.}
 	\begin{center}
-		\includegraphics[scale=0.75]{images/LTS.pdf}
+		\includegraphics[scale=0.5]{images/LTS.pdf}
 	\end{center}
-	\legend{Source: }
 \end{figure}
 
 % ---
@@ -98,14 +86,16 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 The main contributions of this work are the following:
 
 \begin{itemize}
-	\item abstract and concrete syntax
-	\item structured operational semantics
-	\item labelled transition systems (inductive + functional)
-	\item proof of correctness of this functional definition
-	\item traces (inductive + functional)
-	\item proof of correctness of this functional definition
-	\item traces refinement (formal definition)
-	\item refinement verification using QuickChick
+	\item Abstract and concrete syntax for a subset of CSP operators.
+	\item Context rules for CSP specifications.
+	\item Operational semantics via SOS approach.
+	\item Inductive and functional definitions of a labelled transition system.
+	\item Proof of correctness for the functional definition of the LTS.
+	\item Inductive and functional definitions of traces.
+	\item Proof of correctness for the functional definition of traces.
+	\item Tactic macro that automates trace relation proofs.
+	\item Formal definition of the traces refinement.
+	\item Refinement verification using QuickChick.
 \end{itemize}
 
 % ---

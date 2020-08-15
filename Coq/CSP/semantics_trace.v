@@ -115,7 +115,7 @@ Fixpoint gen_parall_trans'
   : list (event_tau_tick * proc_body) :=
   match right_hand_proc_trans with
   | (e, P) :: l =>
-    if set_mem event_tau_tick_eq_dec e sync_events
+    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
     then gen_parall_trans' left_hand_proc l alpha sync_events
     else (e, left_hand_proc [| alpha |] P)
       :: (gen_parall_trans' left_hand_proc l alpha sync_events)
@@ -150,7 +150,7 @@ Fixpoint alpha_parall_trans'
   : list (event_tau_tick * proc_body) :=
   match right_hand_proc_trans with
   | (e, P) :: l =>
-    if set_mem event_tau_tick_eq_dec e sync_events
+    if ((set_mem event_tau_tick_eq_dec e sync_events) || (is_equal e Tick))%bool
     then alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events
     else (e, left_hand_proc [[ alpha1 \\ alpha2 ]] P)
       :: (alpha_parall_trans' left_hand_proc l alpha1 alpha2 sync_events)
