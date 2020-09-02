@@ -4,29 +4,56 @@
 \chapter{Background}
 % ---
 
+Since the early 1980s there have been three complementary approaches to understanding the semantics of CSP programs. These are algebra, where we set out laws that the syntax is assumed to satisfy, behavioural models such as traces that form the basis of refinement relations and other things, and operational models, which try to understand all the actions and decisions that process implementations can make as they proceed. This chapter introduces the reader to the basics of each of these.
+
 % ---
 \section{Communicating sequential processes}
 % ---
+
+%TODO: apresentar CSP usando a versão não-ASCII da linguagem.
+
+CSP is a programming language, a specification language and a theory to help us understand concurrent systems and decide whether a program meets its specification. It belongs to a class of notations known as process algebras, where concepts of communication and  interaction are presented in an algebraic style.
 
 % ---
 \subsection{Structured operational semantics}
 % ---
 
+The operational semantics of CSP treats the CSP language itself as a (large!) LTS. It allows us to compute the initial events of any  process, and what processes it might become after each such event. By selecting one of these actions and repeating the procedure, we can explore the state space of the process we started with. The operational semantics gives a one-state-at-a-time recipe for computing the transition system picture of any process. It is traditional to present operational semantics as a logical inference system: Plotkin’s SOS, or Structured Operational Semantics style. A process has a given action if and only if that is deducible from the rules given.
+
 % ---
 \subsection{Traces refinement}
 % ---
+
+Imagine you are interacting with a CSP process. The most basic record you might make of what happens is to write down the trace of events that occur: the sequence of communications between you (the environment) and the process. In general, a trace might be finite or infinite: finite either because the observation was terminated or because the process and environment reach a point where they cannot agree on any event; infinite when the observation goes on for ever and infinitely many events are transacted. Traces are typical of the sort of behaviours we use to build models of CSP processes: they are clearly observable by the environment interacting with the process, and each of them is the record of single interaction with the process. We will see more details of the traces model in the next chapter, but we now introduce a fundamental way in which we can specify the correctness of a CSP process. Using traces(P) to denote P’s finite traces we can write
+
+and read this as \emph{Q trace-refines P}. In other words, every trace of \emph{Q} is a trace of \emph{P}.
+
+% ---
+\subsection{Machine-readable version of CSP}
+% ---
+
+The main purpose of CSP is to describe communicating and interacting processes. But in order to make it useful in practice we have added quite a rich language of sub-process objects: as we saw in Chap.8, CSPM contains a functional programming language to describe and manipulate things like events and process parameters.
 
 % ---
 \section{The Coq proof assistant}
 % ---
 
+Coq is a formal proof management system. It provides a formal language to write mathematical definitions, executable algorithms and theorems together with an environment for semi-interactive development of machine-checked proofs. Typical applications include the certification of properties of programming languages, the formalization of mathematics, and teaching. 
+
 % ---
 \subsection{Building proofs}
 % ---
 
+As a proof development system, Coq provides interactive proof methods, decision and semi-decision algorithms, and a tactic language for letting the user define its own proof methods. Proof development in Coq is done through a language of tactics that allows a user-guided proof process.
+
 % ---
 \subsection{The tactics language}
+% ---
+
+Ltac is the tactic language for Coq. It provides the user with a high-level “toolbox” for tactic creation, allowing one to build complex tactics by combining existing ones with constructs such as conditionals and looping.
 
 % ---
 \section{QuickChick}
 % ---
+
+QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem.
