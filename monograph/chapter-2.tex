@@ -2,12 +2,14 @@
 % Chapter 2
 % ---
 \chapter{Background}
+\label{chapter:background}
 % ---
 
-Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language such as the concrete syntax and the semantics, defined in both denotational and operational models. Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics, the embedded Ltac language and the QuickChick plugin. This chapter introduces the reader to each one of these concepts.
+Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language such as the concrete syntax and the semantics, defined in both denotational and operational models (Section~\ref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics and the embedded Ltac language (Section~\ref{section:coq}). We also explain in this chapter and the QuickChick tool (Section~\ref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter introduces the reader to each one of these concepts.
 
 % ---
 \section{Communicating sequential processes}
+\label{section:csp}
 % ---
 
 In 1978, Tony Hoare's \emph{Communicating Sequential Processes} described a theory to help us understand concurrent systems, parallel programming and multiprocessing. More than that, it has introduced a way to decide whether a program meets its specification. This theory quickly evolved into what we know today as the CSP programming language. This language belongs to a class of notations known as process algebras, where concepts of communication and interaction are presented in an algebraic style.
@@ -46,6 +48,7 @@ The main purpose of CSP is to describe communicating and interacting processes. 
 
 % ---
 \section{The Coq proof assistant}
+\label{section:coq}
 % ---
 
 Coq is a formal proof management system. It provides a formal language to write mathematical definitions, executable algorithms and theorems together with an environment for semi-interactive development of machine-checked proofs. Typical applications include the certification of properties of programming languages, the formalization of mathematics, and teaching. 
@@ -64,6 +67,7 @@ Ltac is the tactic language for Coq. It provides the user with a high-level “t
 
 % ---
 \section{QuickChick}
+\label{section:quickchick}
 % ---
 
 QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem.
