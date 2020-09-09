@@ -5,26 +5,42 @@
 \label{chapter:background}
 % ---
 
-Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language such as the concrete syntax and the semantics, defined in both denotational and operational models (Section~\ref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics and the embedded Ltac language (Section~\ref{section:coq}). We also explain in this chapter and the QuickChick tool (Section~\ref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter introduces the reader to each one of these concepts.
+Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language itself, such as the concrete syntax and the semantics defined in both denotational and operational models (Section~\ref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics and the embedded Ltac language (Section~\ref{section:coq}). We must also address the QuickChick property-based testing tool (Section~\ref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter gives an introduction to each one of these concepts.
 
 % ---
+%TODO
 \section{Communicating sequential processes}
 \label{section:csp}
 % ---
 
-In 1978, Tony Hoare's \emph{Communicating Sequential Processes} described a theory to help us understand concurrent systems, parallel programming and multiprocessing. More than that, it has introduced a way to decide whether a program meets its specification. This theory quickly evolved into what we know today as the CSP programming language. This language belongs to a class of notations known as process algebras, where concepts of communication and interaction are presented in an algebraic style.
+In 1978, Tony Hoare's \emph{Communicating Sequential Processes} \cite{hoare:csp} described a theory to help us understand concurrent systems, parallel programming and multiprocessing. More than that, it has introduced a way to decide whether a program meets its specification. This theory quickly evolved into what is known today as the CSP programming language. This language belongs to a class of notations known as process algebras, where concepts of communication and interaction are presented in an algebraic style.
 
-% TODO Apresentar os conceitos de processo e evento (interface).
+Since the main goal of CSP is to provide a theory-driven framework for designing systems of interacting components an reasoning about them, we must introduce the concept of a component, or as we will be referencing it from now on, a \emph{process}. Processes are self-contained entities that once combined they can describe a system, which is yet another larger process that may itself be combined as well with other processes. The way a process communicates with the environment is through its \emph{interface}. The interface of a process is the set of all the events that the process has the potential to engage in. At last, an \emph{event} represents the atomic part of the communication itself. It is the piece of information the processes rely on to interact with one another. A process can either participate actively or passively in a communication, depending on whether it performed or suffered the action. Events may be external, meaning they appear in the process interface; indicate termination, represented by the event $ \tick $; or be internal, and therefore unknown for the environment, denoted by the event $ \tau $.
 
 The most basic process one can define is $ \mathit{\STOP} $. Essentially, this process never interacts with the environment and its only purpose is to declare the end of an execution. In other words, it illustrates a deadlock: a state in which the process can not engage in any event or make any progress whatsoever. It could be used to describe a computer that failed booting because one of its components is damaged, or a camera that can no longer take pictures due to storage space shortage.
 
 Another simple process is $ \mathit{\SKIP} $. It indicates that the process has reached a successful termination state, which also means that it has finished executing. We can use $ \mathit{\SKIP} $ to illustrate an athlete that has crossed the finish line, or a build for a project that has passed.
 
-Provided these two trivial processes, $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, and the knowledge of what a process interface is, we can apply a handful of CSP operators to define more descriptive processes. For example, let \emph{a} be an event in the process \emph{P} interface. One can write the new process \emph{P} as $ a \then \mathit{\STOP} $, meaning that this process behaves as $ \mathit{\STOP} $ after performing \emph{a}. This operator is known as the \emph{event prefix}, and it is pronounced as ``then''.
+Provided these two trivial processes, $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, and the knowledge of what a process interface is, we can apply a handful of CSP operators to define more descriptive processes. For example, let $ a $ be an event in the process $ P $ interface. One can write the new process $ P $ as $ a \then \mathit{\STOP} $, meaning that this process behaves as $ \mathit{\STOP} $ after performing $ a $. This operator is known as the \emph{event prefix}, and it is pronounced as ``then''.
 
-The choice between processes can be implemented in two different ways in CSP: externally and internally. An \emph{external choice} between two processes implies the ability to perform any event that either process can engage in. Therefore, the environment has control over the outcome of such decision. On the other hand, if the process itself is the only responsible for deciding which event from its interface will be communicated, thus which process it will resolve to, then we call it an \emph{internal choice}. Note that this is essentially the source of non-determinism. To illustrate the difference among these operators, consider the following scenario: a cafeteria can operate either by letting the costumers choose between ice cream and cake for desert, or by making this choice itself, having the clients no take on what deserts they will get. In the first configuration, the choice is external to the business, whereas it is internal in the latter.
+The choice between processes can be constructed in two different ways in CSP: externally and internally. An \emph{external choice} between two processes implies the ability to perform any event that either process can engage in. Therefore, the environment has control over the outcome of such decision. On the other hand, if the process itself is the only responsible for deciding which event from its interface will be communicated, thus which process it will resolve to, then we call it an \emph{internal choice}. Note that this operator is essentially a source of non-deterministic behavior.
+
+To illustrate the difference between these choice operators, consider the following scenario: a cafeteria may operate by either letting the costumers choose between ice cream and cake for desert, or by making this choice itself (employees decide), having the clients no take on what deserts they will get. In the first specification, the choice is external to the business and it might be described as $ ice\_cream \then \mathit{\SKIP} \extchoice cake \then \mathit{\SKIP} $, whereas it is internal in the latter, thus $ ice\_cream \then \mathit{\SKIP} \intchoice cake \then \mathit{\SKIP} $ would capture such business rule.
+
+CSP introduces two approaches for describing a parallel execution between processes: the \emph{alphabetized parallel} and the \emph{generalized parallel}. Let $ A $ be the interface of process $ P $, and $ B $ the interface of process $ Q $. An alphabetized parallel combination of these processes is described as $ P \parallel[A][B] Q $. Events in the intersection of $ A $ and $ B $ must be simultaneously engaged in by the processes $ P $ and $ Q $. In other words, an event that appears in both process interfaces can only be communicated if the two processes are ready to perform this event. Any other event that does not match this criteria can be engaged in by its corresponding process independently. The semantics are similar for the generalized version of the parallel operator. The only change being its constructor, that takes the synchronization alphabet alone as the interface argument the processes must agree upon. Let $ C $ be the intersection of previously defined interfaces $ A $ and $ B $. The generalized parallel between process $ P $ and $ Q $ is written as $ P \parallel[C] Q $.
+
+Both versions of the parallel operator may be used to describe a marathon where every participant is a process that runs in parallel with each other. They must all start the race at the same time, but they are not expected to cross the finish line all together. We can use the alphabetized parallel to specify the combination between two participants as $ \mathit{RUNNER1} \parallel[\{start, finish1\}][\{start, finish2\}] \mathit{RUNNER2} $, or use the generalized version of the operator instead: $ \mathit{RUNNER1} \parallel[\{start\}] \mathit{RUNNER2} $.
+
+Another CSP operator that provides a concurrent execution of processes is the \emph{interleaving} operator. Different from the parallel operators, the interleaving represents a combination of processes that do not require any synchronization at all. The processes applied to this operation execute totally independent of each other. This might be the case of two vending machines at a supermarket. They operate completely separate from each other, receiving payments, processing changes and releasing snacks. In other words, there is no dependency regarding the communication of events between the vending machines. That being said consider the process $ \mathit{VENDING\_MACHINE} $ as $ \mathit{pay} \then \mathit{select\_snack} \then \mathit{return\_change} \then \mathit{release\_snack} $. Then, the process that specifies both machines operating together is described as $ \mathit{VENDING\_MACHINE} \interleave \mathit{VENDING\_MACHINE} $.
+
+The last two operators we will be discussing are the \emph{sequential composition} and \emph{event hiding}. Before we continue, the reader must be aware that there are others CSP operators for combining processes apart from the ones presented in this chapter, but they will not be supported by the framework implemented in this project.
+
+Sometimes it is necessary to pass the control over execution from one process to another, and for that we use sequential composition. It means that the first process has reached a successful termination state and now the system is ready to behave as the second process in the composition. Parents can choose to let their children play only after completing their homework. That being the case, the process $ \mathit{CHILD} $ could be modeled as $ \mathit{HOMEWORK}\!; \mathit{FUN} $, where the process $ \mathit{HOMEWORK} $ is described as $ \mathit{choose\_subject} \then \mathit{study} \then \mathit{answer\_exercises} \then \mathit{\SKIP} $ and the process $ \mathit{FUN} $ as $ \mathit{build\_lego} \then \mathit{watch\_cartoons} \then \mathit{play\_videogame} \then \mathit{\SKIP} $. In this example, the process $ \mathit{FUN} $ can only be executed after the process $ \mathit{HOMEWORK} $ has successfully terminated.
+
+Last but not least, we have the event hiding operator. A system designer may choose to hide events from a process interface to prevent them from being recognized by other processes. That way, the environment can not distinguish this particular event, thus no process can engage in it. Event hiding proves to be useful when processes placed in parallel should not be allowed to synchronize on certain events. Consider, for example, that a school teacher is communicating each student individually his or her test grade. It has to be done in such way that no student gets to know other test grades besides his or her own. The process $ \mathit{TEACHER} $ may be modeled as $ \mathit{show\_grade} \then \mathit{discuss\_questions} \then \mathit{\SKIP} $, so a teacher concerned with the students privacy can be described as $ \mathit{TEACHER} \hide \{show\_grade\} $.
 
 % ---
+%TODO
 \subsection{Structured operational semantics}
 % ---
 
@@ -33,6 +49,7 @@ Since the early 1980s there have been three complementary approaches to understa
 The operational semantics of CSP treats the CSP language itself as a (large!) LTS. It allows us to compute the initial events of any  process, and what processes it might become after each such event. By selecting one of these actions and repeating the procedure, we can explore the state space of the process we started with. The operational semantics gives a one-state-at-a-time recipe for computing the transition system picture of any process. It is traditional to present operational semantics as a logical inference system: Plotkin’s SOS, or Structured Operational Semantics style. A process has a given action if and only if that is deducible from the rules given.
 
 % ---
+%TODO
 \subsection{Traces refinement}
 % ---
 
@@ -41,12 +58,14 @@ Imagine you are interacting with a CSP process. The most basic record you might 
 and read this as \emph{Q trace-refines P}. In other words, every trace of \emph{Q} is a trace of \emph{P}.
 
 % ---
+%TODO
 \subsection{Machine-readable version of CSP}
 % ---
 
 The main purpose of CSP is to describe communicating and interacting processes. But in order to make it useful in practice we have added quite a rich language of sub-process objects: as we saw in Chap.8, CSPM contains a functional programming language to describe and manipulate things like events and process parameters.
 
 % ---
+%TODO
 \section{The Coq proof assistant}
 \label{section:coq}
 % ---
@@ -54,18 +73,21 @@ The main purpose of CSP is to describe communicating and interacting processes. 
 Coq is a formal proof management system. It provides a formal language to write mathematical definitions, executable algorithms and theorems together with an environment for semi-interactive development of machine-checked proofs. Typical applications include the certification of properties of programming languages, the formalization of mathematics, and teaching. 
 
 % ---
+%TODO
 \subsection{Building proofs}
 % ---
 
 As a proof development system, Coq provides interactive proof methods, decision and semi-decision algorithms, and a tactic language for letting the user define its own proof methods. Proof development in Coq is done through a language of tactics that allows a user-guided proof process.
 
 % ---
+%TODO
 \subsection{The tactics language}
 % ---
 
 Ltac is the tactic language for Coq. It provides the user with a high-level “toolbox” for tactic creation, allowing one to build complex tactics by combining existing ones with constructs such as conditionals and looping.
 
 % ---
+%TODO
 \section{QuickChick}
 \label{section:quickchick}
 % ---
