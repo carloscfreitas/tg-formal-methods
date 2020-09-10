@@ -32,6 +32,9 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 
 Consider the following CSP process adapted from \citeonline[p.~32, example 2.3]{schneider1999}. This process represents a cloakroom attendant that might help a costumer off or on with his coat, storing an retrieving coats as appropriate:
 \begin{align}
+	\mathit{channel\ coat\_on, coat\_off, store, retrieve, request\_coat, eat}\notag
+\end{align}
+\begin{align}
 	\mathit{SYSTEM} =\ &\mathit{coat\_off \mathbin{{-}{>}} store \mathbin{{-}{>}} request\_coat \mathbin{{-}{>}} retrieve \mathbin{{-}{>}} coat\_on \mathbin{{-}{>}} SKIP}\notag\\
 			 &[|\ \{\mathit{coat\_off, request\_coat, coat\_on}\}\ |]\notag\\
 	  		 &\mathit{coat\_off \mathbin{{-}{>}} eat \mathbin{{-}{>}} request\_coat \mathbin{{-}{>}} coat\_on \mathbin{{-}{>}} SKIP}\notag
