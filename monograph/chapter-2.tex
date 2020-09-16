@@ -44,9 +44,158 @@ Last but not least, we have the event hiding operator. A system designer may cho
 \subsection{Structured operational semantics}
 % ---
 
-Since the early 1980s there have been three complementary approaches to understanding the semantics of CSP programs. These are algebra, where we set out laws that the syntax is assumed to satisfy, behavioral models such as traces that form the basis of refinement relations and other things, and operational models, which try to understand all the actions and decisions that process implementations can make as they proceed.
+% TODO Explain inference rules and the SOS style of describing language semantics.
 
-The operational semantics of CSP treats the CSP language itself as a (large!) LTS. It allows us to compute the initial events of any  process, and what processes it might become after each such event. By selecting one of these actions and repeating the procedure, we can explore the state space of the process we started with. The operational semantics gives a one-state-at-a-time recipe for computing the transition system picture of any process. It is traditional to present operational semantics as a logical inference system: Plotkin’s SOS, or Structured Operational Semantics style. A process has a given action if and only if that is deducible from the rules given.
+% Since the early 1980s there have been three complementary approaches to understanding the semantics of CSP programs. These are algebra, where we set out laws that the syntax is assumed to satisfy, behavioral models such as traces that form the basis of refinement relations and other things, and operational models, which try to understand all the actions and decisions that process implementations can make as they proceed.
+
+% The operational semantics of CSP treats the CSP language itself as a (large!) LTS. It allows us to compute the initial events of any  process, and what processes it might become after each such event. By selecting one of these actions and repeating the procedure, we can explore the state space of the process we started with. The operational semantics gives a one-state-at-a-time recipe for computing the transition system picture of any process. It is traditional to present operational semantics as a logical inference system: Plotkin’s SOS, or Structured Operational Semantics style. A process has a given action if and only if that is deducible from the rules given. Structured operational semantics are conventionally defined in this way.
+
+Since the process $ \mathit{\STOP} $ is unable to engage in any event whatsoever, there are no inference rules for it. Then, we move forward to the next process constructor: the process $ \mathit{\SKIP} $. While $ \mathit{\STOP} $ has no actions of itself, $ \mathit{\SKIP} $ is able to perform a single event, which is the termination event $ \tick $. The lack of antecedents in the following rule means it is always the case that $ \mathit{\SKIP} $ may perform $ \tick $ and behave as $ \mathit{\STOP} $.
+
+% Successful termination
+\begin{prooftree}
+	\AxiomC{}
+	\UnaryInfC{$ \mathit{\SKIP} \trans(2)[\tick] \mathit{\STOP} $}
+\end{prooftree}
+
+The event prefix operation also spares the antecedents in its inference rule, so the conclusion is immediately deduced: if the process is initially able to perform $ a $, then after performing $ a $ it behaves like $ P $.
+
+% Event prefix
+\begin{prooftree}
+	\AxiomC{}
+	\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
+\end{prooftree}
+
+% External choice (tau, left side)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\tau] P' $}
+	\UnaryInfC{$ P \extchoice Q \trans(2)[\tau] P' \extchoice Q $}
+\end{prooftree}
+
+% External choice (tau, right side)
+\begin{prooftree}
+	\AxiomC{$ Q \trans(2)[\tau] Q' $}
+	\UnaryInfC{$ P \extchoice Q \trans(2)[\tau] P \extchoice Q' $}
+\end{prooftree}
+
+% External choice (!tau, left side)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\RightLabel{\quad ($ a \neq \tau $)}
+	\UnaryInfC{$ P \extchoice Q \trans(2)[a] P' $}
+\end{prooftree}
+
+% External choice (!tau, right side)
+\begin{prooftree}
+	\AxiomC{$ Q \trans(2)[a] Q' $}
+	\RightLabel{\quad ($ a \neq \tau $)}
+	\UnaryInfC{$ P \extchoice Q \trans(2)[a] Q' $}
+\end{prooftree}
+
+% Internal choice (left side)
+\begin{prooftree}
+	\AxiomC{}
+	\UnaryInfC{$ P \intchoice Q \trans(2)[\tau] P $}
+\end{prooftree}
+
+% Internal choice (right side)
+\begin{prooftree}
+	\AxiomC{}
+	\UnaryInfC{$ P \intchoice Q \trans(2)[\tau] Q $}
+\end{prooftree}
+
+% Alphabetized parallel (left side)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\mu] P' $}
+	\RightLabel{\quad ($ \mu \in (A \cup \{\, \tau \,\} \setminus B) $)}
+	\UnaryInfC{$ P \parallel[A][B] Q \trans(2)[\mu] P' \parallel[A][B] Q $}
+\end{prooftree}
+
+% Alphabetized parallel (right side)
+\begin{prooftree}
+	\AxiomC{$ Q \trans(2)[\mu] Q' $}
+	\RightLabel{\quad ($ \mu \in (B \cup \{\, \tau \,\} \setminus A) $)}
+	\UnaryInfC{$ P \parallel[A][B] Q \trans(2)[\mu] P \parallel[A][B] Q' $}
+\end{prooftree}
+
+% Alphabetized parallel (sync)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\AxiomC{$ Q \trans(2)[a] Q' $}
+	\RightLabel{\quad ($ a \in A^{\tick} \cap B^{\tick} $)}
+	\BinaryInfC{$ P \parallel[A][B] Q \trans(2)[a] P' \parallel[A][B] Q' $}
+\end{prooftree}
+
+% Generalized parallel (left side)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\mu] P' $}
+	\RightLabel{\quad ($ \mu \notin A^{\tick} $)}
+	\UnaryInfC{$ P \parallel[A] Q \trans(2)[\mu] P' \parallel[A] Q $}
+\end{prooftree}
+
+% Generalized parallel (right side)
+\begin{prooftree}
+	\AxiomC{$ Q \trans(2)[\mu] Q' $}
+	\RightLabel{\quad ($ \mu \notin A^{\tick} $)}
+	\UnaryInfC{$ P \parallel[A] Q \trans(2)[\mu] P \parallel[A] Q' $}
+\end{prooftree}
+
+% Generalized parallel (sync)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\AxiomC{$ Q \trans(2)[a] Q' $}
+	\RightLabel{\quad ($ a \in A^{\tick} $)}
+	\BinaryInfC{$ P \parallel[A] Q \trans(2)[a] P' \parallel[A] Q' $}
+\end{prooftree}
+
+% Interleave (left side)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\mu] P' $}
+	\RightLabel{\quad ($ \mu \neq \tick $)}
+	\UnaryInfC{$ P \interleave Q \trans(2)[\mu] P' \interleave Q $}
+\end{prooftree}
+
+% Interleave (right side)
+\begin{prooftree}
+	\AxiomC{$ Q \trans(2)[\mu] Q' $}
+	\RightLabel{\quad ($ \mu \neq \tick $)}
+	\UnaryInfC{$ P \interleave Q \trans(2)[\mu] P \interleave Q' $}
+\end{prooftree}
+
+% Interleave (tick)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\tick] P' $}
+	\AxiomC{$ Q \trans(2)[\tick] Q' $}
+	\BinaryInfC{$ P \interleave Q \trans(2)[\tick] P' \interleave Q' $}
+\end{prooftree}
+
+% Event hiding
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\RightLabel{\quad ($ a \in A $)}
+	\UnaryInfC{$ P \hide A \trans(2)[\tau] P' \hide A $}
+\end{prooftree}
+
+% Event hiding
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\mu] P' $}
+	\RightLabel{\quad ($ \mu \notin A $)}
+	\UnaryInfC{$ P \hide A \trans(2)[\mu] P' \hide A $}
+\end{prooftree}
+
+% Sequential composition (!tick)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\RightLabel{\quad ($ a \neq \tick $)}
+	\UnaryInfC{$ P\!; Q \trans(2)[a] P'\!; Q $}
+\end{prooftree}
+
+% Sequential composition (tick)
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[\tick] P' $}
+	\UnaryInfC{$ P\!; Q \trans(2)[\tau] Q $}
+\end{prooftree}
+
 
 % ---
 \subsection{Traces refinement}
@@ -54,7 +203,7 @@ The operational semantics of CSP treats the CSP language itself as a (large!) LT
 
 A pretty reasonable way for gathering information from a process interacting with the environment is by keeping track of the events this process engages in. This sequence of communication between process and environment, presented in a chronological order, is what we call a \emph{trace}. Traces can either be finite or infinite, and it depends on the observation span and the nature of the process itself.
 
-Because this kind of record is easily observed by the environment and it represents a single interaction, it is often used to build models of CSP processes. As a matter of fact, there is one named after itself: the $ \mathit{\traces} $ model, represented by the symbol $ \tmodel $. This model is one of the three major denotational models of CSP, the other ones being the \emph{stable} $ \mathit{\failures} \ \fmodel $ and the $ \mathit{\failures \mhyphen \divergences} $ model $ \nmodel $. It defines the meaning of a process expression as the set of sequences of events (traces) that the process can be observed to perform.
+Because this record is easily observed by the environment and it represents a single interaction, it is often used to build models of CSP processes. As a matter of fact, there is one named after it: the $ \mathit{\traces} $ model, represented by the symbol $ \tmodel $. It defines the meaning of a process expression as the set of sequences of events (traces) that the process can be observed to perform. This model is one of the three major denotational models of CSP, the other ones being the \emph{stable} $ \mathit{\failures} \ \fmodel $ and the $ \mathit{\failures \mhyphen \divergences} $ model $ \nmodel $.
 
 The \emph{traces refinement} is a fundamental way for specifying the correctness of a CSP process. Given the processes $ P $ and $ Q $, we can say that $ Q $ \emph{trace-refines} $ P $ if and only if every trace of $ Q $ is also a trace of $ P $. Using the CSP notation, we can write $ P \refinedby[\tmodel] Q $ for the refinement according to the traces model.
 
@@ -70,11 +219,11 @@ The \autoref{tab:csp-cspm} shows for every CSP process constructor discussed in 
 
 \begin{table}[htb]
 	\begin{center}
-		\caption[CSP constructors and their corresponding ASCII representations]{CSP constructors and their corresponding ASCII representations.}
+		\caption[The ASCII representation of CSP]{The ASCII representation of CSP.}
 		\label{tab:csp-cspm}
 		\begin{tabular}{ |l|c|c| }
 			\hline
-			Constructor & CSP & \CSPM{} \\ [0.5ex]
+			Constructor & Syntax & ASCII form \\
 			\hline
 			Stop & $ \mathit{\STOP} $ & STOP \\ [0.5ex]
 			Skip & $ \mathit{\SKIP} $ & SKIP \\ [0.5ex]
