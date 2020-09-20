@@ -5,7 +5,7 @@
 \label{chapter:background}
 % ---
 
-Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language itself, such as the concrete syntax and the semantics defined in both denotational and operational models (Section~\ref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics and the embedded Ltac language (Section~\ref{section:coq}). We must also address the QuickChick property-based testing tool (Section~\ref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter gives an introduction to each one of these concepts.
+Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language itself, such as the concrete syntax and the semantics defined in both denotational and operational models (\autoref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics, as well as the embedded Ltac language (\autoref{section:coq}). We must also address the QuickChick property-based testing tool (\autoref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter gives an introduction to each one of these concepts.
 
 % ---
 %TODO
@@ -35,22 +35,26 @@ Another CSP operator that provides a concurrent execution of processes is the \e
 
 The last two operators we will be discussing are the \emph{sequential composition} and \emph{event hiding}. Before we continue, the reader must be aware that there are others CSP operators for combining processes apart from the ones presented in this chapter, but they will not be supported by the framework implemented in this project.
 
-Sometimes it is necessary to pass the control over execution from one process to another, and for that we use sequential composition. It means that the first process has reached a successful termination state and now the system is ready to behave as the second process in the composition. Parents can choose to let their children play only after completing their homework. That being the case, the process $ \mathit{CHILD} $ could be modeled as $ \mathit{HOMEWORK}\!; \mathit{FUN} $, where the process $ \mathit{HOMEWORK} $ is described as $ \mathit{choose\_subject} \then \mathit{study} \then \mathit{answer\_exercises} \then \mathit{\SKIP} $ and the process $ \mathit{FUN} $ as $ \mathit{build\_lego} \then \mathit{watch\_cartoons} \then \mathit{play\_videogame} \then \mathit{\SKIP} $. In this example, the process $ \mathit{FUN} $ can only be executed after the process $ \mathit{HOMEWORK} $ has successfully terminated.
+Sometimes it is necessary to pass the control over execution from one process to another, and for that we use sequential composition. It means that the first process has reached a successful termination state and now the system is ready to behave as the second process in the composition. Parents can choose to let their children play only after completing their homework. That being the case, the process $ \mathit{CHILD} $ could be modeled as $ \mathit{HOMEWORK}\!; \mathit{FUN} $, where 
+\begin{align}
+	&\mathit{HOMEWORK} = \mathit{choose\_subject} \then \mathit{study} \then \mathit{answer\_exercises} \then \mathit{\SKIP} \notag \\
+	&\mathit{FUN} = \mathit{build\_lego} \then \mathit{watch\_cartoons} \then \mathit{play\_videogame} \then \mathit{\SKIP} \notag
+\end{align}
+In this example, the process $ \mathit{FUN} $ can only be executed after the process $ \mathit{HOMEWORK} $ has successfully terminated.
 
 Last but not least, we have the event hiding operator. A system designer may choose to hide events from a process interface to prevent them from being recognized by other processes. That way, the environment can not distinguish this particular event, thus no process can engage in it. Event hiding proves to be useful when processes placed in parallel should not be allowed to synchronize on certain events. Consider, for example, that a school teacher is communicating each student individually his or her test grade. It has to be done in such way that no student gets to know other test grades besides his or her own. The process $ \mathit{TEACHER} $ may be modeled as $ \mathit{show\_grade} \then \mathit{discuss\_questions} \then \mathit{\SKIP} $, so a teacher concerned with the students privacy can be described as $ \mathit{TEACHER} \hide \{show\_grade\} $.
 
 % ---
-%TODO
 \subsection{Structured operational semantics}
 % ---
 
-% TODO Explain inference rules and the SOS style of describing language semantics.
+There are three major complementary approaches for describing and reasoning about the semantics of CSP programs. These are through \emph{algebraic}, \emph{denotational} (also called \emph{behavioral}), and \emph{operational semantics}. We will be focusing in the last one, which tries to understand all the actions and decisions that process implementations can make as they proceed.
 
-% Since the early 1980s there have been three complementary approaches to understanding the semantics of CSP programs. These are algebra, where we set out laws that the syntax is assumed to satisfy, behavioral models such as traces that form the basis of refinement relations and other things, and operational models, which try to understand all the actions and decisions that process implementations can make as they proceed.
+The operational semantics for CSP language describes how a valid program is interpreted as sequences of computational steps. By evaluating the initial events of a process and finding out how it will behave immediately after performing them, this approach enables us to explore the state space of any process. All we need to do is repeat this step until we have covered the transition system picture of the process we are interested in.
 
-% The operational semantics of CSP treats the CSP language itself as a (large!) LTS. It allows us to compute the initial events of any  process, and what processes it might become after each such event. By selecting one of these actions and repeating the procedure, we can explore the state space of the process we started with. The operational semantics gives a one-state-at-a-time recipe for computing the transition system picture of any process. It is traditional to present operational semantics as a logical inference system: Plotkin’s SOS, or Structured Operational Semantics style. A process has a given action if and only if that is deducible from the rules given. Structured operational semantics are conventionally defined in this way.
+It is traditional to present operational semantics as a logical inference system: Plotkin’s SOS, or \emph{Structured Operational Semantics} style. A process has a given action if, and only if, that is deducible from the rules given.
 
-Since the process $ \mathit{\STOP} $ is unable to engage in any event whatsoever, there are no inference rules for it. Then, we move forward to the next process constructor: the process $ \mathit{\SKIP} $. While $ \mathit{\STOP} $ has no actions of itself, $ \mathit{\SKIP} $ is able to perform a single event, which is the termination event $ \tick $. The lack of antecedents in the following rule means it is always the case that $ \mathit{\SKIP} $ may perform $ \tick $ and behave as $ \mathit{\STOP} $.
+We start by analyzing the process $ \mathit{\STOP} $. Since it is unable to engage in any event whatsoever, there are no inference rules for it. Then, we move forward to the next primitive process: $ \mathit{\SKIP} $. While $ \mathit{\STOP} $ has no actions of itself, $ \mathit{\SKIP} $ is able to perform a single event, which is the termination event $ \tick $. The lack of antecedents in the following rule means it is always the case that $ \mathit{\SKIP} $ may perform $ \tick $ and behave as $ \mathit{\STOP} $.
 
 % Successful termination
 \begin{prooftree}
@@ -65,6 +69,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\AxiomC{}
 	\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
 \end{prooftree}
+
+The transition rules for external choice reflect the fact that the first external event resolves the choice in favor of the process performing the event. In addition, as we can see in the first two rules, the choice is not resolved on the occurrence of internal events. Control over resolution of the choice is external because the events of both choices are initially available. 
 
 % External choice (tau, left side)
 \begin{prooftree}
@@ -92,6 +98,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\UnaryInfC{$ P \extchoice Q \trans(2)[a] Q' $}
 \end{prooftree}
 
+The internal choice is an operation that guarantees the process to behave as either of its components on any execution. This state change happens ``silently'', thus this transition is followed by the communication of internal event $ \tau $, as we can see in the inference rules for this operation.
+
 % Internal choice (left side)
 \begin{prooftree}
 	\AxiomC{}
@@ -103,6 +111,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\AxiomC{}
 	\UnaryInfC{$ P \intchoice Q \trans(2)[\tau] Q $}
 \end{prooftree}
+
+We can separate the rules for the alphabetized parallel into two categories: one that describes the independent execution of each process, and other defining the synchronized step performed at once by the components. The first two inference rules capture the ability of both sides performing events that are not in the common interface, thus executing them independently. The third rule dictates the joint step, where both processes are able to perform the event, so they communicate it at the same time.
 
 % Alphabetized parallel (left side)
 \begin{prooftree}
@@ -126,6 +136,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\BinaryInfC{$ P \parallel[A][B] Q \trans(2)[a] P' \parallel[A][B] Q' $}
 \end{prooftree}
 
+The transition rules for the generalized parallel are very similar to the ones for the previous operation. The main difference lies in the side condition, since this version of parallelism is only interested in the interface alphabet. The same rule categories for the alphabetized parallel apply to this operation.
+
 % Generalized parallel (left side)
 \begin{prooftree}
 	\AxiomC{$ P \trans(2)[\mu] P' $}
@@ -148,6 +160,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\BinaryInfC{$ P \parallel[A] Q \trans(2)[a] P' \parallel[A] Q' $}
 \end{prooftree}
 
+The interleave operation describes a parallel execution between processes that do not synchronize in any event except termination $ \tick $. In other words, this operation is a particular case of the generalized parallelism, where the interface alphabet is empty, thus the event $ \tick $ being the only event that can be performed simultaneously by the components.
+
 % Interleave (left side)
 \begin{prooftree}
 	\AxiomC{$ P \trans(2)[\mu] P' $}
@@ -169,6 +183,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\BinaryInfC{$ P \interleave Q \trans(2)[\tick] P' \interleave Q' $}
 \end{prooftree}
 
+As we already know, the hiding operator removes all events in a given alphabet from the process interface, preventing other processes to engage in them. The process to which the event hiding is applied can then behave just like it would without the operator, except the events in the given alphabet are made internal and then renamed to $ \tau $. Such behavior is capture by the inference rules:
+
 % Event hiding
 \begin{prooftree}
 	\AxiomC{$ P \trans(2)[a] P' $}
@@ -182,6 +198,8 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\RightLabel{\quad ($ \mu \notin A $)}
 	\UnaryInfC{$ P \hide A \trans(2)[\mu] P' \hide A $}
 \end{prooftree}
+
+The last operational rules we need to discuss are for the sequential composition operator. Initially, this combination behaves as the process to the left of the operator until it terminates. Then, the execution control is granted to the other process in the composition. The control handover is represented by the communication of the internal event $ \tau $, as we can see in the second rule:
 
 % Sequential composition (!tick)
 \begin{prooftree}
@@ -205,7 +223,13 @@ A pretty reasonable way for gathering information from a process interacting wit
 
 Because this record is easily observed by the environment and it represents a single interaction, it is often used to build models of CSP processes. As a matter of fact, there is one named after it: the $ \mathit{\traces} $ model, represented by the symbol $ \tmodel $. It defines the meaning of a process expression as the set of sequences of events (traces) that the process can be observed to perform. This model is one of the three major denotational models of CSP, the other ones being the \emph{stable} $ \mathit{\failures} \ \fmodel $ and the $ \mathit{\failures \mhyphen \divergences} $ model $ \nmodel $.
 
-The \emph{traces refinement} is a fundamental way for specifying the correctness of a CSP process. Given the processes $ P $ and $ Q $, we can say that $ Q $ \emph{trace-refines} $ P $ if and only if every trace of $ Q $ is also a trace of $ P $. Using the CSP notation, we can write $ P \refinedby[\tmodel] Q $ for the refinement according to the traces model.
+The notion of refinement is a particularly useful concept for specifying the correctness of a CSP process. If we can establish a relation between components of a system which captures the fact that one satisfies at least the same conditions as another, then we may replace a worse component by a better one without degrading the properties of the system.
+
+\begin{definition}{Traces refinement}
+	Let $ P $ and $ Q $ be two CSP processes, and $ \mathit{\traces} $ be a function that yields the set of all possible traces of a given CSP process, we say that $ Q $ trace-refines $ P $ if, and only if, every trace of $ Q $ is also a trace of $ P $: $ P \refinedby[\tmodel] Q \iff \mathit{\traces}(Q) \subseteq \mathit{\traces}(P) $.
+\end{definition}
+
+If we consider $ P $ to be a specification which determines possible safe states of a system, then we can think of $ P \refinedby[\tmodel] Q $ as saying that $ Q $ is a safe implementation: no wrong events will be allowed. 
 
 % ---
 \subsection{Machine-readable version of CSP}
