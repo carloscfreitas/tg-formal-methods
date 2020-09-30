@@ -41,3 +41,28 @@ Proof.
   intros n. induction n as [| n' IHn'].
   - (* n = 0 *) reflexivity.
   - (* n = S n' *) simpl. rewrite <- IHn'. reflexivity. Qed.
+
+Require Import Lists.List.
+Import ListNotations.
+
+Example elem_not_in_list : ~ (In 4 [0 ; 1 ; 2 ; 3]).
+Proof.
+  unfold not. simpl. intros.
+  destruct H.
+  - inversion H.
+  - destruct H.
+    * inversion H.
+    * destruct H.
+      + inversion H.
+      + destruct H.
+        { inversion H. }
+        { contradiction. }
+Qed.
+
+Ltac solve_not_in := unfold not;
+  let H := fresh "H" in (
+    intros H; repeat (contradiction + (destruct H; [> inversion H | ]))
+  ).
+
+Example elem_not_in_list' : ~ (In 4 [0 ; 1 ; 2 ; 3]).
+Proof. solve_not_in. Qed.
