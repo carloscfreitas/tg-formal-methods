@@ -225,8 +225,9 @@ Because this record is easily observed by the environment and it represents a si
 
 The notion of refinement is a particularly useful concept for specifying the correctness of a CSP process. If we can establish a relation between components of a system which captures the fact that one satisfies at least the same conditions as another, then we may replace a worse component by a better one without degrading the properties of the system.
 
-\begin{definition}{Traces refinement}
-	Let $ P $ and $ Q $ be two CSP processes, and $ \mathit{\traces} $ be a function that yields the set of all possible traces of a given CSP process, we say that $ Q $ trace-refines $ P $ if, and only if, every trace of $ Q $ is also a trace of $ P $: $ P \refinedby[\tmodel] Q \iff \mathit{\traces}(Q) \subseteq \mathit{\traces}(P) $.
+\begin{definition}{\textbf{(Traces Refinement)}}
+	Let $ P $ and $ Q $ be two CSP processes, and $ \mathit{\traces} $ be a function that yields the set of all possible traces of a given CSP process, we say that $ Q $ trace-refines $ P $ if, and only if, every trace of $ Q $ is also a trace of $ P $:
+	\[  P \refinedby[\tmodel] Q \iff \mathit{\traces}(Q) \subseteq \mathit{\traces}(P) \]
 \end{definition}
 
 If we consider $ P $ to be a specification which determines possible safe states of a system, then we can think of $ P \refinedby[\tmodel] Q $ as saying that $ Q $ is a safe implementation: no wrong events will be allowed. 
@@ -265,26 +266,349 @@ The \autoref{tab:csp-cspm} shows for every CSP process constructor discussed in 
 \end{table}
 
 % ---
-%TODO
 \section{The Coq proof assistant}
 \label{section:coq}
 % ---
 
-Coq is a formal proof management system. It provides a formal language to write mathematical definitions, executable algorithms and theorems together with an environment for semi-interactive development of machine-checked proofs. Typical applications include the certification of properties of programming languages, the formalization of mathematics, and teaching. 
+A proof assistant is a software for helping construct proofs of logical propositions. Essentially, it is a hybrid tool that automates the more routine aspects of building proofs while relying on human intervention for more complex steps. There is a variety of proof assistants including Isabelle, Agda, ATS, Idris and Coq, among others. This work is based around the Coq proof assistant. 
+
+Coq can be viewed as a combination of a functional programming language plus a set of tools for stating and proving logical assertions. Moreover, the Coq environment provides high-level facilities for proof development, including a large library of common definitions and lemmas, powerful tactics for constructing complex proofs semi-automatically, and a special-purpose programming language for defining new proof-automation tactics for specific situations.
+
+Coq's native functional programming language is called \emph{Gallina}. Before we discuss about the proof development aspect of this interactive theorem prover, we need to introduce the most essential elements we may find in a Gallina program. Consider the following definition of natural numbers in Coq:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{nat} : \coqdockw{Type} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{O}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{S} (\coqdocvar{n} : \coqdocvar{nat}).\coqdoceol
+\end{coqdoccode}
+
+This declaration tells Coq that we are defining a \emph{type}. The capital-letter $ O $ constructor represents zero. When the $ S $ constructor is applied to the representation of the natural number $ n $, the result is the representation of $ n+1 $, where $ S $ stands for "successor". An $ \coqdockw{Inductive} $ definition carves out a subset of the whole space of constructor expressions and gives it a name, in this case, $ nat $. 
+
+Having defined $ nat $, we can write functions that operate on natural numbers, such as the predecessor function:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{pred} (\coqdocvar{n} : \coqdocvar{nat}) : \coqdocvar{nat} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{n} \coqdockw{with}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{O}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{S} \coqdocvar{n'} \ensuremath{\Rightarrow} \coqdocvar{n'}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+Note that we do not need recursion to define the predecessor function, but simple pattern matching is not enough for more interesting computations involving natural numbers. For example, to check that a number $ n $ is even, we may need to recursively check whether $ n-2 $ is even. In order to do that, we use the keyword $ \coqdockw{Fixpoint} $ instead of $ \coqdockw{Definition} $: 
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Fixpoint} \coqdocvar{evenb} (\coqdocvar{n}:\coqdocvar{nat}) : \coqdocvar{bool} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{n} \coqdockw{with}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{true}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{S} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{false}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{S} (\coqdocvar{S} \coqdocvar{n'}) \ensuremath{\Rightarrow} \coqdocvar{evenb} \coqdocvar{n'}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+Yet another way for defining evenness is through \emph{inductive declaration}. Consider the following two rules: \emph{the number $ 0 $ is even}, and \emph{if $ n $ is even, then $ S \ (S \ n) $ is even}. Lets call the first rule $ ev\_0 $ and then the second $ ev\_SS $. Using $ ev $ for the name of evenness property, we can write the following inference rules:
+
+\begin{prooftree}
+	\AxiomC{}
+	\RightLabel{\quad ($ ev\_0 $)}
+	\UnaryInfC{$ ev \ 0 $}
+\end{prooftree}
+
+\begin{prooftree}
+	\AxiomC{$ ev \ n $}
+	\RightLabel{\quad ($ ev\_SS $)}
+	\UnaryInfC{$ ev \ (S \ (S \ n)) $}
+\end{prooftree}
+
+Now, we can translate these rules into a formal Coq definition. Each constructor in this definition corresponds to an inference rule:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{ev} : \coqdocvar{nat} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ev\_0} : \coqdocvar{ev} 0\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ev\_SS} (\coqdocvar{n} : \coqdocvar{nat}) (\coqdocvar{H} : \coqdocvar{ev} \coqdocvar{n}) : \coqdocvar{ev} (\coqdocvar{S} (\coqdocvar{S} \coqdocvar{n})).\coqdoceol
+\end{coqdoccode}
+
+This definition is different from previous use of $ \coqdockw{Inductive} $. We are defining a function from $ nat $ to $ Prop $, in other words, a property of numbers. The type of each constructor must be specified explicitly (after a colon), and each constructor's type must have the form $ ev \ n $ for some natural number $ n $.
 
 % ---
-%TODO
 \subsection{Building proofs}
 % ---
 
 As a proof development system, Coq provides interactive proof methods, decision and semi-decision algorithms, and a tactic language for letting the user define its own proof methods. Proof development in Coq is done through a language of tactics that allows a user-guided proof process.
+
+For instance, consider the following theorem on natural numbers: for all natural $ n $, if $ n $ is even, then the predecessor of the predecessor of $ n $ is also even. This theorem can be proved in Coq using the following commands:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Theorem} \coqdocvar{ev\_minus2} : \coqdockw{\ensuremath{\forall}} \coqdocvar{n}:\coqdocvar{nat},\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{ev} \coqdocvar{n} \ensuremath{\rightarrow} \coqdocvar{ev} (\coqdocvar{pred} (\coqdocvar{pred} \coqdocvar{n})).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{intros}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{destruct} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{simpl}. \coqdoctac{apply} \coqdocvar{ev\_0}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{simpl}. \coqdoctac{apply} \coqdocvar{H}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Qed}.\coqdoceol
+\end{coqdoccode}
+
+The proof editing mode in Coq is entered whenever asserting a statement. The command \coqdockw{Theorem} does so by allowing us to give the theorem a name and providing it with the proposition we want to prove. Additionally, the commands \coqdockw{Proof} and \coqdockw{Qed} delimit, respectively, the beginning and end of the sequence of tactic commands.
+
+The keywords \coqdoctac{intros}, \coqdoctac{simpl}, \coqdoctac{destruct} and \coqdoctac{apply} are examples of tactics. A tactic is a command that is used to guide the process of checking some claim we are making. Note that we have added the quantifier \coqdockw{\ensuremath{\forall}} \coqdocvar{n}:\coqdocvar{nat}, so that our theorem talks about all natural numbers $ n $. Therefore, the tactic \coqdoctac{intros} moves $ n $ from the quantifier in the goal to a context of current assumptions, along with a new \emph{hypothesis} that consists of the antecedent of the implication (\emph{modus ponens}).
+
+Proving a statement by case analysis is possible via the tactic \coqdoctac{destruct}. In our example, this tactic is responsible for generating, from the hypothesis, two sub-goals based on the inductive definition of evenness we have provided: one where $ n = 0 $ and the other where $ n = S \ (S \ n) $. Thus, we must prove them separately in order to get Coq to accept the theorem.
+
+The tactic \coqdoctac{simpl} is used in situations where we want to evaluate a compound expression, eventually reducing it to a simplified, easier-to-understand term. It facilitates our decisions in a proof development by resolving all the computations that can be done in a given state of the goal.
+
+We then proceed to use the parameterized tactic \coqdoctac{apply}, passing the term we find useful for proving each sub-goal. In the first branch, where our goal is to prove $ ev \ 0 $, we apply the first rule of our inductive definition, $ ev\_0 $, which concludes this sub-proof. In the second branch, we have $ ev \ n $ as goal, which is already an assumption of ours (introduced to the proof context by the command \coqdoctac{intros}). This also concludes the second sub-proof, thus proving the entire statement (\coqdockw{Theorem} \coqdocvar{ev\_minus2}).
+
+There are many other tactics and variations of them that can be used when proving a statement. Apart from the ones we have already discussed in this subsection, other commonly used tactic commands are \coqdoctac{reflexivity}, \coqdoctac{rewrite}, \coqdoctac{unfold}, \coqdoctac{induction}, \coqdoctac{inversion} and \coqdoctac{contradiction}. Further explanation on theses tactics will be provided as needed throughout the \autoref{chapter:csp_coq}.
 
 % ---
 %TODO
 \subsection{The tactics language}
 % ---
 
-Ltac is the tactic language for Coq. It provides the user with a high-level “toolbox” for tactic creation, allowing one to build complex tactics by combining existing ones with constructs such as conditionals and looping.
+Ltac is the tactic language for Coq. It provides the user with a high-level ``toolbox''  for tactic creation, allowing one to build complex tactics by combining existing ones with constructs such as conditionals, looping, backtracking, and error catching.
+
+Imagine we want to prove that the number 4 does not appear in the list of consecutive natural numbers ranging from 0 to 3. By using the keyword \coqdockw{Example}, we can assert this statement in Coq and develop our proof:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Example} \coqdocvar{elem\_not\_in\_list} : \ensuremath{\lnot} (\coqdocvar{In} 4 [0 ; 1 ; 2 ; 3]).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{unfold} \coqdocvar{not}. \coqdoctac{simpl}. \coqdoctac{intros}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{destruct} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{inversion} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{destruct} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{\times} \coqdoctac{inversion} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{\times} \coqdoctac{destruct} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{3.00em}
+	+ \coqdoctac{inversion} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{3.00em}
+	+ \coqdoctac{destruct} \coqdocvar{H}.\coqdoceol
+	\coqdocindent{4.00em}
+	\{ \coqdoctac{inversion} \coqdocvar{H}. \}\coqdoceol
+	\coqdocindent{4.00em}
+	\{ \coqdoctac{contradiction}. \}\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Qed}.\coqdoceol
+\end{coqdoccode}
+
+\noindent See the proof for Example elem\_not\_in\_list in table \ref{Proofs:coq-example:Example:elem-not-in-list}
+
+\begin{longtable}{| S | P |}
+	\caption{Proof of Example elem\_not\_in\_list}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endfirsthead
+	
+	\caption{Proof of Example elem\_not\_in\_list continued}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endhead
+	
+	\multicolumn{2}{r}{Continuing proof of Example elem\_not\_in\_list on the next page}\\
+	\endfoot
+	\hline
+	\multicolumn{2}{r}{End of proof of Example elem\_not\_in\_list}\\
+	\endlastfoot
+	
+	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	$ \lnot $ $ In $ $ 4 $ $ [0; $ $ 1; $ $ 2; $ $ 3]$\\
+	
+	\hline
+	\multirow{2}{=}{$unfold $ $ not.$} & \fracrule\linebreak
+	$In $ $ 4 $ $ [0; $ $ 1; $ $ 2; $ $ 3] $ $ \rightarrow $ $ False$\\
+	
+	\hline
+	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	$0 $ $ = $ $ 4 $ $ \lor $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False $ $ \rightarrow $ $ False$\\
+	
+	\hline
+	\multirow{3}{=}{$intros.$} & $H$$ $ $ : $ $ 0 $ $ = $ $ 4 $ $ \lor $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{8}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 0 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	\cline{2-2}
+	& $H$$ $ $ : $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{3}{=}{$-_{1/2}$} & $H$$ $ $ : $ $ 0 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	$inversion $ $ H.$ & $-_{1/2}$ completed \\
+	\hline
+	\multirow{3}{=}{$-_{2/2}$} & $H$$ $ $ : $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{7}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 1 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	\cline{2-2}
+	& $H$$ $ $ : $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{3}{=}{$*_{1/2}$} & $H$$ $ $ : $ $ 1 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	$inversion $ $ H.$ & $*_{1/2}$ completed \\
+	\hline
+	\multirow{4}{=}{$*_{2/2}$} & $H$$ $ $ : $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{6}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 2 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	\cline{2-2}
+	& $H$$ $ $ : $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{3}{=}{$+_{1/2}$} & $H$$ $ $ : $ $ 2 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	$inversion $ $ H.$ & $+_{1/2}$ completed \\
+	\hline
+	\multirow{3}{=}{$+_{2/2}$} & $H$$ $ $ : $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{6}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 3 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	\cline{2-2}
+	& $H$$ $ $ : $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{3}{=}{$\{$} & $H$$ $ $ : $ $ 3 $ $ = $ $ 4$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	$inversion $ $ H.$ & $Subproof$ completed \\
+	\hline
+	\multirow{3}{=}{$\}$} & $H$$ $ $ : $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	\multirow{3}{=}{$\{$} & $H$$ $ $ : $ $ False$\linebreak
+	\fracrule\linebreak
+	$False$\\
+	
+	\hline
+	$contradiction.$ & $Subproof$ completed, proof completed by Qed \\
+	\hline
+	$\}$ & $+_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Example:elem-not-in-list} \\
+	\hline
+	
+\end{longtable}
+
+The first tactic unfolds the definition of \ensuremath{\lnot} (not) in the goal, replacing our initial statement by \coqdocvar{In} 4 [0 ; 1 ; 2 ; 3] \ensuremath{\rightarrow} \coqdocvar{False}. The second tactic reduces the new goal by computing the function \coqdocvar{In}, which leaves us with the disjunctions $ 0 = 4 \lor 1 = 4 \lor 2 = 4 \lor 3 = 4 \lor \coqdocvar{False} $ in the antecedent of the implication. Then, the tactic \coqdoctac{intros} moves this antecedent to the proof context, introducing a new hypothesis \coqdocvar{H} and leaving the literal \coqdocvar{False} as goal.
+
+From this point on, the proof develops a pattern: we perform a destruction followed by an inversion of the hypothesis until we can end the proof by contradiction. The recurrence of the tactic \coqdoctac{destruct} lets us focus in one equality from the disjunction at a time: first the hypothesis becomes $ 0 = 4 $, then $ 1 = 4 $ and so on. The tactic \coqdoctac{inversion} finishes each sub proof created by the previous command by deriving all the necessary conditions that should hold for the assumption to be proved. In this case, since none of these equalities is true, there is no condition that satisfies the proposition, thus proving our goal.
+
+Since this pattern in the sequence of tactics is now exposed, we can define a tactic macro for proving propositions of the format ``not in'' using the keyword \coqdockw{Ltac}:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Ltac} \coqdocvar{solve\_not\_in} := \coqdoctac{unfold} \coqdocvar{not};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} "H" \coqdoctac{in} (\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{repeat} (\coqdoctac{contradiction} + (\coqdoctac{destruct} \coqdocvar{H}; [> \coqdoctac{inversion} \coqdocvar{H} \ensuremath{|} ]))\coqdoceol
+	\coqdocindent{1.00em}
+	).\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Example} \coqdocvar{elem\_not\_in\_list'} : \ensuremath{\lnot} (\coqdocvar{In} 4 [0 ; 1 ; 2 ; 3]).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}. \coqdocvar{solve\_not\_in}. \coqdockw{Qed}.\coqdoceol
+\end{coqdoccode}
+
+The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function \coqdocvar{not}, therefore deriving an implication, then moving the premise to the context of assumption, and finally repeating the following steps until the proof is finished: try to finish the proof by searching for a \emph{contradiction} in the assumptions, if it fails, \emph{destruct} the hypothesis and apply \emph{inversion} to it in order to prove the first sub-goal yielded by the previous tactic.
+
+\noindent See the proof for Example elem\_not\_in\_list' in table \ref{Proofs:coq-example:Example:elem-not-in-list'}
+
+\begin{longtable}{| S | P |}
+	\caption{Proof of Example elem\_not\_in\_list'}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endfirsthead
+	
+	\caption{Proof of Example elem\_not\_in\_list' continued}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endhead
+	
+	\multicolumn{2}{r}{Continuing proof of Example elem\_not\_in\_list' on the next page}\\
+	\endfoot
+	\hline
+	\multicolumn{2}{r}{End of proof of Example elem\_not\_in\_list'}\\
+	\endlastfoot
+	
+	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	${\char'176} $ $ In $ $ 4 $ $ [0; $ $ 1; $ $ 2; $ $ 3]$\\
+	
+	\hline
+	$solve{\char`\_}not{\char`\_}in.$ & Proof finished by Qed \label{Proofs:coq-example:Example:elem-not-in-list'} \\
+	\hline
+\end{longtable}
 
 % ---
 %TODO
@@ -292,4 +616,6 @@ Ltac is the tactic language for Coq. It provides the user with a high-level “t
 \label{section:quickchick}
 % ---
 
-QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem.
+QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem. It is the equivalent of Haskell's QuickCheck for Coq proof assistant.
+
+There are four basic elements in property-based random testing: an \emph{executable property} such as for deciding whether a number is even, \emph{generators} for random inputs to the property, \emph{printers} for converting data structures like numbers to strings when reporting counterexamples, and \emph{shrinkers}, which are used to search for minimal counterexamples when errors occur.
