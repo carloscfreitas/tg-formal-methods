@@ -724,3 +724,48 @@ The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function 
 QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem. It is the equivalent of Haskell's QuickCheck for Coq proof assistant.
 
 There are four basic elements in property-based random testing: an \emph{executable property} such as for deciding whether a number is even, \emph{generators} for random inputs to the property, \emph{printers} for converting data structures like numbers to strings when reporting counterexamples, and \emph{shrinkers}, which are used to search for minimal counterexamples when errors occur.
+
+Consider the following example extracted from \citeonline{Pierce:SF4}. The function \emph{remove} takes a natural number $ x $ and a list of natural numbers $ l $ and removes $ x $ from the list.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Fixpoint} \coqdocvar{remove} (\coqdocvar{x} : \coqdocvar{nat}) (\coqdocvar{l} : \coqdocvar{list} \coqdocvar{nat}) : \coqdocvar{list} \coqdocvar{nat} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{l} \coqdockw{with}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} []   \ensuremath{\Rightarrow} []\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{h}::\coqdocvar{t} \ensuremath{\Rightarrow} \coqdockw{if} \coqdocvar{h} =? \coqdocvar{x} \coqdockw{then} \coqdocvar{t} \coqdockw{else} \coqdocvar{h} :: \coqdocvar{remove} \coqdocvar{x} \coqdocvar{t}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+We can write assertions that represent our expectations regarding this function. One possible specification for \emph{remove} might be this property:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Conjecture} \coqdocvar{removeP} : \coqdockw{\ensuremath{\forall}} \coqdocvar{x} \coqdocvar{l},  \ensuremath{\lnot} (\coqdocvar{In} \coqdocvar{x} (\coqdocvar{remove} \coqdocvar{x} \coqdocvar{l})).\coqdoceol
+\end{coqdoccode}
+
+The keyword \coqdockw{Conjecture} treats our property \coqdocvar{removeP} as an axiom. This proposition claims that $ x $ never occurs in the result of $ \mathit{remove} \ x \ l $ for any $ x $ and $ l $. Such statement turns out to be false, as we would discover if we were to try to prove it. A different — perhaps much more efficient — way to discover the discrepancy between the definition and specification is to test it:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{QuickChick} \coqdocvar{removeP}.\coqdoceol
+\end{coqdoccode}
+
+The \coqdocvar{QuickChick} command takes an ``executable'' property and attempts to falsify it by running it on many randomly generated inputs, resulting in output like this:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	0 \coqdoceol
+	\coqdocnoindent
+	[0, 0] \coqdoceol
+	\coqdocnoindent
+	Failed! After 17 tests and 12 shrinks \coqdoceol
+\end{coqdoccode}
+
+This means that, if we run \emph{remove} with $ x $ being 0 and $ l $ being the two-element list containing two zeros, then the property \coqdocvar{removeP} fails.
+
+With this example in hand, we can see that the \emph{then} branch of remove fails to make a recursive call, which means that only one occurrence of $ x $ will be removed from the list. The last line of the output records that it took 17 tests to identify some fault-inducing input and 12 ``shrinks'' to reduce it to a minimal counterexample.
+
