@@ -352,7 +352,214 @@ This definition is different from previous use of $ \coqdockw{Inductive} $. We a
 
 As a proof development system, Coq provides interactive proof methods, decision and semi-decision algorithms, and a tactic language for letting the user define its own proof methods. Proof development in Coq is done through a language of tactics that allows a user-guided proof process.
 
-For instance, consider the following theorem on natural numbers: for all natural $ n $, if $ n $ is even, then the predecessor of the predecessor of $ n $ is also even. This theorem can be proved in Coq using the following commands:
+Recall the functional definition of evenness we introduced in the previous section, \coqdocvar{evenb}. Suppose we want to prove that consecutive numbers have opposite parity. In other words, if $ S \ n $ is even, then $ n $ is not, and if $ S \ n $ is not even, then $ n $ is. One way to assert this statement is through the following proposition: $ \forall \ (n:nat), \ evenb \ (S \ n) = negb \ (evenb \ n) $.
+
+Eventually, during a proof development, one may find useful to make assertions about smaller intermediary steps of a theorem proof. This can be done either inside the main proof tree or in a completely separate one. The ``divide and conquer'' approach can help decreasing the number of steps in a proof and even reduce its overall complexity. In this example, we will first introduce a lemma to prove the involutive property of the negation function \coqdocvar{negb}. This can be achieved in Coq with following commands:
+
+\begin{coqdoccode}
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Lemma} \coqdocvar{negb\_involutive} : \coqdockw{\ensuremath{\forall}} (\coqdocvar{b} : \coqdocvar{bool}),\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{negb} (\coqdocvar{negb} \coqdocvar{b}) = \coqdocvar{b}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{destruct} \coqdocvar{b}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{simpl}. \coqdoctac{reflexivity}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{simpl}. \coqdoctac{reflexivity}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Qed}.\coqdoceol
+\end{coqdoccode}
+
+\noindent See the proof for Lemma \coqdocvar{negb\_involutive} in table \ref{Proofs:coq-example:Lemma:negb-involutive}
+
+\begin{longtable}{| S | P |}
+	\caption{Proof of Lemma negb\_involutive}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endfirsthead
+	
+	\caption{Proof of Lemma negb\_involutive continued}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endhead
+	
+	\multicolumn{2}{r}{Continuing proof of Lemma negb\_involutive on the next page}\\
+	\endfoot
+	\hline
+	\multicolumn{2}{r}{End of proof of Lemma negb\_involutive}\\
+	\endlastfoot
+	
+	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	$forall $ $ b $ $ : $ $ bool, $ $ negb $ $ (negb $ $ b) $ $ = $ $ b$\\
+	
+	\hline
+	\multirow{4}{=}{$destruct $ $ b.$} & \fracrule\linebreak
+	$negb $ $ (negb $ $ true) $ $ = $ $ true$\\
+	\cline{2-2}
+	& \fracrule\linebreak
+	$negb $ $ (negb $ $ false) $ $ = $ $ false$\\
+	
+	\hline
+	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
+	$negb $ $ (negb $ $ true) $ $ = $ $ true$\\
+	
+	\hline
+	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	$true $ $ = $ $ true$\\
+	
+	\hline
+	$reflexivity.$ & $-_{1/2}$ completed \\
+	\hline
+	\multirow{2}{=}{$-_{2/2}$} & \fracrule\linebreak
+	$negb $ $ (negb $ $ false) $ $ = $ $ false$\\
+	
+	\hline
+	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	$false $ $ = $ $ false$\\
+	
+	\hline
+	$reflexivity.$ & $-_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Lemma:negb-involutive} \\
+	\hline
+\end{longtable}
+
+The proof editing mode in Coq is entered whenever asserting a statement. Keywords such as \coqdockw{Lemma}, \coqdockw{Theorem}, and \coqdockw{Example} do so by allowing us to give the statement a name and the proposition we want to prove. Additionally, the commands \coqdockw{Proof} and \coqdockw{Qed} delimit, respectively, the beginning and the end of the sequence of tactic commands.
+
+The keywords \coqdoctac{destruct}, \coqdoctac{simpl}, and \coqdoctac{reflexivity} are examples of tactics. A tactic is a command that is used to guide the process of checking some claim we are making. The tactic \coqdoctac{destruct} generates two sub-goals, one for each boolean value, which we must prove separately in order to prove the main goal. This strategy is also known as proof by case analysis.
+
+The tactic \coqdoctac{simpl} is often used in situations where we want to evaluate a compound expression, eventually reducing it to a simplified, easier-to-understand term. It facilitates our decisions in a proof development by resolving all the computations that can be done in a given state of the goal. Additionally, the tactic \coqdoctac{reflexivity} finishes a proof by showing that both sides of an equation contain identical values.
+
+Once we proved this lemma, it is now available to be used inside other proofs such as the one of the theorem we stated in the beginning of this section:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Theorem} \coqdocvar{evenb\_S} : \coqdockw{\ensuremath{\forall}} \coqdocvar{n} : \coqdocvar{nat},\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{evenb} (\coqdocvar{S} \coqdocvar{n}) = \coqdocvar{negb} (\coqdocvar{evenb} \coqdocvar{n}).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{intros}. \coqdoctac{induction} \coqdocvar{n}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{simpl}. \coqdoctac{reflexivity}.\coqdoceol
+	\coqdocindent{1.00em}
+	- \coqdoctac{simpl}. \coqdoctac{simpl} \coqdoctac{in} \coqdocvar{IHn}. \coqdoctac{rewrite} \coqdocvar{IHn}.\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdoctac{rewrite} \coqdocvar{negb\_involutive}. \coqdoctac{reflexivity}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Qed}.\coqdoceol
+\end{coqdoccode}
+
+\noindent See the proof for Theorem \coqdocvar{evenb\_S} in table \ref{Proofs:coq-example:Theorem:evenb-S}
+
+\begin{longtable}{| S | P |}
+	\caption{Proof of Theorem evenb\_S}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endfirsthead
+	
+	\caption{Proof of Theorem evenb\_S continued}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endhead
+	
+	\multicolumn{2}{r}{Continuing proof of Theorem evenb\_S on the next page}\\
+	\endfoot
+	\hline
+	\multicolumn{2}{r}{End of proof of Theorem evenb\_S}\\
+	\endlastfoot
+	
+	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	$forall $ $ n $ $ : $ $ nat, $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\\
+	
+	\hline
+	\multirow{3}{=}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\\
+	
+	\hline
+	\multirow{7}{=}{$induction $ $ n.$} & \fracrule\linebreak
+	$evenb $ $ 1 $ $ = $ $ negb $ $ (evenb $ $ 0)$\\
+	\cline{2-2}
+	& $n$$ $ $ : $ $ nat$\linebreak
+	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ (S $ $ (S $ $ n)) $ $ = $ $ negb $ $ (evenb $ $ (S $ $ n))$\\
+	
+	\hline
+	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
+	$evenb $ $ 1 $ $ = $ $ negb $ $ (evenb $ $ 0)$\\
+	
+	\hline
+	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	$false $ $ = $ $ false$\\
+	
+	\hline
+	$reflexivity.$ & $-_{1/2}$ completed \\
+	\hline
+	\multirow{5}{=}{$-_{2/2}$} & $n$$ $ $ : $ $ nat$\linebreak
+	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ (S $ $ (S $ $ n)) $ $ = $ $ negb $ $ (evenb $ $ (S $ $ n))$\\
+	
+	\hline
+	\multirow{6}{=}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
+	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ n $ $ = $ $ negb $ $ match $ $ n $ $ with
+	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
+	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
+	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ end$\\
+	
+	\hline
+	\multirow{8}{=}{$simpl $ $ in $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
+	$IHn$$ $ $ : $ $ match $ $ n $ $ with
+	$ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
+	$ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
+	$ $  $ $  $ $ end $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ n $ $ = $ $ negb $ $ match $ $ n $ $ with
+	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
+	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
+	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ end$\\
+	
+	\hline
+	\multirow{7}{=}{$rewrite $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
+	$IHn$$ $ $ : $ $ match $ $ n $ $ with
+	$ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
+	$ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
+	$ $  $ $  $ $ end $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ n $ $ = $ $ negb $ $ (negb $ $ (evenb $ $ n))$\\
+	
+	\hline
+	\multirow{6}{=}{$rewrite $ $ negb{\char`\_}involutive.$} & $n$$ $ $ : $ $ nat$\linebreak
+	$IHn$$ $ $ : $ $ match $ $ n $ $ with
+	$ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
+	$ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
+	$ $  $ $  $ $ end $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
+	\fracrule\linebreak
+	$evenb $ $ n $ $ = $ $ evenb $ $ n$\\
+	
+	\hline
+	$reflexivity.$ & $-_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Theorem:evenb-S} \\
+	\hline
+\end{longtable}
+
+Note that we have added the quantifier \coqdockw{\ensuremath{\forall}} \coqdocvar{n}:\coqdocvar{nat}, so that our theorem talks about all natural numbers $ n $. The tactic \coqdoctac{intros} is responsible for moving the quantifier into the context of current assumptions.
+
+This example demonstrates a proof by induction over natural numbers that is made possible in Coq by the \coqdoctac{induction} tactic. Following this principle, to show that a proposition holds for all natural numbers $ n $ we must prove: the base case ($ n = 0 $), and then the induction step, which is, for any number $ n' $, if the proposition holds for $ n' $, then so it does for $ S \ n' $.
+
+The tactic \coqdoctac{rewrite} tells Coq to perform a replacement in the goal, whether it is based on an assumption (hypothesis) from the proof context or a completely separate proof such as the Lemma \coqdocvar{negb\_involutive}. 
+
+Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, then the predecessor of the predecessor of $ n $ is also even. This theorem can be proved in Coq using the following commands:
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -373,20 +580,81 @@ For instance, consider the following theorem on natural numbers: for all natural
 	\coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-The proof editing mode in Coq is entered whenever asserting a statement. The command \coqdockw{Theorem} does so by allowing us to give the theorem a name and providing it with the proposition we want to prove. Additionally, the commands \coqdockw{Proof} and \coqdockw{Qed} delimit, respectively, the beginning and end of the sequence of tactic commands.
+\noindent See the proof for Theorem \coqdocvar{ev\_minus2} in table \ref{Proofs:coq-example:Theorem:ev-minus2}
 
-The keywords \coqdoctac{intros}, \coqdoctac{simpl}, \coqdoctac{destruct} and \coqdoctac{apply} are examples of tactics. A tactic is a command that is used to guide the process of checking some claim we are making. Note that we have added the quantifier \coqdockw{\ensuremath{\forall}} \coqdocvar{n}:\coqdocvar{nat}, so that our theorem talks about all natural numbers $ n $. Therefore, the tactic \coqdoctac{intros} moves $ n $ from the quantifier in the goal to a context of current assumptions, along with a new \emph{hypothesis} that consists of the antecedent of the implication (\emph{modus ponens}).
+\begin{longtable}{| S | P |}
+	\caption{Proof of Theorem ev\_minus2}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endfirsthead
+	
+	\caption{Proof of Theorem ev\_minus2 continued}\\
+	\hline
+	\coqpsvstephdr & \coqpsvsithdr\\
+	\hline
+	\endhead
+	
+	\multicolumn{2}{r}{Continuing proof of Theorem ev\_minus2 on the next page}\\
+	\endfoot
+	\hline
+	\multicolumn{2}{r}{End of proof of Theorem ev\_minus2}\\
+	\endlastfoot
+	
+	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	$forall $ $ n $ $ : $ $ nat, $ $ ev $ $ n $ $ -{>} $ $ ev $ $ (pred $ $ (pred $ $ n))$\\
+	
+	\hline
+	\multirow{4}{=}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
+	$H$$ $ $ : $ $ ev $ $ n$\linebreak
+	\fracrule\linebreak
+	$ev $ $ (pred $ $ (pred $ $ n))$\\
+	
+	\hline
+	\multirow{6}{=}{$destruct $ $ H.$} & \fracrule\linebreak
+	$ev $ $ (pred $ $ (pred $ $ 0))$\\
+	\cline{2-2}
+	& $n$$ $ $ : $ $ nat$\linebreak
+	$H$$ $ $ : $ $ ev $ $ n$\linebreak
+	\fracrule\linebreak
+	$ev $ $ (pred $ $ (pred $ $ (S $ $ (S $ $ n))))$\\
+	
+	\hline
+	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
+	$ev $ $ (pred $ $ (pred $ $ 0))$\\
+	
+	\hline
+	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	$ev $ $ 0$\\
+	
+	\hline
+	$apply $ $ ev{\char`\_}0.$ & $-_{1/2}$ completed \\
+	\hline
+	\multirow{4}{=}{$-_{2/2}$} & $n$$ $ $ : $ $ nat$\linebreak
+	$H$$ $ $ : $ $ ev $ $ n$\linebreak
+	\fracrule\linebreak
+	$ev $ $ (pred $ $ (pred $ $ (S $ $ (S $ $ n))))$\\
+	
+	\hline
+	\multirow{4}{=}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
+	$H$$ $ $ : $ $ ev $ $ n$\linebreak
+	\fracrule\linebreak
+	$ev $ $ n$\\
+	
+	\hline
+	$apply $ $ H.$ & $-_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Theorem:ev-minus2} \\
+	\hline
+\end{longtable}
 
-Proving a statement by case analysis is possible via the tactic \coqdoctac{destruct}. In our example, this tactic is responsible for generating, from the hypothesis, two sub-goals based on the inductive definition of evenness we have provided: one where $ n = 0 $ and the other where $ n = S \ (S \ n) $. Thus, we must prove them separately in order to get Coq to accept the theorem.
+This time around, the tactic \coqdoctac{intros} moves not only the quantifier into the context, but also the \emph{hypothesis} that consists of the antecedent of the implication (\emph{modus ponens}).
 
-The tactic \coqdoctac{simpl} is used in situations where we want to evaluate a compound expression, eventually reducing it to a simplified, easier-to-understand term. It facilitates our decisions in a proof development by resolving all the computations that can be done in a given state of the goal.
+As we discussed before, the tactic \coqdoctac{destruct} introduces proof by case analysis. In this example, it is responsible for generating, from the hypothesis, two sub-goals based on the inductive definition of evenness we have provided: one where $ n = 0 $ and the other where $ n = S \ (S \ n) $. Once again, we must prove them separately so Coq accepts the theorem.
 
-We then proceed to use the parameterized tactic \coqdoctac{apply}, passing the term we find useful for proving each sub-goal. In the first branch, where our goal is to prove $ ev \ 0 $, we apply the first rule of our inductive definition, $ ev\_0 $, which concludes this sub-proof. In the second branch, we have $ ev \ n $ as goal, which is already an assumption of ours (introduced to the proof context by the command \coqdoctac{intros}). This also concludes the second sub-proof, thus proving the entire statement (\coqdockw{Theorem} \coqdocvar{ev\_minus2}).
+We then proceed to use the tactic \coqdoctac{apply}, passing the term we find useful for proving each sub-goal as argument. In the first branch, where our goal is to prove $ ev \ 0 $, we apply the first rule of our inductive definition, $ ev\_0 $, which concludes this sub-proof. In the second branch, we have $ ev \ n $ as goal, which is already an assumption of ours (introduced to the proof context by the command \coqdoctac{intros}). This also concludes the second sub-proof, thus proving the entire statement (theorem \coqdocvar{ev\_minus2}).
 
-There are many other tactics and variations of them that can be used when proving a statement. Apart from the ones we have already discussed in this subsection, other commonly used tactic commands are \coqdoctac{reflexivity}, \coqdoctac{rewrite}, \coqdoctac{unfold}, \coqdoctac{induction}, \coqdoctac{inversion} and \coqdoctac{contradiction}. Further explanation on theses tactics will be provided as needed throughout the \autoref{chapter:csp_coq}.
+There are many other tactics and variations of them that can be used when proving a proposition. Apart from the ones we have already discussed in this subsection, other commonly used tactic commands are \coqdoctac{unfold}, \coqdoctac{inversion}, and \coqdoctac{contradiction}. Further explanation on theses tactics will be provided as needed throughout the \autoref{chapter:csp_coq}.
 
 % ---
-%TODO
 \subsection{The tactics language}
 % ---
 
@@ -423,140 +691,6 @@ Imagine we want to prove that the number 4 does not appear in the list of consec
 	\coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-\noindent See the proof for Example elem\_not\_in\_list in table \ref{Proofs:coq-example:Example:elem-not-in-list}
-
-\begin{longtable}{| S | P |}
-	\caption{Proof of Example elem\_not\_in\_list}\\
-	\hline
-	\coqpsvstephdr & \coqpsvsithdr\\
-	\hline
-	\endfirsthead
-	
-	\caption{Proof of Example elem\_not\_in\_list continued}\\
-	\hline
-	\coqpsvstephdr & \coqpsvsithdr\\
-	\hline
-	\endhead
-	
-	\multicolumn{2}{r}{Continuing proof of Example elem\_not\_in\_list on the next page}\\
-	\endfoot
-	\hline
-	\multicolumn{2}{r}{End of proof of Example elem\_not\_in\_list}\\
-	\endlastfoot
-	
-	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
-	$ \lnot $ $ In $ $ 4 $ $ [0; $ $ 1; $ $ 2; $ $ 3]$\\
-	
-	\hline
-	\multirow{2}{=}{$unfold $ $ not.$} & \fracrule\linebreak
-	$In $ $ 4 $ $ [0; $ $ 1; $ $ 2; $ $ 3] $ $ \rightarrow $ $ False$\\
-	
-	\hline
-	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
-	$0 $ $ = $ $ 4 $ $ \lor $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False $ $ \rightarrow $ $ False$\\
-	
-	\hline
-	\multirow{3}{=}{$intros.$} & $H$$ $ $ : $ $ 0 $ $ = $ $ 4 $ $ \lor $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{8}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 0 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	\cline{2-2}
-	& $H$$ $ $ : $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{3}{=}{$-_{1/2}$} & $H$$ $ $ : $ $ 0 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	$inversion $ $ H.$ & $-_{1/2}$ completed \\
-	\hline
-	\multirow{3}{=}{$-_{2/2}$} & $H$$ $ $ : $ $ 1 $ $ = $ $ 4 $ $ \lor $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{7}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 1 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	\cline{2-2}
-	& $H$$ $ $ : $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{3}{=}{$*_{1/2}$} & $H$$ $ $ : $ $ 1 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	$inversion $ $ H.$ & $*_{1/2}$ completed \\
-	\hline
-	\multirow{4}{=}{$*_{2/2}$} & $H$$ $ $ : $ $ 2 $ $ = $ $ 4 $ $ \lor $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{6}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 2 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	\cline{2-2}
-	& $H$$ $ $ : $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{3}{=}{$+_{1/2}$} & $H$$ $ $ : $ $ 2 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	$inversion $ $ H.$ & $+_{1/2}$ completed \\
-	\hline
-	\multirow{3}{=}{$+_{2/2}$} & $H$$ $ $ : $ $ 3 $ $ = $ $ 4 $ $ \lor $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{6}{=}{$destruct $ $ H.$} & $H$$ $ $ : $ $ 3 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	\cline{2-2}
-	& $H$$ $ $ : $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{3}{=}{$\{$} & $H$$ $ $ : $ $ 3 $ $ = $ $ 4$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	$inversion $ $ H.$ & $Subproof$ completed \\
-	\hline
-	\multirow{3}{=}{$\}$} & $H$$ $ $ : $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	\multirow{3}{=}{$\{$} & $H$$ $ $ : $ $ False$\linebreak
-	\fracrule\linebreak
-	$False$\\
-	
-	\hline
-	$contradiction.$ & $Subproof$ completed, proof completed by Qed \\
-	\hline
-	$\}$ & $+_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Example:elem-not-in-list} \\
-	\hline
-	
-\end{longtable}
-
 The first tactic unfolds the definition of \ensuremath{\lnot} (not) in the goal, replacing our initial statement by \coqdocvar{In} 4 [0 ; 1 ; 2 ; 3] \ensuremath{\rightarrow} \coqdocvar{False}. The second tactic reduces the new goal by computing the function \coqdocvar{In}, which leaves us with the disjunctions $ 0 = 4 \lor 1 = 4 \lor 2 = 4 \lor 3 = 4 \lor \coqdocvar{False} $ in the antecedent of the implication. Then, the tactic \coqdoctac{intros} moves this antecedent to the proof context, introducing a new hypothesis \coqdocvar{H} and leaving the literal \coqdocvar{False} as goal.
 
 From this point on, the proof develops a pattern: we perform a destruction followed by an inversion of the hypothesis until we can end the proof by contradiction. The recurrence of the tactic \coqdoctac{destruct} lets us focus in one equality from the disjunction at a time: first the hypothesis becomes $ 0 = 4 $, then $ 1 = 4 $ and so on. The tactic \coqdoctac{inversion} finishes each sub proof created by the previous command by deriving all the necessary conditions that should hold for the assumption to be proved. In this case, since none of these equalities is true, there is no condition that satisfies the proposition, thus proving our goal.
@@ -579,36 +713,7 @@ Since this pattern in the sequence of tactics is now exposed, we can define a ta
 	\coqdockw{Proof}. \coqdocvar{solve\_not\_in}. \coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function \coqdocvar{not}, therefore deriving an implication, then moving the premise to the context of assumption, and finally repeating the following steps until the proof is finished: try to finish the proof by searching for a \emph{contradiction} in the assumptions, if it fails, \emph{destruct} the hypothesis and apply \emph{inversion} to it in order to prove the first sub-goal yielded by the previous tactic.
-
-\noindent See the proof for Example elem\_not\_in\_list' in table \ref{Proofs:coq-example:Example:elem-not-in-list'}
-
-\begin{longtable}{| S | P |}
-	\caption{Proof of Example elem\_not\_in\_list'}\\
-	\hline
-	\coqpsvstephdr & \coqpsvsithdr\\
-	\hline
-	\endfirsthead
-	
-	\caption{Proof of Example elem\_not\_in\_list' continued}\\
-	\hline
-	\coqpsvstephdr & \coqpsvsithdr\\
-	\hline
-	\endhead
-	
-	\multicolumn{2}{r}{Continuing proof of Example elem\_not\_in\_list' on the next page}\\
-	\endfoot
-	\hline
-	\multicolumn{2}{r}{End of proof of Example elem\_not\_in\_list'}\\
-	\endlastfoot
-	
-	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
-	${\char'176} $ $ In $ $ 4 $ $ [0; $ $ 1; $ $ 2; $ $ 3]$\\
-	
-	\hline
-	$solve{\char`\_}not{\char`\_}in.$ & Proof finished by Qed \label{Proofs:coq-example:Example:elem-not-in-list'} \\
-	\hline
-\end{longtable}
+The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function \coqdocvar{not}, therefore deriving an implication, then moving the premise to the context of assumption, and finally repeating the following steps until the proof is finished: try to finish the proof by searching for a \emph{contradiction} in the assumptions (such as a false hypothesis), if it fails, \emph{destruct} the hypothesis and apply \emph{inversion} to it in order to prove the first sub-goal yielded by the previous tactic.
 
 % ---
 %TODO
@@ -619,3 +724,48 @@ The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function 
 QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem. It is the equivalent of Haskell's QuickCheck for Coq proof assistant.
 
 There are four basic elements in property-based random testing: an \emph{executable property} such as for deciding whether a number is even, \emph{generators} for random inputs to the property, \emph{printers} for converting data structures like numbers to strings when reporting counterexamples, and \emph{shrinkers}, which are used to search for minimal counterexamples when errors occur.
+
+Consider the following example extracted from \citeonline{Pierce:SF4}. The function \emph{remove} takes a natural number $ x $ and a list of natural numbers $ l $ and removes $ x $ from the list.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Fixpoint} \coqdocvar{remove} (\coqdocvar{x} : \coqdocvar{nat}) (\coqdocvar{l} : \coqdocvar{list} \coqdocvar{nat}) : \coqdocvar{list} \coqdocvar{nat} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{l} \coqdockw{with}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} []   \ensuremath{\Rightarrow} []\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{h}::\coqdocvar{t} \ensuremath{\Rightarrow} \coqdockw{if} \coqdocvar{h} =? \coqdocvar{x} \coqdockw{then} \coqdocvar{t} \coqdockw{else} \coqdocvar{h} :: \coqdocvar{remove} \coqdocvar{x} \coqdocvar{t}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+We can write assertions that represent our expectations regarding this function. One possible specification for \emph{remove} might be this property:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Conjecture} \coqdocvar{removeP} : \coqdockw{\ensuremath{\forall}} \coqdocvar{x} \coqdocvar{l},  \ensuremath{\lnot} (\coqdocvar{In} \coqdocvar{x} (\coqdocvar{remove} \coqdocvar{x} \coqdocvar{l})).\coqdoceol
+\end{coqdoccode}
+
+The keyword \coqdockw{Conjecture} treats our property \coqdocvar{removeP} as an axiom. This proposition claims that $ x $ never occurs in the result of $ \mathit{remove} \ x \ l $ for any $ x $ and $ l $. Such statement turns out to be false, as we would discover if we were to try to prove it. A different — perhaps much more efficient — way to discover the discrepancy between the definition and specification is to test it:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{QuickChick} \coqdocvar{removeP}.\coqdoceol
+\end{coqdoccode}
+
+The \coqdocvar{QuickChick} command takes an ``executable'' property and attempts to falsify it by running it on many randomly generated inputs, resulting in output like this:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	0 \coqdoceol
+	\coqdocnoindent
+	[0, 0] \coqdoceol
+	\coqdocnoindent
+	Failed! After 17 tests and 12 shrinks \coqdoceol
+\end{coqdoccode}
+
+This means that, if we run \emph{remove} with $ x $ being 0 and $ l $ being the two-element list containing two zeros, then the property \coqdocvar{removeP} fails.
+
+With this example in hand, we can see that the \emph{then} branch of remove fails to make a recursive call, which means that only one occurrence of $ x $ will be removed from the list. The last line of the output records that it took 17 tests to identify some fault-inducing input and 12 ``shrinks'' to reduce it to a minimal counterexample.
+
