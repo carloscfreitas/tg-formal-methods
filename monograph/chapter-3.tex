@@ -5,24 +5,230 @@
 \label{chapter:csp_coq}
 % ---
 
+The \autoref{chapter:background} provided an overview of the essential concepts for understanding the implementation of the \CSPcoq{} language, setting the scene for an in-depth explanation of the language developed in this work. That being said, \autoref{chapter:csp_coq} will explain how each of these concepts combined together made it possible to develop a theory of communicating sequential processes in Coq proof assistant. The \autoref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas \autoref{section:sos} explains how the SOS style of defining language semantics translates into Coq as an inductive declaration. Furthermore, \autoref{section:lts} provides details on both functional and inductive definitions of LTS, along with further explanation on the GraphViz software integration. Finally, \autoref{section:traces} guides the reader through the definition of traces refinement as an executable property and also presents randomized testing based on this property using QuickChick plugin.
+
 % ---
 \section{Syntax}
+\label{section:syntax}
 % ---
+
+The \CSPcoq{} language provides support to all process constructors and operations discussed in \autoref{section:csp}. Those include the processes $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, and the operations event prefix, external choice, internal choice, alphabetized parallel, generalized parallel, interleave, sequential composition, and event hiding. This section introduces the reader to the implementation of both the abstract and concrete syntax of the \CSPcoq{} language in Coq.
 
 % ---
 \subsection{Abstract syntax}
 % ---
 
+In order to define all these CSP operations in Coq, we declared the following inductive types: \emph{event}, \emph{event\_tau\_tick}, \emph{channel}, \emph{alphabet}, \emph{proc\_body}, and \emph{proc\_def}. The type \emph{event} represents all external events. As we said before, external events are all events that are neither internal ($ \tau $) nor indicate termination ($ \tick $). On the other hand, the type \emph{event\_tau\_tick} provides not only a constructor for the external events, but also for the especial events $ \tau $ and $ \tick $.
+
+For describing a set of external events, we have the \emph{channel} and \emph{alphabet} types. They are syntactically equivalent, the difference between these two constructors being purely semantic: the \emph{channel} type is used to account for all external events that may be communicated in a \CSPcoq{} specification, while the constructor provided by the \emph{alphabet} type is applied, for example, to enumerate all external events in a process interface in an alphabetized parallel combination.
+
+The \emph{proc\_body} and \emph{proc\_def} types describe, respectively, the constructors for the operations we mentioned earlier in the beginning of this subsection, and the process attribution statement. The constructors available for the \emph{proc\_body} type allow us to combine processes in order to create more complex ones, while the \emph{proc\_def} type provides a constructor that makes it possible to identify a process by a string, and that is, to give it a name.
+
+The last element from the CSP syntax that we described is the \emph{specification} type. A CSP specification can be perceived as a file containing multiple channels of events and process declarations. Ultimately, it is a context that holds information such as all the events that can be performed, and all process and corresponding definitions that compose a system. The way we introduce this concept in \CSPcoq{} is via a record type. Records are constructions that allow the definition of a set of attributes and propositions that must be satisfied in order to successfully define this structure.
+
+To illustrate the abstract syntax defined via inductive types in Coq, consider the \CSPM{} processes
+\
+\begin{flushleft}
+	PRINTER := accept -> print -> STOP
+	
+	PARKING\_PERMIT\_MCH := TICKET [ \{cash, ticket\} || \{cash, change\} ] CHANGE
+\end{flushleft}
+\
+and their representations in \CSPcoq{} language
+
+\begin{flushleft}
+	Proc ``PRINTER'' (ProcPrefix (Event ``accept'') (ProcPrefix (Event ``print'') STOP))
+\end{flushleft}
+
+\begin{tabbing}
+	\hspace*{1em}\= \hspace*{2em} \= \kill
+	Proc ``PARKING\_PERMIT\_MCH'' (\\
+	\>	ProcAlphaParallel (ProcRef ``TICKET'') (ProcRef ``CHANGE'')\\
+	\>	(Alphabet (set\_add event\_dec ``cash'' (set\_add event\_dec ``ticket'' (empty\_set event))))\\
+	\>	(Alphabet (set\_add event\_dec ``cash'' (set\_add event\_dec ``change'' (empty\_set event))))\\
+	)
+\end{tabbing}
+
+As one might notice from the examples above, the abstract syntax -- though it dictates how well-formed expressions are constructed -- is not a pleasant way of writing statements or at least reading them. For that matter, we need a more convenient notation. One that resembles the \CSPM{} operators and, therefore, facilitates both implementation and understanding of \CSPcoq{} processes and specifications.
+
 % ---
 \subsection{Concrete syntax}
 % ---
 
+In order to define a more appropriate notation for the \CSPcoq{} language, the proof assistant's \coqdockw{Notation} command was used. This command allows the declaration of a new symbolic notation for an existing definition. The examples bellow demonstrate how this command is used to assign symbols (operators) to previously defined constructors.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Notation} "a \texttt{-{}-}> P" := (\coqdocvar{ProcPrefix} \coqdocvar{a} \coqdocvar{P}) (\coqdoctac{at} \coqdockw{level} 80, \coqdoctac{right} \coqdockw{associativity}).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Notation} "P [] Q" := (\coqdocvar{ProcExtChoice} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 90, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Notation} "P [[ A \symbol{92}\symbol{92} B ]] Q" := (\coqdocvar{ProcAlphaParallel} \coqdocvar{P} \coqdocvar{Q} (\coqdocvar{Alphabet} \coqdocvar{A}) (\coqdocvar{Alphabet} \coqdocvar{B})) (\coqdoctac{at} \coqdockw{level} 90, \coqdockw{no} \coqdockw{associativity}).\coqdoceol
+\end{coqdoccode}
+
+Along with the assignment of a notation symbol, we can specify its \emph{precedence level} and its \emph{associativity}. The precedence level helps Coq parse compound expressions, whereas the associativity setting helps to disambiguate expressions containing multiple occurrences of the same symbol. Coq uses precedence levels from 0 to 100, and left, right, or no associativity.
+
+In the command lines above, the prefix operation has the higher precedence among all three operators and associates to the right. On the other hand, the external choice has a left associativity while the alphabetized parallel operator does not associates at all, meaning that brackets are necessary to create a compound expression with multiple parallel operations.
+
+Then, we can use these symbols to rewrite the process examples from the previous subsection in a much more friendly and recognizable way:
+
+\begin{flushleft}
+	``PRINTER'' ::= ``accept'' \texttt{-{}-}> ``print'' \texttt{-{}-}> STOP
+
+	``MACHINE'' ::= ProcRef ``TICKET'' [[ \{\{``cash'', ``ticket''\}\} \textbackslash\textbackslash \ \{\{``cash'', ``change''\}\} ]] ProcRef ``CHANGE''
+\end{flushleft}
+
+The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operators we discussed and the \CSPcoq{} language concrete syntax, achieved via Coq's \coqdockw{Notation} command:
+
+\begin{table}[htb]
+	\begin{center}
+		\caption[The \CSPcoq{} concrete syntax]{The \CSPcoq{} concrete syntax.}
+		\label{tab:cspm-csp_coq}
+		\begin{tabular}{ |l|c|c| }
+			\hline
+			Constructor & \CSPM{} & \CSPcoq{} \\
+			\hline
+			Stop & STOP & STOP \\ [0.5ex]
+			Skip & SKIP & SKIP \\ [0.5ex]
+			Event prefix & e -> P & e \texttt{-{}-}> P \\  [0.5ex]
+			External choice & P [] Q & P [] Q \\  [0.5ex]
+			Internal choice & P |$ \sim $| Q & P |$ \sim $| Q \\ [0.5ex]
+			Alphabetized parallel & P [A || B] Q & P [[A \textbackslash\textbackslash \ B]] Q \\ [0.5ex]
+			Generalized parallel & P [| A |] Q & P [| A |] Q \\ [0.5ex]
+			Interleave & P ||| Q & P ||| Q \\ [0.5ex]
+			Sequential composition & P ; Q & P ;; Q \\ [0.5ex]
+			Event hiding & P \textbackslash \ A & P \textbackslash \ A \\ [0.5ex]
+			Process definition & P := Q & P ::= Q \\ [0.5ex]
+			Process reference & P := e -> P & P ::= e \texttt{-{}-}> ProcRef ``P'' \\ [0.5ex]
+			\hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
 % ---
 \section{Structured operational semantics}
+\label{section:sos}
 % ---
+
+Now that we have a good understanding of not only how the abstract syntax but also a convenient notation of the \CSPcoq{} language were implemented in the proof assistant, it is time for us to discuss language semantics in Coq. All the declarations presented in this section are based on the inference rules discussed in \autoref{subsection:sos}. More specifically, we will address how those SOS rules from the previous chapter were ported into Coq's environment.
+
+Recall the inductive definition of the evenness property exemplified in \autoref{section:coq}. In that example, it was possible to rewrite the inference rules for such property in terms of an inductive declaration in Coq, where each rule was translated into a propositional statement, more specifically, a logical implication. We will use the same approach to define the semantic rules of the \CSPcoq{} language.
+
+Initially, a notation was defined to represent the SOS relation, in order to increase the readability of the inductive declaration. Thus, this new notation could be used in the constructors of the relational definition. The following Coq command line, similarly to the ones in the previous section, creates the infix notation ``S \# P // a ==> Q'', which can be pronounced ``in the specification \emph{S}, the process \emph{P}, after communicating \emph{a}, behaves like the process \emph{Q}'':
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Reserved Notation} "S '\#' P '//' a '==>' Q" (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+\end{coqdoccode}
+
+To exemplify the usage of this notation inside the inductive definition, lets revisit the inference rule for the prefix operator:
+
+\begin{prooftree}
+	\AxiomC{}
+	\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
+\end{prooftree}
+
+This structure can be translated into Coq as a single constructor in the SOS relation:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\ensuremath{|} \coqdocvar{prefix\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event}) :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{S} \# (\coqdocvar{a} \texttt{-{}-}> \coqdocvar{P}) // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P}\coqdoceol
+\end{coqdoccode}
+
+As far as the notation goes, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process $ a \ \texttt{-{}-}> P $, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, the resulting process is $ P $.
+
+Consider the following examples of constructors from the SOS relation. They refer to the external choice and alphabetized parallelism operations respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics, as explained in \autoref{subsection:sos}. However, the definitions we are about to discuss only consider two of these rules: one that evaluates the external choice to the left side operand, and the joint step rule of the alphabetized parallelism operation, that represents the synchronization event between the processes.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\ensuremath{|} \coqdocvar{ext\_choice\_left\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{Q} : \coqdocvar{proc\_body}) :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{\ensuremath{\forall}} (\coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event\_tau\_tick}),\coqdoceol
+	\coqdocindent{3.00em}
+	\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{a} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} [] \coqdocvar{Q} // \coqdocvar{a} ==> \coqdocvar{P'})\coqdoceol
+	\coqdocnoindent
+	\ensuremath{|} \coqdocvar{alpha\_parall\_joint\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{Q} : \coqdocvar{proc\_body}) (\coqdocvar{A} \coqdocvar{B} : \coqdoctac{set} \coqdocvar{event}) :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{\ensuremath{\forall}} (\coqdocvar{P'} \coqdocvar{Q'} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event}),\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{set\_In} \coqdocvar{a} (\coqdocvar{set\_inter} \coqdocvar{event\_dec} \coqdocvar{A} \coqdocvar{B}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	(\coqdocvar{S} \# \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{Q'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
+\end{coqdoccode}
+
+The \coqdocvar{ext\_choice\_left\_rule} constructor encodes the inference rule that solves the external choice operation for the left operand. As we saw earlier, this behavior is described in the SOS by the rule \
+\
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\RightLabel{\quad ($ a \neq \tau $)}
+	\UnaryInfC{$ P \extchoice Q \trans(2)[a] P' $}
+\end{prooftree}
+\
+which translates into the logical proposition
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{a} \coqdocvar{Tau} \ensuremath{\rightarrow}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}
+	(\coqdocvar{S} \# \coqdocvar{P} [] \coqdocvar{Q} // \coqdocvar{a} ==> \coqdocvar{P'})\coqdoceol
+\end{coqdoccode}
+
+In this statement, we can see that the first term corresponds to the side condition of the inference rule, which guarantees that the event in question is not the internal event $ \tau $. The second term is the main premise of the rule, ensuring that it is possible for the event $ a $ to evolve the process $ P $ into $ P' $ in the specification $ S $. Together, the side condition and hypothesis establish the necessary conditions to resolve the external choice operation to the left hand operand.
+
+Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processE  on the left and right side of the parallelism operator can communicate the event.
+
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\AxiomC{$ Q \trans(2)[a] Q' $}
+	\RightLabel{\quad ($ a \in A^{\tick} \cap B^{\tick} $)}
+	\BinaryInfC{$ P \parallel[A][B] Q \trans(2)[a] P' \parallel[A][B] Q' $}
+\end{prooftree}
+
+The side condition and the premises are rewritten in the inductive definition as antecedents of a logical implication:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{set\_In} \coqdocvar{a} (\coqdocvar{set\_inter} \coqdocvar{event\_dec} \coqdocvar{A} \coqdocvar{B}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} \# \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{Q'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
+\end{coqdoccode}
+
+Note that this constructor does not consider the $ \tick $ event as a possible synchronization event between the processes, even though it is included in the inference rule (side condition) we saw above. The reason for this is that we defined another constructor, \coqdocvar{alpha\_parall\_tick\_joint\_rule}, dedicated exclusively to this joint step allowed by the termination event.
+
+The last example of constructor we want to highlight from the inductive definition of the SOS is the \emph{process reference} operation. This constructor defines the rules for unfolding a process definition inside the body of another process:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\ensuremath{|} \coqdocvar{reference\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{name} : \coqdocvar{string}) :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{\ensuremath{\forall}} (\coqdocvar{Q} : \coqdocvar{proc\_body}),\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{eq} \coqdocvar{P} (\coqdocvar{ProcRef} \coqdocvar{name}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{eq} (\coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{name}) (\coqdocvar{Some} \coqdocvar{Q}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tau} ==> \coqdocvar{Q}\coqdoceol
+\end{coqdoccode}
+
+As we can see, there are two premises for successfully unfolding a definition. First, the process that needs unfolding must be of the form \coqdocvar{ProcRef} \coqdocvar{name}, where \coqdocvar{ProcRef} is a constructor of the type \coqdocvar{proc\_body}, and \coqdocvar{name} is a string that identifies the process in a specification. Second, the process referenced by \coqdocvar{ProcRef} \coqdocvar{name} must be defined in the specification. To that end, the function \coqdocvar{get\_proc\_body} searches for this definition inside the specification, while the equality ensures this search results in ``$ Some \ Q $'', where $ Q $ is a process body. It is important to emphasize that such definition differs from the one implemented by the FDR tool. This approach will allow an ill-formed recursion such as $ P := P $ to be declared in \CSPcoq{}, introducing a $ \tau $ action to represent the effort of unfolding the definition and, therefore, increasing the process LTS size.
 
 % ---
 \section{Labelled transition systems}
+\label{section:lts}
 % ---
 
 % ---
@@ -31,6 +237,7 @@
 
 % ---
 \section{Traces refinement}
+\label{section:traces}
 % ---
 
 % ---

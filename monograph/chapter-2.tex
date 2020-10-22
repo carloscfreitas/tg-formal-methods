@@ -5,7 +5,7 @@
 \label{chapter:background}
 % ---
 
-Before jumping into the specifics of the implementation of CSP\textsubscript{Coq}, we need to understand some elements of the CSP language itself, such as the concrete syntax and the semantics defined in both denotational and operational models (\autoref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics, as well as the embedded Ltac language (\autoref{section:coq}). We must also address the QuickChick property-based testing tool (\autoref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter gives an introduction to each one of these concepts.
+Before jumping into the specifics of the implementation of \CSPcoq{}, we need to understand some elements of the CSP language itself, such as the concrete syntax and the semantics defined in both denotational and operational models (\autoref{section:csp}). Beyond that, it is also important to provide an overview of what an interactive theorem prover is: the Coq proof assistant fundamentals such as tactics, as well as the embedded Ltac language (\autoref{section:coq}). We must also address the QuickChick property-based testing tool (\autoref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}. This chapter gives an introduction to each one of these concepts.
 
 % ---
 %TODO
@@ -46,6 +46,7 @@ Last but not least, we have the event hiding operator. A system designer may cho
 
 % ---
 \subsection{Structured operational semantics}
+\label{subsection:sos}
 % ---
 
 There are three major complementary approaches for describing and reasoning about the semantics of CSP programs. These are through \emph{algebraic}, \emph{denotational} (also called \emph{behavioral}), and \emph{operational semantics}. We will be focusing in the last one, which tries to understand all the actions and decisions that process implementations can make as they proceed.
