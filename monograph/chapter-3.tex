@@ -185,7 +185,31 @@ which translates into the logical proposition
 
 In this statement, we can see that the first term corresponds to the side condition of the inference rule, which guarantees that the event in question is not the internal event $ \tau $. The second term is the main premise of the rule, ensuring that it is possible for the event $ a $ to evolve the process $ P $ into $ P' $ in the specification $ S $. Together, the side condition and hypothesis establish the necessary conditions to resolve the external choice operation to the left hand operand.
 
-Another example of constructor from the inductive definition of the SOS is the \emph{process reference} operation. This constructor allows to reference a process inside the body of other component:
+Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processE  on the left and right side of the parallelism operator can communicate the event.
+
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\AxiomC{$ Q \trans(2)[a] Q' $}
+	\RightLabel{\quad ($ a \in A^{\tick} \cap B^{\tick} $)}
+	\BinaryInfC{$ P \parallel[A][B] Q \trans(2)[a] P' \parallel[A][B] Q' $}
+\end{prooftree}
+
+The side condition and the premises are rewritten in the inductive definition as antecedents of a logical implication:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{set\_In} \coqdocvar{a} (\coqdocvar{set\_inter} \coqdocvar{event\_dec} \coqdocvar{A} \coqdocvar{B}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} \# \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{Q'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
+\end{coqdoccode}
+
+Note that this constructor does not consider the $ \tick $ event as a possible synchronization event between the processes, even though it is included in the inference rule (side condition) we saw above. The reason for this is that we defined another constructor, \coqdocvar{alpha\_parall\_tick\_joint\_rule}, dedicated exclusively to this joint step allowed by the termination event.
+
+The last example of constructor we want to highlight from the inductive definition of the SOS is the \emph{process reference} operation. This constructor defines the rules for unfolding a process definition inside the body of another process:
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -199,6 +223,8 @@ Another example of constructor from the inductive definition of the SOS is the \
 	\coqdocindent{3.00em}
 	\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tau} ==> \coqdocvar{Q}\coqdoceol
 \end{coqdoccode}
+
+As we can see, there are two premises for successfully unfolding a definition. First, the process that needs unfolding must be of the form \coqdocvar{ProcRef} \coqdocvar{name}, where \coqdocvar{ProcRef} is a constructor of the type \coqdocvar{proc\_body}, and \coqdocvar{name} is a string that identifies the process in a specification. Second, the process referenced by \coqdocvar{ProcRef} \coqdocvar{name} must be defined in the specification. To that end, the function \coqdocvar{get\_proc\_body} searches for this definition inside the specification, while the equality ensures this search results in ``$ Some \ Q $'', where $ Q $ is a process body. It is important to emphasize that such definition differs from the one implemented by the FDR tool. This approach will allow an ill-formed recursion such as $ P := P $ to be declared in \CSPcoq{}, introducing a $ \tau $ action to represent the effort of unfolding the definition and, therefore, increasing the process LTS size.
 
 % ---
 \section{Labelled transition systems}
