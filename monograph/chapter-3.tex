@@ -30,7 +30,7 @@ To illustrate the abstract syntax defined via inductive types in Coq, consider t
 \
 \begin{flushleft}
 	PRINTER := accept -> print -> STOP
-	
+
 	PARKING\_PERMIT\_MCH := TICKET [ \{cash, ticket\} || \{cash, change\} ] CHANGE
 \end{flushleft}
 \
@@ -59,11 +59,11 @@ In order to define a more appropriate notation for the \CSPcoq{} language, the p
 
 \begin{coqdoccode}
 	\coqdocnoindent
-	\coqdockw{Notation} "a \texttt{-{}-}> P" := (\coqdocvar{ProcPrefix} \coqdocvar{a} \coqdocvar{P}) (\coqdoctac{at} \coqdockw{level} 80, \coqdoctac{right} \coqdockw{associativity}).\coqdoceol
+	\coqdockw{Notation} ``a \texttt{-{}-}> P'' := (\coqdocvar{ProcPrefix} \coqdocvar{a} \coqdocvar{P}) (\coqdoctac{at} \coqdockw{level} 80, \coqdoctac{right} \coqdockw{associativity}).\coqdoceol
 	\coqdocnoindent
-	\coqdockw{Notation} "P [] Q" := (\coqdocvar{ProcExtChoice} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 90, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+	\coqdockw{Notation} ``P [] Q'' := (\coqdocvar{ProcExtChoice} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 90, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
 	\coqdocnoindent
-	\coqdockw{Notation} "P [[ A \symbol{92}\symbol{92} B ]] Q" := (\coqdocvar{ProcAlphaParallel} \coqdocvar{P} \coqdocvar{Q} (\coqdocvar{Alphabet} \coqdocvar{A}) (\coqdocvar{Alphabet} \coqdocvar{B})) (\coqdoctac{at} \coqdockw{level} 90, \coqdockw{no} \coqdockw{associativity}).\coqdoceol
+	\coqdockw{Notation} ``P [[ A \symbol{92}\symbol{92} B ]] Q'' := (\coqdocvar{ProcAlphaParallel} \coqdocvar{P} \coqdocvar{Q} (\coqdocvar{Alphabet} \coqdocvar{A}) (\coqdocvar{Alphabet} \coqdocvar{B})) (\coqdoctac{at} \coqdockw{level} 90, \coqdockw{no} \coqdockw{associativity}).\coqdoceol
 \end{coqdoccode}
 
 Along with the assignment of a notation symbol, we can specify its \emph{precedence level} and its \emph{associativity}. The precedence level helps Coq parse compound expressions, whereas the associativity setting helps to disambiguate expressions containing multiple occurrences of the same symbol. Coq uses precedence levels from 0 to 100, and left, right, or no associativity.
@@ -118,7 +118,7 @@ Initially, a notation was defined to represent the SOS relation, in order to inc
 
 \begin{coqdoccode}
 	\coqdocnoindent
-	\coqdockw{Reserved Notation} "S '\#' P '//' a '==>' Q" (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+	\coqdockw{Reserved Notation} ``S '\#' P '//' a '==>' Q'' (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
 \end{coqdoccode}
 
 To exemplify the usage of this notation inside the inductive definition, lets revisit the inference rule for the prefix operator:
@@ -231,9 +231,223 @@ As we can see, there are two premises for successfully unfolding a definition. F
 \label{section:lts}
 % ---
 
+Now that we can define syntactically and semantically correct CSP processes in Coq through the definitions we declared so far, we will introduce yet another way of implementing processes, based on the idea of labelled transition systems. This section will cover how the LTS concept was embedded in the proof assistant via functional and inductive definitions, and how \CSPcoq{} provides support to the GraphViz software, which enables a graph visualization of CSP processes.
+
+A labelled transition system consists of a non-empty set of states $ S $, with a designated initial state $ P_{0} $, a set of labels $ L $, and a ternary relation $ P \trans[x] Q $ meaning that the state $ P $ can perform an action labelled $ x $ and move to state $ Q $. In Coq, we defined a LTS in two different and complementary ways: a computable function and a relation.
+
+To illustrate these definitions, consider the following \CSPcoq{} specification:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{SPEC} : \coqdocvar{specification}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{Build\_Spec}\coqdoceol
+	\coqdocindent{2.00em}
+	[ \coqdocvar{Channel} \{\{``a'', ``b'', ``c''\}\} ]\coqdoceol
+	\coqdocindent{2.00em}
+	[ ``P'' ::= (``a'' -{}-> ``b'' -{}-> \coqdocvar{STOP}) [] (``c'' -{}-> \coqdocvar{STOP}) ]\coqdoceol
+	\coqdocindent{1.00em}
+	).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Defined}.\coqdoceol
+\end{coqdoccode}
+
+Initially, the process ``P'' can perform either ``a'' or ``c''. If ``a'' gets communicated, the external choice resolves to the process ``b'' -{}-> STOP, which can then perform ``b'' and finish the execution. On the other hand, if the event ``c'' gets communicated instead, then the combination resolves to the process STOP and also terminates. Therefore, we can list three transitions for the process ``P'': from state (``a'' -{}-> ``b'' -{}-> STOP) [] (``c'' -{}-> STOP) to state ``b'' -{}-> STOP with event ``a'', from state (``a'' -{}-> ``b'' -{}-> STOP) [] (``c'' -{}-> STOP) to state STOP with event ``c'', and from state ``b'' -{}-> STOP to state STOP with event ``b''. To better describe these transitions, we will be using the 3-tuple notation ($ P $, $ a $, $ Q $), where $ P $ is the source state, $ a $ is the action (event), and $ Q $ is the target state.
+
+We can apply the same intuition from this example in the implementation of a functional definition of LTS in Coq: starting with the initial state, compute all the immediate transitions available from this state, meaning all 3-tuples where the target states can be reached in one step from $ S_{0} $. Mark the initial state as ``visited'' and any other state discovered in the previous step as ``not visited''. Then, repeat this step for each unvisited state until there are no states to be visited anymore, keeping track of the states you have already visited and the ones that haven't been visited yet.
+
+Let \coqdocvar{compute\_ltsR} be the function yielded by this algorithm, the following Coq command outputs the set of transitions from the LTS of the process ``P'':
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Compute} \coqdocvar{compute\_ltsR} \coqdocvar{SPEC} ``P'' 1000.\coqdoceol
+\end{coqdoccode}
+
+\begin{flushleft}
+	Output:
+\end{flushleft}
+
+\begin{tabbing}
+	\hspace*{2.5em}\= \hspace*{2em} \= \kill
+	= Some\\
+	\>	[(``a'' -{}-> ``b'' -{}-> STOP [] ``c'' -{}-> STOP, Event ``a'', ``b'' -{}-> STOP);\\
+	\>	(``a'' -{}-> ``b'' -{}-> STOP [] ``c'' -{}-> STOP, Event ``c'', STOP);\\
+	\>	(``b'' -{}-> STOP, Event ``b'', STOP)]\\
+	: option (set transition)
+\end{tabbing}
+
+We can check whether this set of transitions is indeed the LTS of the process in question. For that \textellipsis \ This is actually the same idea behind the inductive definition of the LTS in \CSPcoq{}:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{ltsR'} :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{specification} \ensuremath{\rightarrow} \coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{set} \coqdocvar{transition} \ensuremath{\rightarrow} \coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{lts\_empty\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{visited} : \coqdoctac{set} \coqdocvar{proc\_body}) :\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{nil} \coqdocvar{nil} \coqdocvar{visited}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{lts\_inductive\_rule}\coqdoceol
+	\coqdocindent{4.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{4.00em}
+	(\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition})\coqdoceol
+	\coqdocindent{4.00em}
+	(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{4.00em}
+	(\coqdocvar{tl} \coqdocvar{visited} : \coqdoctac{set} \coqdocvar{proc\_body}) :\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{let} \coqdocvar{T'} := \coqdocvar{transitions\_from} \coqdocvar{P} \coqdocvar{T} \coqdoctac{in}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{let} \coqdocvar{T'{}'} := \coqdocvar{set\_diff} \coqdocvar{transition\_eq\_dec} \coqdocvar{T} \coqdocvar{T'} \coqdoctac{in}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{let} \coqdocvar{visited'} := \coqdocvar{set\_add} \coqdocvar{proc\_body\_eq\_dec} \coqdocvar{P} \coqdocvar{visited} \coqdoctac{in}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{let} \coqdocvar{to\_visit} := \coqdocvar{set\_diff} \coqdocvar{proc\_body\_eq\_dec}\coqdoceol
+	\coqdocindent{12.00em}
+	(\coqdocvar{set\_union} \coqdocvar{proc\_body\_eq\_dec} \coqdocvar{tl} (\coqdocvar{target\_proc\_bodies} \coqdocvar{T'}))\coqdoceol
+	\coqdocindent{12.00em}
+	\coqdocvar{visited'} \coqdoctac{in}\coqdoceol
+	\coqdocindent{3.00em}
+	(\coqdockw{\ensuremath{\forall}} (\coqdocvar{a} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{P'} : \coqdocvar{proc\_body}),\coqdoceol
+	\coqdocindent{4.50em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\leftrightarrow} \coqdocvar{In} (\coqdocvar{P},\coqdocvar{a},\coqdocvar{P'}) \coqdocvar{T'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T'{}'} \coqdocvar{to\_visit} \coqdocvar{visited'} \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} (\coqdocvar{P} :: \coqdocvar{tl}) \coqdocvar{visited}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{ltsR} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition}) : \coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{name} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{body} \ensuremath{\Rightarrow} \coqdocvar{NoDup} \coqdocvar{T} \ensuremath{\land} \coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} [\coqdocvar{body}] \coqdocvar{nil}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{False}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
 % ---
 \subsection{GraphViz integration}
 % ---
+
+GraphViz is an open source graph visualization software that takes descriptions of graphs in a simple text language -- in our case, the DOT language -- and make diagrams in useful formats, such as images, SVG, and PDF. Moreover, this tool allows the customization of these diagrams, such as options for colors, fonts, hyperlinks, and custom node shapes. Providing support for this software enables \CSPcoq{} programmers to generate a graph from the description of a LTS with one line of command. That way, the behavior of a process may be inspected and analyzed more easily, since a visual representation will be available.
+
+In order to build the description of a graph in DOT language, it is necessary to define a mapping of the constructors of \coqdocvar{event\_tau\_tick} and \coqdocvar{proc\_body} types to the \coqdocvar{string} type. That way, it will be possible to convert each tuple from the LTS into a statement that corresponds to a transition of a graph in DOT syntax. One way to achieve this in Coq is through the \coqdockw{Coercion} command, which assigns a conversion function that maps an expression of one type into another.
+
+Consider the following coercion from type \coqdocvar{event\_tau\_tick} to type \coqdocvar{string}:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{event\_tau\_tick\_to\_str} (\coqdocvar{e} : \coqdocvar{event\_tau\_tick}) : \coqdocvar{string} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{e} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Tau} \ensuremath{\Rightarrow} ``$ \tau $''\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Tick} \ensuremath{\Rightarrow} ``$ \tick $''\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Event} \coqdocvar{a} \ensuremath{\Rightarrow} \coqdocvar{a}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Coercion} \coqdocvar{event\_tau\_tick\_to\_str} : \coqdocvar{event\_tau\_tick} >-> \coqdocvar{string}.\coqdoceol
+\end{coqdoccode}
+
+As we can see from the code snippet above, initially, we defined a function that takes an element of type \coqdocvar{event\_tau\_tick} and returns a string representation of that element. Then, a coercion between the two types is established: from this point on, Coq will convert an element of type \coqdocvar{event\_tau\_tick} into a string whenever it is necessary.
+
+Once the coercions are configured, we can define a function to create the description of a graph in the DOT language from the set of tuples that make up the LTS. The intuition behind this function is as follows: the first tuple to be processed has its starting state identified as the graph's initial node (bold and red border), and each tuple -- the first included -- is rewritten as a DOT syntax transition statement. In other words, the tuple (P, e, Q) generates the string ``<P> -> <Q> [label = <e>];'', as shown in the definitions below:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Fixpoint} \coqdocvar{generate\_dot'} (\coqdocvar{lts} : \coqdoctac{set} \coqdocvar{transition}) : \coqdocvar{string} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{lts} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{nil} \ensuremath{\Rightarrow} ``''\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} (\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl} \ensuremath{\Rightarrow} `` <'' ++ \coqdocvar{P} ++ ``> -> <'' ++ \coqdocvar{Q} ++ ``>'' ++ `` [label=<'' ++ \coqdocvar{e} ++ ``>];'' ++ (\coqdocvar{generate\_dot'} \coqdocvar{tl})\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{style\_initial\_state} (\coqdocvar{P} : \coqdocvar{proc\_body}) : \coqdocvar{string} := ``<'' ++ \coqdocvar{P} ++ ``> [style=bold, color=red];''.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{generate\_dot} (\coqdocvar{lts} : \coqdocvar{option} (\coqdoctac{set} \coqdocvar{transition})) : \coqdocvar{string} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{lts} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} ((\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl}) \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	``digraph LTS \{ '' ++ (\coqdocvar{style\_initial\_state} \coqdocvar{P}) ++ (\coqdocvar{generate\_dot'} ((\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl})) ++ `` \}''\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{\_} \ensuremath{\Rightarrow} ``''\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+To demonstrate what these definitions can achieve, recall the process MACHINE from the section 3.1.2. Here is a complete definition of that process in \CSPcoq{}:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{PARKING\_PERMIT\_MCH} : \coqdocvar{specification}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{Build\_Spec}\coqdoceol
+	\coqdocindent{2.00em}
+	[ \coqdocvar{Channel} \{\{``cash'', ``ticket'', ``change''\}\} ]\coqdoceol
+	\coqdocindent{2.00em}
+	[ ``TICKET'' ::= ``cash'' -{}-> ``ticket'' -{}-> \coqdocvar{ProcRef} ``TICKET''\coqdoceol
+	\coqdocindent{2.00em}
+	; ``CHANGE'' ::= ``cash'' -{}-> ``change'' -{}-> \coqdocvar{ProcRef} ``CHANGE''\coqdoceol
+	\coqdocindent{2.00em}
+	; ``MACHINE'' ::= \coqdocvar{ProcRef} ``TICKET'' [[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]] \coqdocvar{ProcRef} ``CHANGE'' ]\coqdoceol
+	\coqdocindent{1.00em}
+	).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Defined}.\coqdoceol
+\end{coqdoccode}
+
+To generate the description of the graph in DOT syntax for the process MACHINE, simply run this command in Coq:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{PARKING\_PERMIT\_MCH} ``MACHINE'' 1000).\coqdoceol
+\end{coqdoccode}
+
+We can then save the string output to a file named LTS.gv and run the following command in a terminal with the GraphViz software installed:
+
+\emph{\$ dot -Nlabel=``'' -Nshape=circle -Tjpeg LTS.gv -o LTS.jpeg}
+
+The \autoref{image:machine_lts} shows the expected output: an image in JPEG format containing a graph -- with nodes shaped as circles and no labels -- that represents the process LTS:
+
+\begin{figure}[htb]
+	\caption[Example LTS: The process MACHINE]{Example LTS: The process MACHINE.}
+	\label{image:machine_lts}
+	\begin{center}
+		\includegraphics[scale=0.75]{images/parking_permit_mch_lts.pdf}
+	\end{center}
+\end{figure}
 
 % ---
 \section{Traces refinement}
