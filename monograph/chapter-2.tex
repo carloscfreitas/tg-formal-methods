@@ -35,7 +35,7 @@ Another CSP operator that provides a concurrent execution of processes is the \e
 
 The last two operators we will be discussing are the \emph{sequential composition} and \emph{event hiding}. Before we continue, the reader must be aware that there are others CSP operators for combining processes apart from the ones presented in this chapter, but they will not be supported by the framework implemented in this project.
 
-Sometimes it is necessary to pass the control over execution from one process to another, and for that we use sequential composition. It means that the first process has reached a successful termination state and now the system is ready to behave as the second process in the composition. Parents can choose to let their children play only after completing their homework. That being the case, the process $ \mathit{CHILD} $ could be modeled as $ \mathit{HOMEWORK}\!; \mathit{FUN} $, where 
+Sometimes it is necessary to pass the control over execution from one process to another, and for that we use sequential composition. It means that the first process has reached a successful termination state and now the system is ready to behave as the second process in the composition. Parents can choose to let their children play only after completing their homework. That being the case, the process $ \mathit{CHILD} $ could be modeled as $ \mathit{HOMEWORK}\!; \mathit{FUN} $, where
 \begin{align}
 	&\mathit{HOMEWORK} = \mathit{choose\_subject} \then \mathit{study} \then \mathit{answer\_exercises} \then \mathit{\SKIP} \notag \\
 	&\mathit{FUN} = \mathit{build\_lego} \then \mathit{watch\_cartoons} \then \mathit{play\_videogame} \then \mathit{\SKIP} \notag
@@ -71,7 +71,7 @@ The event prefix operation also spares the antecedents in its inference rule, so
 	\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
 \end{prooftree}
 
-The transition rules for external choice reflect the fact that the first external event resolves the choice in favor of the process performing the event. In addition, as we can see in the first two rules, the choice is not resolved on the occurrence of internal events. Control over resolution of the choice is external because the events of both choices are initially available. 
+The transition rules for external choice reflect the fact that the first external event resolves the choice in favor of the process performing the event. In addition, as we can see in the first two rules, the choice is not resolved on the occurrence of internal events. Control over resolution of the choice is external because the events of both choices are initially available.
 
 % External choice (tau, left side)
 \begin{prooftree}
@@ -218,6 +218,7 @@ The last operational rules we need to discuss are for the sequential composition
 
 % ---
 \subsection{Traces refinement}
+\label{subsection:traces-refinement}
 % ---
 
 A pretty reasonable way for gathering information from a process interacting with the environment is by keeping track of the events this process engages in. This sequence of communication between process and environment, presented in a chronological order, is what we call a \emph{trace}. Traces can either be finite or infinite, and it depends on the observation span and the nature of the process itself.
@@ -231,7 +232,7 @@ The notion of refinement is a particularly useful concept for specifying the cor
 	\[  P \refinedby[\tmodel] Q \iff \mathit{\traces}(Q) \subseteq \mathit{\traces}(P) \]
 \end{definition}
 
-If we consider $ P $ to be a specification which determines possible safe states of a system, then we can think of $ P \refinedby[\tmodel] Q $ as saying that $ Q $ is a safe implementation: no wrong events will be allowed. 
+If we consider $ P $ to be a specification which determines possible safe states of a system, then we can think of $ P \refinedby[\tmodel] Q $ as saying that $ Q $ is a safe implementation: no wrong events will be allowed.
 
 % ---
 \subsection{Machine-readable version of CSP}
@@ -271,7 +272,7 @@ The \autoref{tab:csp-cspm} shows for every CSP process constructor discussed in 
 \label{section:coq}
 % ---
 
-A proof assistant is a software for helping construct proofs of logical propositions. Essentially, it is a hybrid tool that automates the more routine aspects of building proofs while relying on human intervention for more complex steps. There is a variety of proof assistants including Isabelle, Agda, ATS, Idris and Coq, among others. This work is based around the Coq proof assistant. 
+A proof assistant is a software for helping construct proofs of logical propositions. Essentially, it is a hybrid tool that automates the more routine aspects of building proofs while relying on human intervention for more complex steps. There is a variety of proof assistants including Isabelle, Agda, ATS, Idris and Coq, among others. This work is based around the Coq proof assistant.
 
 Coq can be viewed as a combination of a functional programming language plus a set of tools for stating and proving logical assertions. Moreover, the Coq environment provides high-level facilities for proof development, including a large library of common definitions and lemmas, powerful tactics for constructing complex proofs semi-automatically, and a special-purpose programming language for defining new proof-automation tactics for specific situations.
 
@@ -286,7 +287,7 @@ Coq's native functional programming language is called \emph{Gallina}. Before we
 	\ensuremath{|} \coqdocvar{S} (\coqdocvar{n} : \coqdocvar{nat}).\coqdoceol
 \end{coqdoccode}
 
-This declaration tells Coq that we are defining a \emph{type}. The capital-letter $ O $ constructor represents zero. When the $ S $ constructor is applied to the representation of the natural number $ n $, the result is the representation of $ n+1 $, where $ S $ stands for "successor". An $ \coqdockw{Inductive} $ definition carves out a subset of the whole space of constructor expressions and gives it a name, in this case, $ nat $. 
+This declaration tells Coq that we are defining a \emph{type}. The capital-letter $ O $ constructor represents zero. When the $ S $ constructor is applied to the representation of the natural number $ n $, the result is the representation of $ n+1 $, where $ S $ stands for "successor". An $ \coqdockw{Inductive} $ definition carves out a subset of the whole space of constructor expressions and gives it a name, in this case, $ nat $.
 
 Having defined $ nat $, we can write functions that operate on natural numbers, such as the predecessor function:
 
@@ -303,7 +304,7 @@ Having defined $ nat $, we can write functions that operate on natural numbers, 
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-Note that we do not need recursion to define the predecessor function, but simple pattern matching is not enough for more interesting computations involving natural numbers. For example, to check that a number $ n $ is even, we may need to recursively check whether $ n-2 $ is even. In order to do that, we use the keyword $ \coqdockw{Fixpoint} $ instead of $ \coqdockw{Definition} $: 
+Note that we do not need recursion to define the predecessor function, but simple pattern matching is not enough for more interesting computations involving natural numbers. For example, to check that a number $ n $ is even, we may need to recursively check whether $ n-2 $ is even. In order to do that, we use the keyword $ \coqdockw{Fixpoint} $ instead of $ \coqdockw{Definition} $:
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -383,47 +384,47 @@ Eventually, during a proof development, one may find useful to make assertions a
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endfirsthead
-	
+
 	\caption{Proof of Lemma negb\_involutive continued}\\
 	\hline
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endhead
-	
+
 	\multicolumn{2}{r}{Continuing proof of Lemma negb\_involutive on the next page}\\
 	\endfoot
 	\hline
 	\multicolumn{2}{r}{End of proof of Lemma negb\_involutive}\\
 	\endlastfoot
-	
+
 	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
 	$forall $ $ b $ $ : $ $ bool, $ $ negb $ $ (negb $ $ b) $ $ = $ $ b$\\
-	
+
 	\hline
 	\multirow{4}{=}{$destruct $ $ b.$} & \fracrule\linebreak
 	$negb $ $ (negb $ $ true) $ $ = $ $ true$\\
 	\cline{2-2}
 	& \fracrule\linebreak
 	$negb $ $ (negb $ $ false) $ $ = $ $ false$\\
-	
+
 	\hline
 	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
 	$negb $ $ (negb $ $ true) $ $ = $ $ true$\\
-	
+
 	\hline
 	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
 	$true $ $ = $ $ true$\\
-	
+
 	\hline
 	$reflexivity.$ & $-_{1/2}$ completed \\
 	\hline
 	\multirow{2}{=}{$-_{2/2}$} & \fracrule\linebreak
 	$negb $ $ (negb $ $ false) $ $ = $ $ false$\\
-	
+
 	\hline
 	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
 	$false $ $ = $ $ false$\\
-	
+
 	\hline
 	$reflexivity.$ & $-_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Lemma:negb-involutive} \\
 	\hline
@@ -464,27 +465,27 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endfirsthead
-	
+
 	\caption{Proof of Theorem evenb\_S continued}\\
 	\hline
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endhead
-	
+
 	\multicolumn{2}{r}{Continuing proof of Theorem evenb\_S on the next page}\\
 	\endfoot
 	\hline
 	\multicolumn{2}{r}{End of proof of Theorem evenb\_S}\\
 	\endlastfoot
-	
+
 	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
 	$forall $ $ n $ $ : $ $ nat, $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\\
-	
+
 	\hline
 	\multirow{3}{=}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\\
-	
+
 	\hline
 	\multirow{7}{=}{$induction $ $ n.$} & \fracrule\linebreak
 	$evenb $ $ 1 $ $ = $ $ negb $ $ (evenb $ $ 0)$\\
@@ -493,15 +494,15 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ (S $ $ (S $ $ n)) $ $ = $ $ negb $ $ (evenb $ $ (S $ $ n))$\\
-	
+
 	\hline
 	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
 	$evenb $ $ 1 $ $ = $ $ negb $ $ (evenb $ $ 0)$\\
-	
+
 	\hline
 	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
 	$false $ $ = $ $ false$\\
-	
+
 	\hline
 	$reflexivity.$ & $-_{1/2}$ completed \\
 	\hline
@@ -509,7 +510,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ (S $ $ (S $ $ n)) $ $ = $ $ negb $ $ (evenb $ $ (S $ $ n))$\\
-	
+
 	\hline
 	\multirow{6}{=}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
@@ -518,7 +519,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ end$\\
-	
+
 	\hline
 	\multirow{8}{=}{$simpl $ $ in $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ match $ $ n $ $ with
@@ -530,7 +531,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ end$\\
-	
+
 	\hline
 	\multirow{7}{=}{$rewrite $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ match $ $ n $ $ with
@@ -539,7 +540,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$ $  $ $  $ $ end $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ n $ $ = $ $ negb $ $ (negb $ $ (evenb $ $ n))$\\
-	
+
 	\hline
 	\multirow{6}{=}{$rewrite $ $ negb{\char`\_}involutive.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ match $ $ n $ $ with
@@ -548,7 +549,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$ $  $ $  $ $ end $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ n $ $ = $ $ evenb $ $ n$\\
-	
+
 	\hline
 	$reflexivity.$ & $-_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Theorem:evenb-S} \\
 	\hline
@@ -558,7 +559,7 @@ Note that we have added the quantifier \coqdockw{\ensuremath{\forall}} \coqdocva
 
 This example demonstrates a proof by induction over natural numbers that is made possible in Coq by the \coqdoctac{induction} tactic. Following this principle, to show that a proposition holds for all natural numbers $ n $ we must prove: the base case ($ n = 0 $), and then the induction step, which is, for any number $ n' $, if the proposition holds for $ n' $, then so it does for $ S \ n' $.
 
-The tactic \coqdoctac{rewrite} tells Coq to perform a replacement in the goal, whether it is based on an assumption (hypothesis) from the proof context or a completely separate proof such as the Lemma \coqdocvar{negb\_involutive}. 
+The tactic \coqdoctac{rewrite} tells Coq to perform a replacement in the goal, whether it is based on an assumption (hypothesis) from the proof context or a completely separate proof such as the Lemma \coqdocvar{negb\_involutive}.
 
 Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, then the predecessor of the predecessor of $ n $ is also even. This theorem can be proved in Coq using the following commands:
 
@@ -589,28 +590,28 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endfirsthead
-	
+
 	\caption{Proof of Theorem ev\_minus2 continued}\\
 	\hline
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endhead
-	
+
 	\multicolumn{2}{r}{Continuing proof of Theorem ev\_minus2 on the next page}\\
 	\endfoot
 	\hline
 	\multicolumn{2}{r}{End of proof of Theorem ev\_minus2}\\
 	\endlastfoot
-	
+
 	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
 	$forall $ $ n $ $ : $ $ nat, $ $ ev $ $ n $ $ -{>} $ $ ev $ $ (pred $ $ (pred $ $ n))$\\
-	
+
 	\hline
 	\multirow{4}{=}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ n))$\\
-	
+
 	\hline
 	\multirow{6}{=}{$destruct $ $ H.$} & \fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ 0))$\\
@@ -619,15 +620,15 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ (S $ $ (S $ $ n))))$\\
-	
+
 	\hline
 	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ 0))$\\
-	
+
 	\hline
 	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
 	$ev $ $ 0$\\
-	
+
 	\hline
 	$apply $ $ ev{\char`\_}0.$ & $-_{1/2}$ completed \\
 	\hline
@@ -635,13 +636,13 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ (S $ $ (S $ $ n))))$\\
-	
+
 	\hline
 	\multirow{4}{=}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ n$\\
-	
+
 	\hline
 	$apply $ $ H.$ & $-_{2/2}$ completed, proof completed by Qed \label{Proofs:coq-example:Theorem:ev-minus2} \\
 	\hline
@@ -726,7 +727,7 @@ QuickChick is a set of tools and techniques for combining randomized property-ba
 
 There are four basic elements in property-based random testing: an \emph{executable property} such as for deciding whether a number is even, \emph{generators} for random inputs to the property, \emph{printers} for converting data structures like numbers to strings when reporting counterexamples, and \emph{shrinkers}, which are used to search for minimal counterexamples when errors occur.
 
-Consider the following example extracted from \citeonline{Pierce:SF4}. The function \emph{remove} takes a natural number $ x $ and a list of natural numbers $ l $ and removes $ x $ from the list.
+Consider the following example extracted from \citeonline{Lampropoulos:SF4}. The function \emph{remove} takes a natural number $ x $ and a list of natural numbers $ l $ and removes $ x $ from the list.
 
 \begin{coqdoccode}
 	\coqdocnoindent

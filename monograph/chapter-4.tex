@@ -4,6 +4,10 @@
 \chapter{Conclusions}
 % ---
 
+In this work, we embedded an expressive subset of the CSP language in the Coq proof assistant, giving rise to the language entitled \CSPcoq{}. The implementations of abstract syntax were described, through inductive types, as well as that of concrete language, based on the concept of Notations. In addition, the inductive statement that defines operational semantics in the SOS style was also presented.
+
+The concept of LTS was represented in an inductive and functional approach, supporting a third-party tool that allows a custom graphic visualization of this structure. Finally, the notion of a trace of a process was defined, along with a tactic that automates the proof of this relation. Thus, it was possible to define, in the proof assistant, the refinement relation according to the traces model, in addition to the implementation of two generators and one checker for this property, in order to test it using a property-based random testing plugin.
+
 % ---
 \section{Related work}
 % ---
@@ -11,3 +15,16 @@
 % ---
 \section{Future work}
 % ---
+
+The topics listed below describe relevant activities that expand the work described in this monograph:
+
+\begin{itemize}
+	\item Extend the language \CSPcoq{} to include the other CSP operators. The theory of CSP, as well as the ASCII version of the language, contemplates more advanced concepts such as parameterized processes, operations such as event renaming, interruption, exception, among others. It is necessary to include these concepts to increase the representativeness of this theory.
+	\item Prove that for every process P, there is a list\_trans such that ltsR S P list\_trans -> there is n such that compute\_ltsR S P n = Some list\_trans. This proof guarantees the completeness of the compute\_ltsR definition, and that is, the whole set of transitions that characterize an LTS of a process is computable from this definition.
+	\item Define the tactic that automatically proves if ltsR is valid for a given process. The proof for the ltsR relation can be long, and they usually follow a well-defined pattern. Creating a tactic macro would simplify task like checking the LTS relation between a set of transitions and a process.
+	\item Formalize the concept of extended trace (\emph{extended\_traceR}) with $ \tau $ and $ \tick $; relate \emph{traceR} and \emph{extended\_traceR}; create tactic to prove \emph{extended\_traceR}. The definition of trace does not include the $ \tau $ and $ \tick $ events, which sometimes omits the real behavior of the process. Therefore, an extended definition of trace would reveal these suppressed communications.
+	\item Implement verification of prohibited use of recursion in the context of hiding and parallelism operation.
+	\item Define refinement in terms of bi-simulation.
+	\item Compress the generated LTS, removing intermediate $ \tau $'s. The process reference (reference\_rule) and sequential composition (seq\_comp\_tick\_rule) operations introduce the communication of the internal event $ \tau $ as a way to take account of the ``effort'' of the process unfolding operation.
+	\item Prove that for all trans\_list1 and trans\_list2, if ltsR trans\_list1 P and ltsR trans\_list2 P, then trans\_list1 is a permutation of trans\_list2. Since our definition of LTS is based on a list of transitions, not a set, this proof would guarantee that there aren't two lists of transitions with different elements that constitute the LTS of the same process. In other words, this would prove the uniqueness of an LTS's set of transitions.
+\end{itemize}
