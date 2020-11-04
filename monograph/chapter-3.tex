@@ -280,7 +280,9 @@ Let \coqdocvar{compute\_ltsR} be the function yielded by this algorithm, the fol
 	: option (set transition)
 \end{tabbing}
 
-We can check whether this set of transitions is indeed the LTS of the process in question. For that \textellipsis \ This is actually the same idea behind the inductive definition of the LTS in \CSPcoq{}:
+Note that we added an integer as the third parameter of the function \coqdocvar{compute\_ltsR}. Since every recursive definition (\coqdockw{Fixpoint}) in Coq must have an argument that explicitly decreases in each recursive call to ensure termination, the third parameter fulfills this premise. Therefore, the number of recursive calls is limited in order to prevent endless computations: this function only returns a set of transitions when it's able to visit all the states of the LTS before reaching the limit.
+
+Once we have our result, we may still want to check whether this set of transitions is indeed the LTS of the process in question. One way to prove this is by demonstrating that for every process $ P $ and $ Q $, and event $ a $, $ P $ behaves like $ Q $ after communicating $ a $ if, and only if, the 3-tuple ($ P $, $ a $, $ Q $) belongs to the set of transitions. In other words, if $ T $ is the set of transitions in the LTS representation of the process $ P $, then every possible communication of $ P $ -- and its components (inner processes) -- is present in $ T $, and every transition in $ T $ is a valid communication of process $ P $ (or the sub-processes that make up $ P $). With that in mind, an inductive definition might be useful to prove this kind of assertion.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -341,6 +343,12 @@ We can check whether this set of transitions is indeed the LTS of the process in
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
+
+The constructor \coqdocvar{lts\_empty\_rule} implies that the LTS relation holds when there are neither states to be visited nor transitions to validate anymore. On the other hand, the inductive step is described by the constructor \coqdocvar{lts\_inductive\_rule}, which proposes that $ T $ represents the set of transitions of the LTS of process $ P $ if the following two premises are satisfied:
+\begin{itemize}
+	\item Let $ T' $ be the subset of $ T $ containing all transitions from state $ P $, $ P \trans[a] Q \iff (P, a, Q) \in T'$;
+	\item Let $ T'' $ be the set of all remaining transitions and $ S $ the set of states yet to be visited (union of the set of new states that can be reached from $ P $ and other unvisited states), the LTS relation must hold also for the sets $ T'' $ and $ S $.
+\end{itemize}
 
 % ---
 \subsection{GraphViz integration}
@@ -454,6 +462,490 @@ The \autoref{image:machine_lts} shows the expected output: an image in JPEG form
 \label{section:traces}
 % ---
 
+As we saw earlier in \autoref{subsection:traces-refinement}, a simple but effective way to analyze the behavior of a process is through the sequence of externally visible events such process is capable of performing over time. This communication history is called \emph{trace}. Using the concepts we saw previously, we may perceive trace as a list of actions that takes from one state to another in a LTS, or even the sequence of external events that one process can be communicate according to the operational semantics.
+
+% ---
+\subsection{Traces-related concepts}
+% ---
+
+Like the other types of CSP language we have discussed so far in this work, the trace also has its counterpart in \CSPcoq{}. It is defined in terms of a list of events that can be observed by the environment, that is, neither $ \tau $ nor $ \tick $ can be present in that list. This restriction is guaranteed in Coq by choosing the inductive type \coqdocvar{event} in the trace definition, instead of the type \coqdocvar{event\_tau\_tick}, which also includes internal and termination events. Below, we can check the definition in the proof assistant:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{trace} := \coqdocvar{list} \coqdocvar{event}.\coqdoceol
+\end{coqdoccode}
+
+After defining this type, we can then declare trace as a relationship between a process P and a list of events L, so that it is possible to make logical propositions that involve whether or not L is a trace of P. Initially, we can describe four rules of inference that govern this relationship:
+
+% inserir regras de inferência na notação de barra
+\begin{itemize}
+	\item the empty list is a trace of any process;
+	\begin{prooftree}
+		\AxiomC{}
+		\UnaryInfC{$ \mathit{trace} \ P \ nil $}
+	\end{prooftree}
+	\item a non-empty list L is a trace of a process P if the first element of L can be performed by P and the remaining events of this list is a trace of the process resulting from this communication;
+	\begin{prooftree}
+		\AxiomC{$ P \trans[h] Q $}
+		\AxiomC{$ \mathit{trace} \ Q \ tl $}
+		\RightLabel{\quad ($ h \notin \{\tick, \ \tau\} $)}
+		\BinaryInfC{$ \mathit{trace} \ P \ (h :: tl) $}
+	\end{prooftree}
+	\item a list L is a trace of a process P if $ \tick $ can be performed by P and L is a trace of the process resulting from this communication;
+	\begin{prooftree}
+		\AxiomC{$ P \trans[\tick] Q $}
+		\AxiomC{$ \mathit{trace} \ Q \ L $}
+		\BinaryInfC{$ \mathit{trace} \ P \ L $}
+	\end{prooftree}
+	\item a list L is a trace of a process P if $ \tau $ can be performed by P and L is a trace of the process resulting from this communication.
+	\begin{prooftree}
+		\AxiomC{$ P \trans[\tau] Q $}
+		\AxiomC{$ \mathit{trace} \ Q \ L $}
+		\BinaryInfC{$ \mathit{trace} \ P \ L $}
+	\end{prooftree}
+\end{itemize}
+
+Now, our knowledge of inductive declaration in Coq will be useful once again to embed these rules in the tool -- each one of these can be translated into a constructor from the \coqdocvar{traceR'} definition:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{traceR'} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdocvar{trace} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{empty\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) :\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{nil}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{event\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{h} : \coqdocvar{event}) (\coqdocvar{tl} : \coqdocvar{trace}) :\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{h} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{tl} \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} (\coqdocvar{h}::\coqdocvar{tl})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{tick\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{t} : \coqdocvar{trace}) :\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tick} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{t} \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{t}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{tau\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{t} : \coqdocvar{trace}) :\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tau} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{t} \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{t}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{traceR} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{proc\_name} : \coqdocvar{string}) (\coqdocvar{t} : \coqdocvar{trace}) :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} (\coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{proc\_name}) \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{body} \ensuremath{\Rightarrow} \coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{body} \coqdocvar{t}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{False}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+One might notice that the inference rules described above, in the order they were presented, correspond, respectively, to the constructors \coqdocvar{empty\_trace\_rule,} \coqdocvar{event\_trace\_rule}, \coqdocvar{tick\_trace\_rule}, and \coqdocvar{tau\_trace\_rule} of the \coqdocvar{traceR'} inductive definition.
+
+This definition of trace as a relation, as well as the definition of operational semantics in the SOS style, allows us not only to make assertions like \emph{traceR S ``P'' L}, given a specification $ S $, a process $ P $ and a list of events $ L $, but also prove them in Coq by applying the constructors from the inductive declarations available.
+
+It turns out that, not only these proofs, that verify the trace relationship between a process and a list of events, grow in proportion to the size of the list you want to check, they also become quite repetitive. Fortunately, this repetition allows us to define an algorithm to automatically prove assertions of this kind, and thus create a tactic macro for that purpose.
+
+This algorithm can be defined as follows: if the goal is to prove the trace relation for an empty list, apply the rule \coqdocvar{empty\_trace\_rule} and fishing the proof, otherwise, try to make progress by applying each of the other three constructors of the \coqdocvar{traceR'} definition, making a recursive call afterwards. For goals which are operations described by the \CSPcoq{} semantics, try to make progress using the constructors applicable for that operation based on pattern matching, making once again a recursive call at the end of this step.
+
+The following definition uses the Ltac language to describe this algorithm as a tactic macro that automatically proves statements of the kind \emph{traceR S ``P'' L}:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Ltac} \coqdocvar{solve\_trace'} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{multimatch} \coqdockw{goal} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{traceR'} \coqdocvar{\_} \coqdocvar{\_} \coqdocvar{nil} \ensuremath{\Rightarrow} \coqdoctac{apply} \coqdocvar{empty\_trace\_rule}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{traceR'} \coqdocvar{\_} \coqdocvar{\_} \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{tau\_trace\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{tick\_trace\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{event\_trace\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} --> \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{apply} \coqdocvar{prefix\_rule}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{ProcRef} \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{eapply} \coqdocvar{reference\_rule}; \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} [] \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{ext\_choice\_tau\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{ext\_choice\_tau\_right\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{ext\_choice\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{ext\_choice\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} |\~{}| \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{int\_choice\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{int\_choice\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} [[ \coqdocvar{\_} \symbol{92}\symbol{92} \coqdocvar{\_} ]] \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{alpha\_parall\_tau\_indep\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_tau\_indep\_right\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_tick\_joint\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_joint\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_indep\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_indep\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} [| \coqdocvar{\_} |] \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{gener\_parall\_tau\_indep\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_tau\_indep\_right\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_tick\_joint\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_joint\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_indep\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_indep\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} ||| \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{interleave\_tick\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{interleave\_left\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{interleave\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} ;; \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{seq\_comp\_tick\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{seq\_comp\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} \symbol{92} \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	(\coqdoctac{eapply} \coqdocvar{hiding\_tau\_tick\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{hiding\_not\_hidden\_rule}\coqdoceol
+	\coqdocindent{2.00em}
+	+ \coqdoctac{eapply} \coqdocvar{hiding\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{SKIP} // \coqdocvar{Tick} ==> \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{apply} \coqdocvar{success\_termination\_rule}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\not=} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{unfold} \coqdocvar{not}; \coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} "H" \coqdoctac{in} (\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{inversion} \coqdocvar{H})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} = \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{reflexivity}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{set\_In} \coqdocvar{\_} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{simpl}; \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \ensuremath{\lnot} \coqdocvar{set\_In} \coqdocvar{\_} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{solve\_not\_in}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\lor} \coqdocvar{\_} \ensuremath{\Rightarrow} (\coqdoctac{left} + \coqdoctac{right}); \coqdocvar{solve\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Ltac} \coqdocvar{solve\_trace} := \coqdoctac{unfold} \coqdocvar{traceR}; \coqdoctac{simpl}; \coqdocvar{solve\_trace'}.\coqdoceol
+\end{coqdoccode}
+
+Provided the definitions we presented so far, we can finally formulate in Coq the concept of refinement according to the traces model, along with an appropriate notation for this relationship:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{trace\_refinement} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{Spec} \coqdocvar{Imp} : \coqdocvar{string}) : \coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{\ensuremath{\forall}} (\coqdocvar{t} : \coqdocvar{trace}), \coqdocvar{traceR} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{t} \ensuremath{\rightarrow} \coqdocvar{traceR} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{t}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Notation} ``S '\#' P '[T=' Q'' := (\coqdocvar{trace\_refinement} \coqdocvar{S} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+\end{coqdoccode}
+
+As we saw in the \autoref{subsection:traces-refinement} of the previous chapter, this definition ensures that an implementation Q refines a specification P according with the traces model if every trace of Q is also a trace of P.
+
 % ---
 \subsection{QuickChick integration}
 % ---
+
+In the context of this work, the QuickChick library was used to random test the refinement property according to the traces model. That being said, our goal is to obtain a simple and automated way to test this property that relates two processes, Imp and Spec, eventually finding examples that prove the opposite. In other words, this checker guarantees that, if there is a failure during the tests, it is proven by counterexample that the refinement relation between the two processes inputted does not hold.
+
+In order to create the checker, first we need to define a generator of random inputs, which, in our case, consists of traces of a given process. Thus, we define a random generator that takes a ``specification'' process and an arbitrary integer to limit the number of events in the trace. This generator returns a trace of the given process, which size is limited by the third parameter:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Fixpoint} \coqdocvar{gen\_valid\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
+	\coqdocindent{1.00em}
+	: \coqdocvar{G} (\coqdocvar{option} \coqdocvar{semantics\_trace.trace}) :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{size} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{nil}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{S} \coqdocvar{size'} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{freq\_} (\coqdocvar{ret} \coqdocvar{nil}) [\coqdoceol
+	\coqdocindent{3.00em}
+	(1, \coqdocvar{ret} \coqdocvar{nil}) ;\coqdoceol
+	\coqdocindent{3.00em}
+	(\coqdocvar{size},\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdocvar{bind} (\coqdocvar{gen\_valid\_trans} \coqdocvar{S} \coqdocvar{P}) (\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{fun} \coqdocvar{t} \ensuremath{\Rightarrow} (\coqdoceol
+	\coqdocindent{6.00em}
+	\coqdockw{match} \coqdocvar{t} \coqdockw{with}\coqdoceol
+	\coqdocindent{6.00em}
+	\ensuremath{|} \coqdocvar{nil} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{nil}\coqdoceol
+	\coqdocindent{6.00em}
+	\ensuremath{|} (\coqdocvar{Event} \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{7.00em}
+	\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+	\coqdocindent{8.00em}
+	\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{e} :: \coqdocvar{ts})\coqdoceol
+	\coqdocindent{7.00em}
+	)\coqdoceol
+	\coqdocindent{6.00em}
+	\ensuremath{|} (\coqdocvar{\_}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{7.00em}
+	\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+	\coqdocindent{8.00em}
+	\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{ts}\coqdoceol
+	\coqdocindent{7.00em}
+	)\coqdoceol
+	\coqdocindent{6.00em}
+	\coqdockw{end}\coqdoceol
+	\coqdocindent{5.00em}
+	)\coqdoceol
+	\coqdocindent{4.00em}
+	)\coqdoceol
+	\coqdocindent{3.00em}
+	)\coqdoceol
+	\coqdocindent{2.00em}
+	]\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{gen\_valid\_trace}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
+	\coqdocindent{1.00em}
+	: \coqdocvar{G} (\coqdocvar{option} \coqdocvar{semantics\_trace.trace}) :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{proc\_id} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{None}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{P} \ensuremath{\Rightarrow} \coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{size}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+This generator operates as follows: while the third parameter is greater than zero, decide -- based on probability -- whether the generation should stop; in case it should continue, generate a transition from the current state of the process, decreasing the argument that limits the trace size; call the generator recursively, passing the state reached by the  transition generated in the previous step; finally, return the concatenation of the event from this transition with the result of the recursive call. The function \coqdocvar{freq\_} is responsible for making the probabilistic choice. In our case, the option to end the generation before reaching the limit has $ ((1 / (size + 1)) * 100)\% $ chance to happen, while continuing with the generation has the probability of $ ((size / (size + 1)) * 100)\% $.
+
+This definition, on the other hand, depends on another generator of random input: \coqdocvar{gen\_valid\_trans}. This generator receives a specification and a process body, and returns a list containing exactly one valid transition from the given state, where the transition is represented by the pair (action, target\_state):
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{gen\_valid\_trans}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	: \coqdocvar{G} (\coqdocvar{option} (\coqdocvar{list} (\coqdocvar{event\_tau\_tick} \ensuremath{\times} \coqdocvar{proc\_body}))) :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{get\_transitions} \coqdocvar{S} \coqdocvar{P} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{None}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{nil} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{nil}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} (\coqdocvar{t} :: \coqdocvar{ts}) \ensuremath{\Rightarrow} \coqdocvar{bind} (\coqdocvar{elems\_} \coqdocvar{t} (\coqdocvar{t} :: \coqdocvar{ts})) (\coqdockw{fun} \coqdocvar{a} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Some} [\coqdocvar{a}]))\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+Note that, since this generator also computes transitions in which $ \tau $ and $ \tick $ may appear as actions, it is necessary to hide them, so that the generated trace does not consider such non-external events. The generator \coqdocvar{gen\_valid\_trace} does so by concatenating only external events to the list that will be returned at the end of the computation.
+
+Once the random trace generator is defined, we need an executable property to evaluate these inputs when applied to another process. In other words, we need a computable function to check whether the trace generated from an ``Imp'' process is also a trace of a ``Spec'' process. The idea behind this function is to try to make progress with the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ or $ \tick $ for the sequence of events to be accepted by the process:
+
+% inserir check_trace' + check_trace + traceP
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Fixpoint} \coqdocvar{check\_trace'}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{event\_list} : \coqdocvar{trace})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{option} \coqdocvar{bool} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{fuel}, \coqdocvar{event\_list} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{\_}, \coqdocvar{nil} \ensuremath{\Rightarrow} \coqdocvar{Some} \coqdocvar{true}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{O}, \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{None} \coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{S} \coqdocvar{fuel'}, \coqdocvar{e} :: \coqdocvar{es} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdockw{match} \coqdocvar{get\_transitions} \coqdocvar{S} \coqdocvar{P} \coqdockw{with}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{None}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{t} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{let} \coqdocvar{available\_moves} := \coqdocvar{t} \coqdoctac{in}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{let} \coqdocvar{valid\_moves} := \coqdocvar{filter} (\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{fun} \coqdocvar{t} \ensuremath{\Rightarrow} (\coqdocvar{is\_equal} (\coqdocvar{fst} \coqdocvar{t}) (\coqdocvar{Event} \coqdocvar{e}))\coqdoceol
+	\coqdocindent{5.00em}
+	|| (\coqdocvar{is\_equal} (\coqdocvar{fst} \coqdocvar{t}) \coqdocvar{Tau})\coqdoceol
+	\coqdocindent{5.00em}
+	|| (\coqdocvar{is\_equal} (\coqdocvar{fst} \coqdocvar{t}) \coqdocvar{Tick})\coqdoceol
+	\coqdocindent{3.00em}
+	) \coqdocvar{available\_moves} \coqdoctac{in}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{match} \coqdocvar{valid\_moves} \coqdockw{with}\coqdoceol
+	\coqdocindent{3.00em}
+	\ensuremath{|} \coqdocvar{nil} \ensuremath{\Rightarrow} \coqdocvar{Some} \coqdocvar{false}\coqdoceol
+	\coqdocindent{3.00em}
+	\ensuremath{|} \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{let} \coqdocvar{result} := \coqdocvar{map} (\coqdockw{fun} \coqdocvar{t} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{if} \coqdocvar{is\_equal} (\coqdocvar{fst} \coqdocvar{t}) (\coqdocvar{Event} \coqdocvar{e})\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{then} \coqdocvar{check\_trace'} \coqdocvar{S} (\coqdocvar{snd} \coqdocvar{t}) \coqdocvar{es} \coqdocvar{fuel'}\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{else} \coqdocvar{check\_trace'} \coqdocvar{S} (\coqdocvar{snd} \coqdocvar{t}) (\coqdocvar{e} :: \coqdocvar{es}) \coqdocvar{fuel'}\coqdoceol
+	\coqdocindent{4.00em}
+	) \coqdocvar{valid\_moves} \coqdoctac{in}\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{if} \coqdocvar{existsb} (\coqdockw{fun} \coqdocvar{o} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{match} \coqdocvar{o} \coqdockw{with}\coqdoceol
+	\coqdocindent{5.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{true} \ensuremath{\Rightarrow} \coqdocvar{true}\coqdoceol
+	\coqdocindent{5.00em}
+	\ensuremath{|} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{false}\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{end}) \coqdocvar{result}\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{then} \coqdocvar{Some} \coqdocvar{true}\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{else} \coqdockw{if} \coqdocvar{forallb} (\coqdockw{fun} \coqdocvar{o} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{match} \coqdocvar{o} \coqdockw{with}\coqdoceol
+	\coqdocindent{5.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{false} \ensuremath{\Rightarrow} \coqdocvar{true}\coqdoceol
+	\coqdocindent{5.00em}
+	\ensuremath{|} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{false}\coqdoceol
+	\coqdocindent{5.00em}
+	\coqdockw{end}) \coqdocvar{result}\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{then} \coqdocvar{Some} \coqdocvar{false}\coqdoceol
+	\coqdocindent{4.00em}
+	\coqdockw{else} \coqdocvar{None}\coqdoceol
+	\coqdocindent{3.00em}
+	\coqdockw{end}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdockw{end}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{check\_trace}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{event\_list} : \coqdocvar{trace})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{option} \coqdocvar{bool} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{fuel}, \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{proc\_id} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{O}, \coqdocvar{\_} \ensuremath{|} \coqdocvar{\_}, \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{None}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{S} \coqdocvar{fuel'}, \coqdocvar{Some} \coqdocvar{P} \ensuremath{\Rightarrow} \coqdocvar{check\_trace'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{event\_list} \coqdocvar{fuel'}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+	\coqdocemptyline
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{traceP}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{fuel} : \coqdocvar{nat})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{t} : \coqdocvar{option} \coqdocvar{semantics\_trace.trace}) : \coqdocvar{bool} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{t} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{false}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{t'} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdockw{match} \coqdocvar{check\_trace} \coqdocvar{S} \coqdocvar{proc\_id} \coqdocvar{t'} \coqdocvar{fuel} \coqdockw{with}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{false}\coqdoceol
+	\coqdocindent{2.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{b} \ensuremath{\Rightarrow} \coqdocvar{b}\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdockw{end}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+
+The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events, or to the internal event, or the termination event. Then, we try to make progress with each of these valid events, performing a recursive call with each target state obtained from the transitions in the previous step, removing the corresponding event from the list when applicable -- that is, except $ \tau $ and $ \tick $. If any of the recursive call empties the list of events, then this list is indeed a trace of the process. On the other hand, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
+
+Provided these definitions, we can then declare the refinement property checker. This checker tests whether any trace of an implementation process, generated randomly by the function \coqdocvar{gen\_valid\_trace}, is also a trace of a specification process. Since it is, ultimately, a testing solution, we are only interested in counterexamples, which prove that in fact the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere ``tendency'' -- best-case scenario -- and therefore they do not count as proofs of the truthfulness of the assertion made.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{trace\_refinement\_checker}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{Imp} \coqdocvar{Spec} : \coqdocvar{string})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{trace\_max\_size} : \coqdocvar{nat})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{Checker} :=\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{forAll} (\coqdocvar{gen\_valid\_trace} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{trace\_max\_size}) (\coqdocvar{traceP} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{fuel}).\coqdoceol
+\end{coqdoccode}
