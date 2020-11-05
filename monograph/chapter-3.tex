@@ -649,7 +649,7 @@ The following definition uses the Ltac language to describe this algorithm as a 
 	\coqdocindent{1.00em}
 	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{SKIP} // \coqdocvar{Tick} ==> \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{apply} \coqdocvar{success\_termination\_rule}\coqdoceol
 	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\not=} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{unfold} \coqdocvar{not}; \coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} "H" \coqdoctac{in} (\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{inversion} \coqdocvar{H})\coqdoceol
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\not=} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{unfold} \coqdocvar{not}; \coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} ``H'' \coqdoctac{in} (\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{inversion} \coqdocvar{H})\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} = \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{reflexivity}\coqdoceol
 	\coqdocindent{1.00em}
@@ -794,7 +794,7 @@ This definition, on the other hand, depends on another generator of random input
 
 Note that, since this generator also computes transitions in which $ \tau $ and $ \tick $ may appear as actions, it is necessary to hide them, so that the generated trace does not consider such non-external events. The generator \coqdocvar{gen\_valid\_trace} does so by concatenating only external events to the list that will be returned at the end of the computation.
 
-Once the random trace generator is defined, we need an executable property to evaluate these inputs when applied to another process. In other words, we need a computable function to check whether the trace generated from an ``Imp'' process is also a trace of a ``Spec'' process. The idea behind this function is to try to make progress with the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ or $ \tick $ for the sequence of events to be accepted by the process:
+Once the random trace generator is defined, we need an executable property to evaluate these inputs when applied to another process. In other words, we need a computable function to check whether the trace generated from a process \emph{Imp} is also a trace of a process \emph{Spec}. The idea behind this function is to try to make progress with the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ or $ \tick $ for the sequence of events to be accepted by the process:
 
 % inserir check_trace' + check_trace + traceP
 \begin{coqdoccode}
@@ -931,9 +931,9 @@ Once the random trace generator is defined, we need an executable property to ev
 \end{coqdoccode}
 
 
-The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events, or to the internal event, or the termination event. Then, we try to make progress with each of these valid events, performing a recursive call with each target state obtained from the transitions in the previous step, removing the corresponding event from the list when applicable -- that is, except $ \tau $ and $ \tick $. If any of the recursive call empties the list of events, then this list is indeed a trace of the process. On the other hand, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
+The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events, or the internal event, or the termination event. Then, we try to make progress with each of these valid events, performing a recursive call with each target state obtained from the transitions in the previous step, removing the corresponding event from the list when applicable -- that is, except $ \tau $ and $ \tick $. If any of the recursive call empties the list of events, then this list is indeed a trace of the process. On the other hand, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
 
-Provided these definitions, we can then declare the refinement property checker. This checker tests whether any trace of an implementation process, generated randomly by the function \coqdocvar{gen\_valid\_trace}, is also a trace of a specification process. Since it is, ultimately, a testing solution, we are only interested in counterexamples, which prove that in fact the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere ``tendency'' -- best-case scenario -- and therefore they do not count as proofs of the truthfulness of the assertion made.
+Provided these definitions, we can then declare the refinement property checker. This checker tests whether every randomly generated trace of an implementation process is also a trace of a specification process:
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -949,3 +949,51 @@ Provided these definitions, we can then declare the refinement property checker.
 	\coqdocindent{2.00em}
 	\coqdocvar{forAll} (\coqdocvar{gen\_valid\_trace} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{trace\_max\_size}) (\coqdocvar{traceP} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{fuel}).\coqdoceol
 \end{coqdoccode}
+
+In order to see the checker \coqdocvar{trace\_refinement\_checker} in action, consider the following \CSPcoq{} specification:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{EXAMPLE} : \coqdocvar{specification}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{Build\_Spec}\coqdoceol
+	\coqdocindent{3.00em}
+	[ \coqdocvar{Channel} \{\{``a'', ``b'', ``c''\}\} ]\coqdoceol
+	\coqdocindent{3.00em}
+	[ ``P'' ::= ``a'' -{}-> ``b'' -{}-> \coqdocvar{ProcRef} ``P'' ;\coqdoceol
+	\coqdocindent{4.00em}
+	``Q'' ::= (``a'' -{}-> ``b'' -{}-> \coqdocvar{ProcRef} ``Q'') [] (``c'' -{}-> \coqdocvar{STOP}) ]\coqdoceol
+	\coqdocindent{1.00em}
+	).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Defined}.\coqdoceol
+\end{coqdoccode}
+
+Now, we may want to check whether ``Q'' trace-refines ``P'', that is, if every trace of ``Q'' is also a trace of ``P''. For that, we invoke our checker with the command \coqdocvar{QuickChick}, passing 5 as the maximum trace size and the arbitrary integer 1000 as the fuel argument:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{QuickChick} (\coqdocvar{trace\_refinement\_checker} \coqdocvar{EXAMPLE} ``Q'' ``P'' 5 1000).\coqdoceol
+\end{coqdoccode}
+
+\begin{tabbing}
+	\emph{Some [``c'']} \\
+	\emph{*** Failed after 3 tests and 0 shrinks. (0 discards)}
+\end{tabbing}
+
+As we are told by the message above, QuickChick performed 3 tests before running into a trace that invalidates the refinement relation, proving that ``Q'' does not trace-refine ``P''. We can verify this with the provided counterexample -- [``c''] is a trace of process ``Q'', but it is not a trace of ``P''. On the other hand, notice that the process ``Q'' is actually refined by ``P'' (i.e. ``P'' trace-refines ``Q''). We will not be able to prove that statement with our checker though. Instead, it may only lead us to believe that the relation holds, since QuickChick is not able to provide us with any counterexample after executing 10000 tests.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{QuickChick} (\coqdocvar{trace\_refinement\_checker} \coqdocvar{EXAMPLE} ``P'' ``Q'' 5 1000).\coqdoceol
+\end{coqdoccode}
+
+\begin{tabbing}
+	\emph{+++ Passed 10000 tests (0 discards)}
+\end{tabbing}
+
+Therefore, since this method is, ultimately, a testing solution, we are only interested in counterexamples, which actually prove that the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere indication at best, thus they do not count as proofs for the assertions made. In other words, this refinement-checking approach is sound (if the checked property does not hold, we do not have a trace refinement), but it is not complete (if the checked property holds, we can not guarantee whether it is a trace refinement).
