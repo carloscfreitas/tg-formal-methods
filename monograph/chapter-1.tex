@@ -18,9 +18,9 @@ Although it is undeniable that FDR is a useful tool in the analysis of systems d
 
 The main objective (MO) of this work is to define in Coq a theory for concurrent systems, based on a limited scope of the process algebra CSP. This objective is unfolded into the following specific objectives (SO):
 
-\begin{itemize}  
-	\item SO1: study CSP and frameworks based on this process algebra. 
-	\item SO2: define a syntax for CSP in Coq, based on a restricted version of the \CSPM{} language (machine readable language for CSP). 
+\begin{itemize}
+	\item SO1: study CSP and frameworks based on this process algebra.
+	\item SO2: define a syntax for CSP in Coq, based on a restricted version of the \CSPM{} language (machine readable language for CSP).
 	\item SO3: provide support for the LTS-based (Labelled Transition System) representation, considering the Structured Operational Semantics (SOS) of CSP.
 	\item SO4: make use of the QuickChick tool to search for counterexamples of the traces refinement relation.
 \end{itemize}
@@ -52,15 +52,15 @@ We can declare such system in \CSPcoq{} by defining a specification, which consi
 	\coqdocindent{2.00em}
 	\coqdocvar{Build\_Spec}\coqdoceol
 	\coqdocindent{2.00em}
-	[ \coqdocvar{Channel} \{\{"coat\_off", "coat\_on", "request\_coat", "retrieve", "store", "eat"\}\} ]\coqdoceol
+	[ \coqdocvar{Channel} \{\{``coat\_off'', ``coat\_on'', ``request\_coat'', ``retrieve'', ``store'', ``eat''\}\} ]\coqdoceol
 	\coqdocindent{2.00em}
-	[ "SYSTEM" ::=\coqdoceol
+	[ ``SYSTEM'' ::=\coqdoceol
 	\coqdocindent{3.00em}
-	"coat\_off" --> "store" --> "request\_coat" --> "retrieve" --> "coat\_on" --> \coqdocvar{SKIP}\coqdoceol
+	``coat\_off'' -{}-> ``store'' -{}-> ``request\_coat'' -{}-> ``retrieve'' -{}-> ``coat\_on'' -{}-> \coqdocvar{SKIP}\coqdoceol
 	\coqdocindent{3.00em}
-	[| \{\{"coat\_off", "request\_coat", "coat\_on"\}\} |]\coqdoceol
+	[| \{\{``coat\_off'', ``request\_coat'', ``coat\_on''\}\} |]\coqdoceol
 	\coqdocindent{3.00em}
-	"coat\_off" --> "eat" --> "request\_coat" --> "coat\_on" --> \coqdocvar{SKIP} ]\coqdoceol
+	``coat\_off'' -{}-> ``eat'' -{}-> ``request\_coat'' -{}-> ``coat\_on'' -{}-> \coqdocvar{SKIP} ]\coqdoceol
 	\coqdocindent{1.00em}
 	).\coqdoceol
 	\coqdocnoindent
@@ -71,7 +71,7 @@ Furthermore, we can execute the following command to compute the process LTS and
 
 \begin{coqdoccode}
 	\coqdocnoindent
-	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{example} "SYSTEM" 100).\coqdoceol
+	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{example} ``SYSTEM'' 100).\coqdoceol
 \end{coqdoccode}
 
 The \autoref{lts-example} is a visual representation of the graph outputted by this command. The image is generated using GraphViz software.

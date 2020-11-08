@@ -5,7 +5,9 @@
 \label{chapter:csp_coq}
 % ---
 
-The \autoref{chapter:background} provided an overview of the essential concepts for understanding the implementation of the \CSPcoq{} language, setting the scene for an in-depth explanation of the language developed in this work. That being said, \autoref{chapter:csp_coq} will explain how each of these concepts combined together made it possible to develop a theory of communicating sequential processes in Coq proof assistant. The \autoref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas \autoref{section:sos} explains how the SOS style of defining language semantics translates into Coq as an inductive declaration. Furthermore, \autoref{section:lts} provides details on both functional and inductive definitions of LTS, along with further explanation on the GraphViz software integration. Finally, \autoref{section:traces} guides the reader through the definition of traces refinement as an executable property and also presents randomized testing based on this property using QuickChick plugin.
+The \autoref{chapter:background} provided an overview of the essential concepts for understanding the implementation of the \CSPcoq{} language, setting the scene for an in-depth explanation of the language developed in this work. That being said, \autoref{chapter:csp_coq} will explain how each of these concepts combined together made it possible to develop a theory of communicating sequential processes in Coq proof assistant.
+
+The \autoref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas \autoref{section:sos} explains how the SOS style of defining language semantics translates into Coq as an inductive declaration. Furthermore, \autoref{section:lts} provides details on both functional and inductive definitions of LTS, along with further explanation on the GraphViz software integration. Finally, \autoref{section:traces} guides the reader through the definition of traces refinement as an executable property and also presents randomized testing based on this property using QuickChick plugin.
 
 % ---
 \section{Syntax}
@@ -68,7 +70,7 @@ In order to define a more appropriate notation for the \CSPcoq{} language, the p
 
 Along with the assignment of a notation symbol, we can specify its \emph{precedence level} and its \emph{associativity}. The precedence level helps Coq parse compound expressions, whereas the associativity setting helps to disambiguate expressions containing multiple occurrences of the same symbol. Coq uses precedence levels from 0 to 100, and left, right, or no associativity.
 
-In the command lines above, the prefix operation has the higher precedence among all three operators and associates to the right. On the other hand, the external choice has a left associativity while the alphabetized parallel operator does not associates at all, meaning that brackets are necessary to create a compound expression with multiple parallel operations.
+In the command lines above, the prefix operation has the higher precedence among all three operators and associates to the right. On the other hand, the external choice has a left associativity while the alphabetized parallel operator does not associate at all, meaning that parentheses are necessary to create a compound expression with multiple parallel operations.
 
 Then, we can use these symbols to rewrite the process examples from the previous subsection in a much more friendly and recognizable way:
 
@@ -90,7 +92,7 @@ The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operato
 			\hline
 			Stop & STOP & STOP \\ [0.5ex]
 			Skip & SKIP & SKIP \\ [0.5ex]
-			Event prefix & e -> P & e \texttt{-{}-}> P \\  [0.5ex]
+			Event prefix & e -> P & e -{}-> P \\  [0.5ex]
 			External choice & P [] Q & P [] Q \\  [0.5ex]
 			Internal choice & P |$ \sim $| Q & P |$ \sim $| Q \\ [0.5ex]
 			Alphabetized parallel & P [A || B] Q & P [[A \textbackslash\textbackslash \ B]] Q \\ [0.5ex]
@@ -99,7 +101,7 @@ The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operato
 			Sequential composition & P ; Q & P ;; Q \\ [0.5ex]
 			Event hiding & P \textbackslash \ A & P \textbackslash \ A \\ [0.5ex]
 			Process definition & P := Q & P ::= Q \\ [0.5ex]
-			Process reference & P := e -> P & P ::= e \texttt{-{}-}> ProcRef ``P'' \\ [0.5ex]
+			Process name & P & ProcRef ``P'' \\ [0.5ex]
 			\hline
 		\end{tabular}
 	\end{center}
@@ -137,9 +139,9 @@ This structure can be translated into Coq as a single constructor in the SOS rel
 	\coqdocvar{S} \# (\coqdocvar{a} \texttt{-{}-}> \coqdocvar{P}) // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P}\coqdoceol
 \end{coqdoccode}
 
-As far as the notation goes, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process $ a \ \texttt{-{}-}> P $, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, the resulting process is $ P $.
+As far as the notation goes, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process \emph{a -{}-> P}, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, resolves to $ P $.
 
-Consider the following examples of constructors from the SOS relation. They refer to the external choice and alphabetized parallelism operations respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics, as explained in \autoref{subsection:sos}. However, the definitions we are about to discuss only consider two of these rules: one that evaluates the external choice to the left side operand, and the joint step rule of the alphabetized parallelism operation, that represents the synchronization event between the processes.
+Consider the following examples of constructors from the SOS relation. They refer to the external choice and alphabetized parallelism operations respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics, as explained in \autoref{subsection:sos}. However, the definitions we are about to discuss only consider two of these rules: one that evaluates the external choice to the left-hand side operand, and the joint step rule of the alphabetized parallelism operation, that represents the synchronization event between the processes.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -185,7 +187,7 @@ which translates into the logical proposition
 
 In this statement, we can see that the first term corresponds to the side condition of the inference rule, which guarantees that the event in question is not the internal event $ \tau $. The second term is the main premise of the rule, ensuring that it is possible for the event $ a $ to evolve the process $ P $ into $ P' $ in the specification $ S $. Together, the side condition and hypothesis establish the necessary conditions to resolve the external choice operation to the left hand operand.
 
-Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processE  on the left and right side of the parallelism operator can communicate the event.
+Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processes to the left and to the right of the parallelism operator can communicate the event.
 
 \begin{prooftree}
 	\AxiomC{$ P \trans(2)[a] P' $}
@@ -199,11 +201,11 @@ The side condition and the premises are rewritten in the inductive definition as
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdocvar{set\_In} \coqdocvar{a} (\coqdocvar{set\_inter} \coqdocvar{event\_dec} \coqdocvar{A} \coqdocvar{B}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{1.00em}
+	\coqdocnoindent
 	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{1.00em}
+	\coqdocnoindent
 	(\coqdocvar{S} \# \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{Q'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{1.00em}
+	\coqdocnoindent
 	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
 \end{coqdoccode}
 
@@ -266,10 +268,6 @@ Let \coqdocvar{compute\_ltsR} be the function yielded by this algorithm, the fol
 	\coqdocnoindent
 	\coqdockw{Compute} \coqdocvar{compute\_ltsR} \coqdocvar{SPEC} ``P'' 1000.\coqdoceol
 \end{coqdoccode}
-
-\begin{flushleft}
-	Output:
-\end{flushleft}
 
 \begin{tabbing}
 	\hspace*{2.5em}\= \hspace*{2em} \= \kill
@@ -475,9 +473,8 @@ Like the other types of CSP language we have discussed so far in this work, the 
 	\coqdockw{Definition} \coqdocvar{trace} := \coqdocvar{list} \coqdocvar{event}.\coqdoceol
 \end{coqdoccode}
 
-After defining this type, we can then declare trace as a relationship between a process P and a list of events L, so that it is possible to make logical propositions that involve whether or not L is a trace of P. Initially, we can describe four rules of inference that govern this relationship:
+After defining this type, we can then declare trace as a relationship between a process P and a list of events L, so that it is possible to make logical propositions that involve whether or not L is a trace of P. Initially, we can describe four inference rules that define this relation:
 
-% inserir regras de inferência na notação de barra
 \begin{itemize}
 	\item the empty list is a trace of any process;
 	\begin{prooftree}
@@ -497,13 +494,15 @@ After defining this type, we can then declare trace as a relationship between a 
 		\AxiomC{$ \mathit{trace} \ Q \ L $}
 		\BinaryInfC{$ \mathit{trace} \ P \ L $}
 	\end{prooftree}
-	\item a list L is a trace of a process P if $ \tau $ can be performed by P and L is a trace of the process resulting from this communication.
+	\item similarly, a list L is a trace of a process P if $ \tau $ can be performed by P and L is a trace of the process resulting from this communication.
 	\begin{prooftree}
 		\AxiomC{$ P \trans[\tau] Q $}
 		\AxiomC{$ \mathit{trace} \ Q \ L $}
 		\BinaryInfC{$ \mathit{trace} \ P \ L $}
 	\end{prooftree}
 \end{itemize}
+
+To illustrate this concept, consider once again our process MACHINE, whose LTS is represented by the graph in \autoref{image:machine_lts}. One can easily verify, using that image, that the sequence of events <cash, ticket, change> is a trace of that process. First, the process communicates the internal event $ \tau $ twice, in order to unfold both sides of the parallel combination. Then, it proceeds to communicate the event cash, as the joint step of the process MACHINE components (processes TICKET and CHANGE). Finally, the left-hand side of the process compound may communicate first, performing the event ticket; followed by event change, communicated by the right-hand side of the operator. Remember that a trace consists of externally visible events only, therefore the first two communicated events, which both happen to be $ \tau $, do not appear in the trace.
 
 Now, our knowledge of inductive declaration in Coq will be useful once again to embed these rules in the tool -- each one of these can be translated into a constructor from the \coqdocvar{traceR'} definition:
 
@@ -551,7 +550,7 @@ Now, our knowledge of inductive declaration in Coq will be useful once again to 
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-One might notice that the inference rules described above, in the order they were presented, correspond, respectively, to the constructors \coqdocvar{empty\_trace\_rule,} \coqdocvar{event\_trace\_rule}, \coqdocvar{tick\_trace\_rule}, and \coqdocvar{tau\_trace\_rule} of the \coqdocvar{traceR'} inductive definition.
+Note that the inference rules described above, in the order they were presented, correspond, respectively, to the constructors \coqdocvar{empty\_trace\_rule,} \coqdocvar{event\_trace\_rule}, \coqdocvar{tick\_trace\_rule}, and \coqdocvar{tau\_trace\_rule} of the \coqdocvar{traceR'} inductive definition.
 
 This definition of trace as a relation, as well as the definition of operational semantics in the SOS style, allows us not only to make assertions like \emph{traceR S ``P'' L}, given a specification $ S $, a process $ P $ and a list of events $ L $, but also prove them in Coq by applying the constructors from the inductive declarations available.
 
@@ -649,7 +648,7 @@ The following definition uses the Ltac language to describe this algorithm as a 
 	\coqdocindent{1.00em}
 	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{SKIP} // \coqdocvar{Tick} ==> \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{apply} \coqdocvar{success\_termination\_rule}\coqdoceol
 	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\not=} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{unfold} \coqdocvar{not}; \coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} "H" \coqdoctac{in} (\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{inversion} \coqdocvar{H})\coqdoceol
+	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\not=} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{unfold} \coqdocvar{not}; \coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} ``H'' \coqdoctac{in} (\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{inversion} \coqdocvar{H})\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} = \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{reflexivity}\coqdoceol
 	\coqdocindent{1.00em}
@@ -665,6 +664,17 @@ The following definition uses the Ltac language to describe this algorithm as a 
 	\coqdockw{Ltac} \coqdocvar{solve\_trace} := \coqdoctac{unfold} \coqdocvar{traceR}; \coqdoctac{simpl}; \coqdocvar{solve\_trace'}.\coqdoceol
 \end{coqdoccode}
 
+The following proof revisits the trace example we discussed earlier in this section. Using our tactic macro \coqdocvar{solve\_trace}, we can automatically prove that the list of events <cash, ticket, change> is indeed a trace of the process MACHINE (\autoref{image:machine_lts}):
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Example} \coqdocvar{MACHINE\_TRACE} :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{traceR} \coqdocvar{PARKING\_PERMIT\_MCH} ``MACHINE'' [``cash'' ; ``ticket'' ; ``change''].\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}. \coqdocvar{solve\_trace}. \coqdockw{Qed}.\coqdoceol
+\end{coqdoccode}
+
 Provided the definitions we presented so far, we can finally formulate in Coq the concept of refinement according to the traces model, along with an appropriate notation for this relationship:
 
 \begin{coqdoccode}
@@ -677,7 +687,7 @@ Provided the definitions we presented so far, we can finally formulate in Coq th
 	\coqdockw{Notation} ``S '\#' P '[T=' Q'' := (\coqdocvar{trace\_refinement} \coqdocvar{S} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
 \end{coqdoccode}
 
-As we saw in the \autoref{subsection:traces-refinement} of the previous chapter, this definition ensures that an implementation Q refines a specification P according with the traces model if every trace of Q is also a trace of P.
+As we learned in \autoref{subsection:traces-refinement} of the previous chapter, this definition ensures that an implementation Q refines a specification P, according to the traces model, if, and only if, every trace of Q is also a trace of P.
 
 % ---
 \subsection{QuickChick integration}
@@ -769,7 +779,21 @@ In order to create the checker, first we need to define a generator of random in
 
 This generator operates as follows: while the third parameter is greater than zero, decide -- based on probability -- whether the generation should stop; in case it should continue, generate a transition from the current state of the process, decreasing the argument that limits the trace size; call the generator recursively, passing the state reached by the  transition generated in the previous step; finally, return the concatenation of the event from this transition with the result of the recursive call. The function \coqdocvar{freq\_} is responsible for making the probabilistic choice. In our case, the option to end the generation before reaching the limit has $ ((1 / (size + 1)) * 100)\% $ chance to happen, while continuing with the generation has the probability of $ ((size / (size + 1)) * 100)\% $.
 
-This definition, on the other hand, depends on another generator of random input: \coqdocvar{gen\_valid\_trans}. This generator receives a specification and a process body, and returns a list containing exactly one valid transition from the given state, where the transition is represented by the pair (action, target\_state):
+The command that samples traces according to the generator we defined, as well as the output of this sampling process are exemplified bellow:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{Sample} (\coqdocvar{gen\_valid\_trace} \coqdocvar{PARKING\_PERMIT\_MCH} ``MACHINE'' 10).\coqdoceol
+\end{coqdoccode}
+
+\begin{tabbing}
+	\emph{Output:}\\
+	\emph{[Some []; Some [``cash''; ``change''; ``ticket''; ``cash''; ``change''];}\\
+	\emph{Some [``cash'']; Some [``cash''; ``ticket''; ``change''; ``cash'']; Some [];}\\
+	\emph{Some [``cash''; ``change''; ``ticket''; ``cash'']; Some [``cash''; ``change''; ``ticket'']; $\dots$]}
+\end{tabbing}
+
+This definition, however, depends on another generator of random input: \coqdocvar{gen\_valid\_trans}. This generator receives a specification and a process body, and returns a list containing exactly one valid random transition from the given state, where the transition is represented by the pair (action, target\_state):
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -792,11 +816,25 @@ This definition, on the other hand, depends on another generator of random input
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
+The following lines in Coq exemplify the usage of this function that generates valid transitions:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{Sample} (\coqdocvar{gen\_valid\_trans} \coqdocvar{PARKING\_PERMIT\_MCH}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{ProcRef} ``TICKET'' [[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]] 	\coqdocvar{ProcRef} ``CHANGE'')).\coqdoceol
+\end{coqdoccode}
+
+\begin{tabbing}
+	\emph{Output:}\\
+	\emph{[Some [($ \tau $,TICKET [{ticket, cash} || {change, cash}] cash $ \rightarrow $ change $ \rightarrow $ CHANGE)];}\\
+	\emph{Some [($ \tau $,cash $ \rightarrow $ ticket $ \rightarrow $ TICKET [{ticket, cash} || {change, cash}] CHANGE)]; $\dots$]}
+\end{tabbing}
+
 Note that, since this generator also computes transitions in which $ \tau $ and $ \tick $ may appear as actions, it is necessary to hide them, so that the generated trace does not consider such non-external events. The generator \coqdocvar{gen\_valid\_trace} does so by concatenating only external events to the list that will be returned at the end of the computation.
 
-Once the random trace generator is defined, we need an executable property to evaluate these inputs when applied to another process. In other words, we need a computable function to check whether the trace generated from an ``Imp'' process is also a trace of a ``Spec'' process. The idea behind this function is to try to make progress with the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ or $ \tick $ for the sequence of events to be accepted by the process:
+Once the random trace generator is defined, we need an executable property to evaluate these inputs when applied to another process. In other words, we need a computable function to check whether the trace generated from a process \emph{Imp} is also a trace of a process \emph{Spec}. The idea behind this function is to try to make progress with the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ or $ \tick $ for the sequence of events to be accepted by the process:
 
-% inserir check_trace' + check_trace + traceP
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Fixpoint} \coqdocvar{check\_trace'}\coqdoceol
@@ -931,9 +969,9 @@ Once the random trace generator is defined, we need an executable property to ev
 \end{coqdoccode}
 
 
-The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events, or to the internal event, or the termination event. Then, we try to make progress with each of these valid events, performing a recursive call with each target state obtained from the transitions in the previous step, removing the corresponding event from the list when applicable -- that is, except $ \tau $ and $ \tick $. If any of the recursive call empties the list of events, then this list is indeed a trace of the process. On the other hand, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
+The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events, or the internal event, or the termination event. Then, we try to make progress with each of these valid events, performing a recursive call with each target state obtained from the transitions in the previous step, removing the corresponding event from the list when applicable -- that is, except $ \tau $ and $ \tick $. If any of the recursive call empties the list of events, then this list is indeed a trace of the process. On the other hand, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
 
-Provided these definitions, we can then declare the refinement property checker. This checker tests whether any trace of an implementation process, generated randomly by the function \coqdocvar{gen\_valid\_trace}, is also a trace of a specification process. Since it is, ultimately, a testing solution, we are only interested in counterexamples, which prove that in fact the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere ``tendency'' -- best-case scenario -- and therefore they do not count as proofs of the truthfulness of the assertion made.
+Provided these definitions, we can then declare the refinement property checker. This checker tests whether every randomly generated trace of an implementation process is also a trace of a specification process:
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -949,3 +987,51 @@ Provided these definitions, we can then declare the refinement property checker.
 	\coqdocindent{2.00em}
 	\coqdocvar{forAll} (\coqdocvar{gen\_valid\_trace} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{trace\_max\_size}) (\coqdocvar{traceP} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{fuel}).\coqdoceol
 \end{coqdoccode}
+
+In order to see the checker \coqdocvar{trace\_refinement\_checker} in action, consider the following \CSPcoq{} specification:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{EXAMPLE} : \coqdocvar{specification}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}.\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdocvar{Build\_Spec}\coqdoceol
+	\coqdocindent{3.00em}
+	[ \coqdocvar{Channel} \{\{``a'', ``b'', ``c''\}\} ]\coqdoceol
+	\coqdocindent{3.00em}
+	[ ``P'' ::= ``a'' -{}-> ``b'' -{}-> \coqdocvar{ProcRef} ``P'' ;\coqdoceol
+	\coqdocindent{4.00em}
+	``Q'' ::= (``a'' -{}-> ``b'' -{}-> \coqdocvar{ProcRef} ``Q'') [] (``c'' -{}-> \coqdocvar{STOP}) ]\coqdoceol
+	\coqdocindent{1.00em}
+	).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Defined}.\coqdoceol
+\end{coqdoccode}
+
+Now, we may want to check whether ``Q'' trace-refines ``P'', that is, if every trace of ``Q'' is also a trace of ``P''. For that, we invoke our checker with the command \coqdocvar{QuickChick}, passing 5 as the maximum trace size and the arbitrary integer 1000 as the fuel argument:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{QuickChick} (\coqdocvar{trace\_refinement\_checker} \coqdocvar{EXAMPLE} ``Q'' ``P'' 5 1000).\coqdoceol
+\end{coqdoccode}
+
+\begin{tabbing}
+	\emph{Some [``c'']} \\
+	\emph{*** Failed after 3 tests and 0 shrinks. (0 discards)}
+\end{tabbing}
+
+As we are told by the message above, QuickChick performed 3 tests before running into a trace that invalidates the refinement relation, proving that ``Q'' does not trace-refine ``P''. We can verify this with the provided counterexample -- [``c''] is a trace of process ``Q'', but it is not a trace of ``P''. On the other hand, notice that the process ``Q'' is actually refined by ``P'' (i.e. ``P'' trace-refines ``Q''). We will not be able to prove that statement with our checker though. Instead, it may only lead us to believe that the relation holds, since QuickChick is not able to provide us with any counterexample after executing 10000 tests.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdocvar{QuickChick} (\coqdocvar{trace\_refinement\_checker} \coqdocvar{EXAMPLE} ``P'' ``Q'' 5 1000).\coqdoceol
+\end{coqdoccode}
+
+\begin{tabbing}
+	\emph{+++ Passed 10000 tests (0 discards)}
+\end{tabbing}
+
+Therefore, since this method is, ultimately, a testing solution, we are only interested in counterexamples, which actually prove that the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere indication at best, thus they do not count as proofs for the assertions made. In other words, this refinement-checking approach is sound (if the checked property does not hold, we do not have a trace refinement), but it is not complete (if the checked property holds, we can not guarantee whether it is a trace refinement).

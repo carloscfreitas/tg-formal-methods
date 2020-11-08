@@ -8,9 +8,9 @@
 	]{abntex2}
 
 % ---
-% Pacotes básicos 
+% Pacotes básicos
 % ---
-\usepackage{lmodern}			% Usa a fonte Latin Modern			
+\usepackage{lmodern}			% Usa a fonte Latin Modern
 \usepackage[T1]{fontenc}		% Selecao de codigos de fonte.
 \usepackage[utf8]{inputenc}		% Codificacao do documento (conversão automática dos acentos)
 \usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
@@ -74,9 +74,9 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% --- 
+% ---
 % CONFIGURAÇÕES DE PACOTES
-% --- 
+% ---
 
 % ---
 % Configurações do pacote backref
@@ -110,8 +110,8 @@
   \par
   Bachelor in Computer Engineering}
 \tipotrabalho{Monografia (Bacharelado)}
-% O preambulo deve conter o tipo do trabalho, o objetivo, 
-% o nome da instituição e a área de concentração 
+% O preambulo deve conter o tipo do trabalho, o objetivo,
+% o nome da instituição e a área de concentração
 \preambulo{
 	A B.Sc. Dissertation presented to the Centro de Informática of
 	Universidade Federal de Pernambuco in partial fulfillment of the requirements
@@ -130,11 +130,11 @@
 \makeatletter
 \hypersetup{
      	%pagebackref=true,
-		pdftitle={\@title}, 
+		pdftitle={\@title},
 		pdfauthor={\@author},
     	pdfsubject={\imprimirpreambulo},
 	    pdfcreator={LaTeX with abnTeX2},
-		pdfkeywords={abnt}{latex}{abntex}{abntex2}{trabalho acadêmico}, 
+		pdfkeywords={abnt}{latex}{abntex}{abntex2}{trabalho acadêmico},
 		colorlinks=true,       		% false: boxed links; true: colored links
     	linkcolor=blue,          	% color of internal links
     	citecolor=blue,        		% color of links to bibliography
@@ -143,7 +143,7 @@
 		bookmarksdepth=4
 }
 \makeatother
-% --- 
+% ---
 
 % ---
 % Posiciona figuras e tabelas no topo da página quando adicionadas sozinhas
@@ -153,9 +153,9 @@
 \makeatother
 % ---
 
-% --- 
-% Espaçamentos entre linhas e parágrafos 
-% --- 
+% ---
+% Espaçamentos entre linhas e parágrafos
+% ---
 
 % O tamanho do parágrafo é dado por:
 \setlength{\parindent}{1.3cm}
@@ -184,7 +184,7 @@
 \selectlanguage{english}
 
 % Retira espaço extra obsoleto entre as frases.
-\frenchspacing 
+\frenchspacing
 
 % ----------------------------------------------------------
 % ELEMENTOS PRÉ-TEXTUAIS
@@ -226,7 +226,7 @@
 \begin{resumo}[Resumo]
  \begin{otherlanguage*}{brazil}
    Teorias de concorrência tais como \emph{Communicating Sequential Processes} (CSP) permitem que especificações de sistemas sejam descritas com clareza e analisadas com precisão. No entanto, o problema da explosão de estados, comum aos verificadores de modelo em geral, é uma limitação real na tentativa de verificar propriedades de um sistema complexo. Uma alternativa é garantir essas propriedades através do desenvolvimento de provas. Este trabalho fornecerá uma abordagem sobre como se pode desenvolver uma teoria de CSP no assistente de provas Coq, além de compará-la com outros frameworks baseados em provadores de teoremas para  a álgebra de processos CSP. Portanto, será implementada uma infraestrutura para declarar especificações sintatica e semanticamente corretas de CSP em Coq, juntamente com um suporte nativo para a representação de processos por meio de Sistemas de Transições Rotuladas (LTSs), além de análise de refinamento no modelo de \emph{traces}.
-    
+
    \textbf{Palavras-chave}: Álgebra de processos. LTS. Refinamento no modelo de \emph{traces}. CSP. Assistente de provas. Coq. QuickChick.
  \end{otherlanguage*}
 \end{resumo}
@@ -255,6 +255,7 @@
 	\item[FDR] Failures-Divergence Refinement
 	\item[LTS] Labelled Transition System
 	\item[SOS] Structured Operational Semantics
+	\item[UTP] Unified Theories of Programming
 \end{siglas}
 % ---
 
