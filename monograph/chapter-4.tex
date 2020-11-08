@@ -4,25 +4,58 @@
 \chapter{Conclusions}
 % ---
 
-In this work, we embedded a subset of the CSP language in the Coq proof assistant, giving rise to the language entitled \CSPcoq{}. The abstract syntax was described through inductive types, while the concrete language relies on the concept of notations. In addition, the inductive declaration that defines operational semantics in the SOS style was also presented.
+In this work, we embedded a subset of the CSP language in the Coq proof assistant, giving rise to the language entitled \CSPcoq{}. The abstract syntax was described through inductive types, while the concrete syntax relies on the concept of notations. In addition, the inductive declaration that defines operational semantics in the SOS style was also presented. The concept of LTS was represented both in an inductive and functional approach, supporting a third-party tool that allows a custom graphic visualization of this structure.
 
-The concept of LTS was represented both in an inductive and functional approach, supporting a third-party tool that allows a custom graphic visualization of this structure. Finally, the notion of the trace of a process was declared, along with a tactic macro that automates the proof of this relation. These accomplishments led to the definition of the refinement relation according to the traces model, in addition to the implementation of two generators and one checker for this property, in order to test it using a property-based random testing plugin.
+Finally, the notion of the trace of a process was declared, along with a tactic macro that automates the proof of this relation. These accomplishments led to the definition of the refinement relation according to the traces model, in addition to the implementation of two generators and one checker for this property, in order to test it using a property-based random testing plugin.
 
 % ---
 \section{Related work}
 % ---
 
+% Comentar a existência de trabalhos relacionados, mencionando CSP-Prover e Isabelle/UTP.
+Several studies have shown how to embed the theories of many CSP models in theorem proving tools such as Isabelle \cite{Paulson:Isabelle}, and then prove both the laws of CSP in general and other coherency properties of the definitions of CSP operators over the models. In particular, we want to discuss two implementations that share the same motivation of this work: the CSP-Prover \cite{Roggenbach:CSP-Prover} and Isabelle/UTP verification toolbox \cite{Woodcock:Isabelle/UTP}.
+
+% CSP-Prover
+CSP-Prover is an interactive theorem prover dedicated to refinement proofs within CSP based on Isabelle. It focuses on the stable failures model $ \fmodel $ as the underlying denotational semantics of CSP, including the CSP traces model $ \tmodel $ as a by-product. Consequently, CSP-Prover contains the definitions of CSP syntax and semantics, and semi-automatic proof tactics for verification of refinement relation.
+
+% Isabelle/UTP
+Isabelle/UTP is an implementation of Hoare and He's \emph{Unifying Theories of Programming} framework based in Isabelle/HOL. UTP is a framework for construction of denotational semantic meta-models for a variety of programming languages based on an alphabetized relational calculus. This implementation can be used to formalize semantic building blocks for programming language paradigms, prove algebraic laws of programming, and then use these laws to construct program verification tools.
+
+The \autoref{tab:framework_comparison} provides a comparison between the framework we developed, the CSP-Prover, and the Isabelle/UTP, highlighting the main features shared by these implementations:
+
+\begin{table}[htb]
+	\begin{center}
+		\caption[A feature comparison between \CSPcoq{} and related work]{A feature comparison between \CSPcoq{} and related work.}
+		\label{tab:framework_comparison}
+		\begin{tabular}{ |l|c|c|c| }
+			\hline
+			Feature & \CSPcoq{} & CSP-Prover & Isabelle/UTP \\
+			\hline
+			CSP Dialect & Partial & Complete & Complete \\ [0.5ex]
+			Operational semantics & Structured & Not Available & Relational \\ [0.5ex]
+			Denotational semantics (model) & Traces & Stable failures/Traces & Not Available \\ [0.5ex]
+			LTS representation & Available & Not available & Not Available \\ [0.5ex]
+			Trace relation tactics & Available & Not Available & Not Available \\ [0.5ex]
+			Refinement relation tactics & Not Available & Available & Available \\ [0.5ex]
+			Random testing (refinement) & Available & Not Available & Not Available \\ [0.5ex]
+			\hline
+		\end{tabular}
+	\end{center}
+\end{table}
+
+From the table above, we are able to conclude that the main advantages of \CSPcoq{} over others embedding of CSP theory in theorem proving tools mentioned here is its emphasis on the traces model as well as the LTS representation support, enabling the user to check a list of events for being a trace of a process, solving the trace relation proof automatically, and generating a graph of the LTS of a process.
+
 % ---
 \section{Future work}
 % ---
 
-The topics listed below describe relevant activities that expand the work described in this monograph:
+The topics listed below describe relevant activities that extend the work we developed:
 \begin{itemize}
 	\item Extend the language \CSPcoq{} to include the remaining CSP operators. The theory of CSP, as well as the ASCII version of the language, contemplates more advanced concepts such as parameterized processes and operations like event renaming, interruption, exception, among others. It is necessary to include these concepts in order to leverage the framework developed.
 	\item Prove that for every process $ P $, there is a list of transitions $ L $ such that if \emph{ltsR S P L}, then there is natural $ n $ such that \emph{compute\_ltsR S P n = Some L}. This proof guarantees the completeness of the definition \emph{compute\_ltsR}, and that is, every set of transitions that characterize the LTS of a process is computable from this definition.
 	\item Define the tactic macro that automatically proves if the \emph{ltsR} relation holds for a given process. The proof for the ltsR relation can be long, and they usually follow a well-defined pattern. Creating a tactic macro would simplify tasks like checking if a set of transitions is indeed the LTS of a process.
 	\item Formalize the concept of a extended trace, say \emph{extended\_traceR}, including the events $ \tau $ and $ \tick $; relate \emph{traceR} and \emph{extended\_traceR}; create tactic macro that automates the proofs for the new \emph{extended\_traceR} relation. A trace, by definition, does not include the events $ \tau $ and $ \tick $, which may sometimes simplify the actual behavior of a process. Therefore, an extended definition of trace would expose these suppressed communications.
-	\item Implement verification of forbidden use of recursion in the context of hiding and parallelism operations. These operations, when appearing in a process recursion, introduce the issue of accumulated operators. For instance, the process definition $ P = (a \rightarrow P) \ \textbackslash \ \{a\} $, although syntactically correct, generates a new state in the LTS of the process $ P $ every time $ P $ is unfolded, due to the addition of one more hiding operation to the process body: $ (a \rightarrow P) \ \textbackslash \ \{a\} \trans[a] ((a \rightarrow P) \ \textbackslash \ \{a\}) \ \textbackslash \ \{a\} \trans[a] (((a \rightarrow P) \ \textbackslash \ \{a\}) \ \textbackslash \ \{a\}) \ \textbackslash \ \{a\} \trans[a] \ \dots$
+	\item Implement verification of forbidden use of recursion in the context of hiding and parallelism operations. These operations, when appearing in a process recursion, introduce the issue of accumulated operators. For instance, the process definition $ P = (a \rightarrow P) \ \textbackslash \ \{a\} $, although syntactically correct, generates a new state in the LTS of the process $ P $ every time $ P $ is unfolded in the body, due to the addition of one more hiding operation to the process body: $ (a \rightarrow P) \ \textbackslash \ \{a\} \trans[a] ((a \rightarrow P) \ \textbackslash \ \{a\}) \ \textbackslash \ \{a\} \trans[a] (((a \rightarrow P) \ \textbackslash \ \{a\}) \ \textbackslash \ \{a\}) \ \textbackslash \ \{a\} \trans[a] \ \dots$
 	\item Define traces refinement in terms of a bi-simulation. The notion of strong bi-simulation is, in order to be equivalent, two processes must have the same set of events available immediately, with these events leading to processes that are themselves equivalent. Since it is virtually impossible to implement a function that enumerates all traces of a process -- so that we could use it to make assertions about a refinement statement -- this equivalence over LTS would be the proper way to achieve this goal.
 	\item Compress the generated LTS, removing intermediate $ \tau $'s. The process unwind and sequential composition operations introduce the communication of the internal event $ \tau $ as a way to take into account the ``effort'' of unfolding a process body inside another. Omitting these communications may, not only reduce the LTS size, but also make it more simple to spot equivalent process by looking at their LTS's.
 	\item Prove that for all transition lists $ L1 $ and $ L2 $, if \emph{ltsR S P L1} and \emph{ltsR S P L2}, then $ L1 $ is a permutation of $ L2 $. Since our definition of LTS is based on a list of transitions instead of a set, this proof would guarantee that there aren't two lists of transitions with different elements that consists of the LTS of the same process. In other words, this would prove the uniqueness of the transition set of a LTS.

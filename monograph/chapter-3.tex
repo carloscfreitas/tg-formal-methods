@@ -5,7 +5,9 @@
 \label{chapter:csp_coq}
 % ---
 
-The \autoref{chapter:background} provided an overview of the essential concepts for understanding the implementation of the \CSPcoq{} language, setting the scene for an in-depth explanation of the language developed in this work. That being said, \autoref{chapter:csp_coq} will explain how each of these concepts combined together made it possible to develop a theory of communicating sequential processes in Coq proof assistant. The \autoref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas \autoref{section:sos} explains how the SOS style of defining language semantics translates into Coq as an inductive declaration. Furthermore, \autoref{section:lts} provides details on both functional and inductive definitions of LTS, along with further explanation on the GraphViz software integration. Finally, \autoref{section:traces} guides the reader through the definition of traces refinement as an executable property and also presents randomized testing based on this property using QuickChick plugin.
+The \autoref{chapter:background} provided an overview of the essential concepts for understanding the implementation of the \CSPcoq{} language, setting the scene for an in-depth explanation of the language developed in this work. That being said, \autoref{chapter:csp_coq} will explain how each of these concepts combined together made it possible to develop a theory of communicating sequential processes in Coq proof assistant.
+
+The \autoref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas \autoref{section:sos} explains how the SOS style of defining language semantics translates into Coq as an inductive declaration. Furthermore, \autoref{section:lts} provides details on both functional and inductive definitions of LTS, along with further explanation on the GraphViz software integration. Finally, \autoref{section:traces} guides the reader through the definition of traces refinement as an executable property and also presents randomized testing based on this property using QuickChick plugin.
 
 % ---
 \section{Syntax}
@@ -90,7 +92,7 @@ The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operato
 			\hline
 			Stop & STOP & STOP \\ [0.5ex]
 			Skip & SKIP & SKIP \\ [0.5ex]
-			Event prefix & e -> P & e \texttt{-{}-}> P \\  [0.5ex]
+			Event prefix & e -> P & e -{}-> P \\  [0.5ex]
 			External choice & P [] Q & P [] Q \\  [0.5ex]
 			Internal choice & P |$ \sim $| Q & P |$ \sim $| Q \\ [0.5ex]
 			Alphabetized parallel & P [A || B] Q & P [[A \textbackslash\textbackslash \ B]] Q \\ [0.5ex]
@@ -99,7 +101,7 @@ The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operato
 			Sequential composition & P ; Q & P ;; Q \\ [0.5ex]
 			Event hiding & P \textbackslash \ A & P \textbackslash \ A \\ [0.5ex]
 			Process definition & P := Q & P ::= Q \\ [0.5ex]
-			Process reference & P := e -> P & P ::= e \texttt{-{}-}> ProcRef ``P'' \\ [0.5ex]
+			Process name & P & ProcRef ``P'' \\ [0.5ex]
 			\hline
 		\end{tabular}
 	\end{center}

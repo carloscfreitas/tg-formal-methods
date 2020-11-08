@@ -758,14 +758,11 @@ The keyword \coqdockw{Conjecture} treats our property \coqdocvar{removeP} as an 
 
 The \coqdocvar{QuickChick} command takes an ``executable'' property and attempts to falsify it by running it on many randomly generated inputs, resulting in output like this:
 
-\begin{coqdoccode}
-	\coqdocnoindent
-	0 \coqdoceol
-	\coqdocnoindent
-	[0, 0] \coqdoceol
-	\coqdocnoindent
-	Failed! After 17 tests and 12 shrinks \coqdoceol
-\end{coqdoccode}
+\begin{tabbing}
+	\emph{0} \\
+	\emph{[0, 0]} \\
+	\emph{Failed! After 17 tests and 12 shrinks}
+\end{tabbing}
 
 This means that, if we run \emph{remove} with $ x $ being 0 and $ l $ being the two-element list containing two zeros, then the property \coqdocvar{removeP} fails.
 
