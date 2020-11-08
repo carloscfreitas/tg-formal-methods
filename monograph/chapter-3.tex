@@ -139,9 +139,9 @@ This structure can be translated into Coq as a single constructor in the SOS rel
 	\coqdocvar{S} \# (\coqdocvar{a} \texttt{-{}-}> \coqdocvar{P}) // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P}\coqdoceol
 \end{coqdoccode}
 
-As far as the notation goes, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process $ a \ \texttt{-{}-}> P $, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, the resulting process is $ P $.
+As far as the notation goes, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process \emph{a -{}-> P}, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, resolves to $ P $.
 
-Consider the following examples of constructors from the SOS relation. They refer to the external choice and alphabetized parallelism operations respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics, as explained in \autoref{subsection:sos}. However, the definitions we are about to discuss only consider two of these rules: one that evaluates the external choice to the left side operand, and the joint step rule of the alphabetized parallelism operation, that represents the synchronization event between the processes.
+Consider the following examples of constructors from the SOS relation. They refer to the external choice and alphabetized parallelism operations respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics, as explained in \autoref{subsection:sos}. However, the definitions we are about to discuss only consider two of these rules: one that evaluates the external choice to the left-hand side operand, and the joint step rule of the alphabetized parallelism operation, that represents the synchronization event between the processes.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -187,7 +187,7 @@ which translates into the logical proposition
 
 In this statement, we can see that the first term corresponds to the side condition of the inference rule, which guarantees that the event in question is not the internal event $ \tau $. The second term is the main premise of the rule, ensuring that it is possible for the event $ a $ to evolve the process $ P $ into $ P' $ in the specification $ S $. Together, the side condition and hypothesis establish the necessary conditions to resolve the external choice operation to the left hand operand.
 
-Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processE  on the left and right side of the parallelism operator can communicate the event.
+Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processes to the left and to the right of the parallelism operator can communicate the event.
 
 \begin{prooftree}
 	\AxiomC{$ P \trans(2)[a] P' $}
@@ -201,11 +201,11 @@ The side condition and the premises are rewritten in the inductive definition as
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdocvar{set\_In} \coqdocvar{a} (\coqdocvar{set\_inter} \coqdocvar{event\_dec} \coqdocvar{A} \coqdocvar{B}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{1.00em}
+	\coqdocnoindent
 	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{1.00em}
+	\coqdocnoindent
 	(\coqdocvar{S} \# \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{Q'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{1.00em}
+	\coqdocnoindent
 	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
 \end{coqdoccode}
 
@@ -268,10 +268,6 @@ Let \coqdocvar{compute\_ltsR} be the function yielded by this algorithm, the fol
 	\coqdocnoindent
 	\coqdockw{Compute} \coqdocvar{compute\_ltsR} \coqdocvar{SPEC} ``P'' 1000.\coqdoceol
 \end{coqdoccode}
-
-\begin{flushleft}
-	Output:
-\end{flushleft}
 
 \begin{tabbing}
 	\hspace*{2.5em}\= \hspace*{2em} \= \kill

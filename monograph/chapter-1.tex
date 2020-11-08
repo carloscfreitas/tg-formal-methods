@@ -56,11 +56,11 @@ We can declare such system in \CSPcoq{} by defining a specification, which consi
 	\coqdocindent{2.00em}
 	[ ``SYSTEM'' ::=\coqdoceol
 	\coqdocindent{3.00em}
-	``coat\_off'' --> ``store'' --> ``request\_coat'' --> ``retrieve'' --> ``coat\_on'' --> \coqdocvar{SKIP}\coqdoceol
+	``coat\_off'' -{}-> ``store'' -{}-> ``request\_coat'' -{}-> ``retrieve'' -{}-> ``coat\_on'' -{}-> \coqdocvar{SKIP}\coqdoceol
 	\coqdocindent{3.00em}
 	[| \{\{``coat\_off'', ``request\_coat'', ``coat\_on''\}\} |]\coqdoceol
 	\coqdocindent{3.00em}
-	``coat\_off'' --> ``eat'' --> ``request\_coat'' --> ``coat\_on'' --> \coqdocvar{SKIP} ]\coqdoceol
+	``coat\_off'' -{}-> ``eat'' -{}-> ``request\_coat'' -{}-> ``coat\_on'' -{}-> \coqdocvar{SKIP} ]\coqdoceol
 	\coqdocindent{1.00em}
 	).\coqdoceol
 	\coqdocnoindent
