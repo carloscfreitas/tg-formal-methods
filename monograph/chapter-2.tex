@@ -401,32 +401,32 @@ Eventually, during a proof development, one may find useful to make assertions a
 	\multicolumn{2}{r}{End of proof of Lemma negb\_involutive}\\
 	\endlastfoot
 
-	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	\multirow{2}{*}{$Proof.$} & \fracrule\linebreak
 	$forall $ $ b $ $ : $ $ bool, $ $ negb $ $ (negb $ $ b) $ $ = $ $ b$\\
 
 	\hline
-	\multirow{4}{=}{$destruct $ $ b.$} & \fracrule\linebreak
+	\multirow{4}{*}{$destruct $ $ b.$} & \fracrule\linebreak
 	$negb $ $ (negb $ $ true) $ $ = $ $ true$\\
 	\cline{2-2}
 	& \fracrule\linebreak
 	$negb $ $ (negb $ $ false) $ $ = $ $ false$\\
 
 	\hline
-	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
+	\multirow{2}{*}{$-_{1/2}$} & \fracrule\linebreak
 	$negb $ $ (negb $ $ true) $ $ = $ $ true$\\
 
 	\hline
-	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	\multirow{2}{*}{$simpl.$} & \fracrule\linebreak
 	$true $ $ = $ $ true$\\
 
 	\hline
 	$reflexivity.$ & $-_{1/2}$ completed \\
 	\hline
-	\multirow{2}{=}{$-_{2/2}$} & \fracrule\linebreak
+	\multirow{2}{*}{$-_{2/2}$} & \fracrule\linebreak
 	$negb $ $ (negb $ $ false) $ $ = $ $ false$\\
 
 	\hline
-	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	\multirow{2}{*}{$simpl.$} & \fracrule\linebreak
 	$false $ $ = $ $ false$\\
 
 	\hline
@@ -482,16 +482,16 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	\multicolumn{2}{r}{End of proof of Theorem evenb\_S}\\
 	\endlastfoot
 
-	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	\multirow{2}{*}{$Proof.$} & \fracrule\linebreak
 	$forall $ $ n $ $ : $ $ nat, $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\\
 
 	\hline
-	\multirow{3}{=}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{3}{*}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\\
 
 	\hline
-	\multirow{7}{=}{$induction $ $ n.$} & \fracrule\linebreak
+	\multirow{7}{*}{$induction $ $ n.$} & \fracrule\linebreak
 	$evenb $ $ 1 $ $ = $ $ negb $ $ (evenb $ $ 0)$\\
 	\cline{2-2}
 	& $n$$ $ $ : $ $ nat$\linebreak
@@ -500,23 +500,23 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$evenb $ $ (S $ $ (S $ $ n)) $ $ = $ $ negb $ $ (evenb $ $ (S $ $ n))$\\
 
 	\hline
-	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
+	\multirow{2}{*}{$-_{1/2}$} & \fracrule\linebreak
 	$evenb $ $ 1 $ $ = $ $ negb $ $ (evenb $ $ 0)$\\
 
 	\hline
-	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	\multirow{2}{*}{$simpl.$} & \fracrule\linebreak
 	$false $ $ = $ $ false$\\
 
 	\hline
 	$reflexivity.$ & $-_{1/2}$ completed \\
 	\hline
-	\multirow{5}{=}{$-_{2/2}$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{5}{*}{$-_{2/2}$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ (S $ $ (S $ $ n)) $ $ = $ $ negb $ $ (evenb $ $ (S $ $ n))$\\
 
 	\hline
-	\multirow{6}{=}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{6}{*}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ evenb $ $ (S $ $ n) $ $ = $ $ negb $ $ (evenb $ $ n)$\linebreak
 	\fracrule\linebreak
 	$evenb $ $ n $ $ = $ $ negb $ $ match $ $ n $ $ with
@@ -525,7 +525,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ end$\\
 
 	\hline
-	\multirow{8}{=}{$simpl $ $ in $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{8}{*}{$simpl $ $ in $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ match $ $ n $ $ with
 	$ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
 	$ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
@@ -537,7 +537,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $  $ $ end$\\
 
 	\hline
-	\multirow{7}{=}{$rewrite $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{7}{*}{$rewrite $ $ IHn.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ match $ $ n $ $ with
 	$ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
 	$ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
@@ -546,7 +546,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	$evenb $ $ n $ $ = $ $ negb $ $ (negb $ $ (evenb $ $ n))$\\
 
 	\hline
-	\multirow{6}{=}{$rewrite $ $ negb{\char`\_}involutive.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{6}{*}{$rewrite $ $ negb{\char`\_}involutive.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$IHn$$ $ $ : $ $ match $ $ n $ $ with
 	$ $  $ $  $ $ | $ $ 0 $ $ ={>} $ $ false
 	$ $  $ $  $ $ | $ $ S $ $ n{\textquotesingle} $ $ ={>} $ $ evenb $ $ n{\textquotesingle}
@@ -607,17 +607,17 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	\multicolumn{2}{r}{End of proof of Theorem ev\_minus2}\\
 	\endlastfoot
 
-	\multirow{2}{=}{$Proof.$} & \fracrule\linebreak
+	\multirow{2}{*}{$Proof.$} & \fracrule\linebreak
 	$forall $ $ n $ $ : $ $ nat, $ $ ev $ $ n $ $ -{>} $ $ ev $ $ (pred $ $ (pred $ $ n))$\\
 
 	\hline
-	\multirow{4}{=}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{4}{*}{$intros.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ n))$\\
 
 	\hline
-	\multirow{6}{=}{$destruct $ $ H.$} & \fracrule\linebreak
+	\multirow{6}{*}{$destruct $ $ H.$} & \fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ 0))$\\
 	\cline{2-2}
 	& $n$$ $ $ : $ $ nat$\linebreak
@@ -626,23 +626,23 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	$ev $ $ (pred $ $ (pred $ $ (S $ $ (S $ $ n))))$\\
 
 	\hline
-	\multirow{2}{=}{$-_{1/2}$} & \fracrule\linebreak
+	\multirow{2}{*}{$-_{1/2}$} & \fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ 0))$\\
 
 	\hline
-	\multirow{2}{=}{$simpl.$} & \fracrule\linebreak
+	\multirow{2}{*}{$simpl.$} & \fracrule\linebreak
 	$ev $ $ 0$\\
 
 	\hline
 	$apply $ $ ev{\char`\_}0.$ & $-_{1/2}$ completed \\
 	\hline
-	\multirow{4}{=}{$-_{2/2}$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{4}{*}{$-_{2/2}$} & $n$$ $ $ : $ $ nat$\linebreak
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ (pred $ $ (pred $ $ (S $ $ (S $ $ n))))$\\
 
 	\hline
-	\multirow{4}{=}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
+	\multirow{4}{*}{$simpl.$} & $n$$ $ $ : $ $ nat$\linebreak
 	$H$$ $ $ : $ $ ev $ $ n$\linebreak
 	\fracrule\linebreak
 	$ev $ $ n$\\

@@ -6,11 +6,11 @@
 
 Concurrency is an attribute of any system that allows multiple components to perform operations at the same time. The understanding of this property is essential in modern programming because major areas, such as distributed and real-time systems, rely on this concept to work properly. As a result, the variety of applications enabled by the concurrency feature is broad: aircraft and industrial control systems, routing algorithms, peer-to-peer networks, client-server applications and parallel computation, to name a few.
 
-Since concurrent systems may have parts that execute in parallel, the combination of ways in which these parts can interact raises the complexity in designing such systems. Phenomena like deadlock, livelock, nondeterminism and race condition can emerge from these interactions, so these issues must be addressed in order to avoid undesired behavior. Typically, testing cannot provide enough evidence to guarantee properties such as deadlock freedom, divergence freedom and determinism for a given system.
+Since concurrent systems may have parts that execute in parallel, the combination of ways in which these parts can interact raises the complexity in designing such systems. Phenomena like deadlock, livelock, nondeterminism and race condition can emerge from these interactions, so these issues must be addressed in order to avoid undesired behaviour. Typically, testing cannot provide enough evidence to guarantee properties such as deadlock freedom, divergence freedom and determinism for a given system.
 
-That being said, CSP (a theory for Communicating Sequential Processes) introduces a convenient notation that allows systems to be described in a clear and accurate way. More than that, it has an underlying theory that enables designs to be analysed and proven correct with respect to desired properties. The FDR (Failures-Divergence Refinement) tool is a model checker for CSP responsible for making this process algebra a practical tool for specification, analysis and verification of systems. System analysis is achieved by allowing the user to make assertions about processes and then exploring every possible behavior, if necessary, to check the truthfulness of the assertions made.
+That being said, CSP, a theory for Communicating Sequential Processes, introduces a convenient notation that allows concurrent systems to be described in a clear and accurate way. More than that, it has an underlying theory that enables designs to be analysed and proven correct with respect to desired properties. The FDR (Failures-Divergence Refinement) tool is a refinement (model) checker for CSP responsible for making this process algebra a practical tool for specification, analysis and verification of systems. System analysis is achieved by allowing the user to make assertions about processes and then exploring every possible behavior, if necessary, to check the truthfulness of the assertions made.
 
-Although it is undeniable that FDR is a useful tool in the analysis of systems described in CSP, it has a limitation common to standard model checkers in general: the state explosion problem. An alternative way for deciding whether a system meets its specification is by proof development. Examples of this different approach are CSP-Prover and Isabelle/UTP, both frameworks based on the theorem prover Isabelle. Nevertheless, to the best of our knowledge, there is not a theory for CSP in the Coq proof assistant yet. Considering that, the main research question of this work is the following: how could we develop a theory of CSP in Coq, exploiting the main advantages of this proof assistant?
+Although it is undeniable that FDR is a useful tool in the analysis of systems described in CSP, it has a limitation that is common to standard model checkers in general: the state explosion problem. An alternative way for deciding whether a system meets its specification is by proof development. Examples of this different approach are CSP-Prover~\cite{Roggenbach:CSP-Prover} and Isabelle/UTP~\cite{Woodcock:Isabelle/UTP}, both frameworks based on the theorem prover Isabelle. Nevertheless, to the best of our knowledge, there is not a theory for CSP in the Coq proof assistant yet. Considering that, the main research question of this work is the following: how could we develop a theory for CSP in Coq, exploiting the main advantages of this proof assistant?
 
 % ---
 \section{Objectives}
@@ -29,8 +29,8 @@ The main objective (MO) of this work is to define in Coq a theory for concurrent
 \section{An overview of \CSPcoq{}}
 % ---
 
-
-Consider the following CSP process adapted from \citeonline[p.~32, example 2.3]{schneider1999}. This process represents a cloakroom attendant that might help a costumer off or on with his coat, storing an retrieving coats as appropriate:
+To illustrate \CSPcoq{}, our dialect of CSP in Coq, consider the following CSP process, which has been adapted from \citeonline[p.~32, example 2.3]{schneider1999}. This process represents a cloakroom attendant that might help a costumer off or on with his coat, storing and retrieving coats as appropriate.
+%
 \begin{align}
 	\mathit{channel\ coat\_on, coat\_off, store, retrieve, request\_coat, eat}\notag
 \end{align}
@@ -40,7 +40,9 @@ Consider the following CSP process adapted from \citeonline[p.~32, example 2.3]{
 	  		 &\mathit{coat\_off \mathbin{{-}{>}} eat \mathbin{{-}{>}} request\_coat \mathbin{{-}{>}} coat\_on \mathbin{{-}{>}} SKIP}\notag
 \end{align}
 
-We can declare such system in \CSPcoq{} by defining a specification, which consists in lists of channels and processes. This specification must also abide by a set of contextual rules that will be discussed further in this work.
+The system comprises six possible events (\emph{coat\_on}, \emph{coat\_off}, among others), and its behaviour is described by the parallel synchronisation of the attendant's and the costumer's behaviours, requiring that they need to synchronise on the execution of the following events: \emph{coat\_off}, \emph{request\_coat}, and \emph{coat\_on}. Regarding the other events, the attendant and the costumer are free to perform them as they wish.
+
+We can declare such system in \CSPcoq{} by defining a specification, which consists of lists of channels and processes. This specification must also abide by a set of contextual rules that will be discussed further in this work.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -67,17 +69,17 @@ We can declare such system in \CSPcoq{} by defining a specification, which consi
 	\coqdockw{Defined}.\coqdoceol
 \end{coqdoccode}
 
-Furthermore, we can execute the following command to compute the process LTS and output the graph in dot language:
+As one can see, the main syntax of \CSPcoq{} is close that of \CSPM{}. It is also important to emphasise that the tactic \emph{solve\_spec\_ctx\_rules} proves the aforementioned contextual rules with no user intervention (automatically). Furthermore, we can execute the following command to compute the process LTS and output the corresponding graph in the dot language:
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{example} ``SYSTEM'' 100).\coqdoceol
 \end{coqdoccode}
 
-The \autoref{lts-example} is a visual representation of the graph outputted by this command. The image is generated using GraphViz software.
+\autoref{lts-example} is a visual representation of the graph outputted by this command. The image is generated using the GraphViz software. The red circle denotes the starting node, and the edges are labelled by the performed events.
 
 \begin{figure}[htb]
-	\caption[The process LTS graph]{The process LTS graph.}
+	\caption[The LTS for the cloakroom example]{The LTS for the cloakroom example}
 	\label{lts-example}
 	\begin{center}
 		\includegraphics[scale=0.5]{images/LTS.pdf}
@@ -88,28 +90,28 @@ The \autoref{lts-example} is a visual representation of the graph outputted by t
 \section{Main contributions}
 % ---
 
-The main contributions of this work are the following:
+The main contribution of this work is an initial formalisation of CSP in Coq (\CSPcoq{}), which takes into account the following aspects:
 
 \begin{itemize}
-	\item Abstract and concrete syntax for a subset of CSP operators.
-	\item Context rules for CSP specifications.
-	\item Operational semantics via SOS approach.
-	\item Inductive and functional definitions of a labelled transition system.
-	\item Proof of correctness for the functional definition of the LTS.
+	\item Abstract and concrete syntaxes for a subset of CSP operators.
+	\item Contextual rules for CSP specifications.
+	\item Proof automation for checking contextual rules.
+	\item Operational semantics via the SOS approach.
+	\item Inductive and functional definitions of labelled transition systems.
 	\item Inductive and functional definitions of traces.
-	\item Proof of correctness for the functional definition of traces.
-	\item Tactic macro that automates trace relation proofs.
-	\item Formal definition of the traces refinement.
-	\item Refinement verification using QuickChick.
+	\item Proof automation for checking whether a list of events is a valid trace.
+	\item Formal definition of traces refinement.
+	\item Traces refinement verification using QuickChick.
 \end{itemize}
 
 % ---
 \section{Document structure}
 % ---
 
-Apart from this introductory chapter, in which we discuss about the motivation behind this work and its main objective, and also take a quick look at an example that illustrates what can be done using the framework developed, this monograph contains three more chapters. The content of these chapters are detailed bellow:
+Apart from this introductory chapter, in which we discuss about the motivation behind this work and its main objective, and also takes a quick look at an example that illustrates what can be done using the framework developed, this monograph contains three more chapters. The content of these chapters are detailed below:
+
 \begin{description}
-	\item [Chapter 2] Discusses fundamental concepts such as CSP theory, SOS approach, trace refinement and LTS representation. Moreover, this chapter introduces the Coq proof assistant and its functional language Gallina, along with an introduction to proof development (tactics) and the Ltac language inside this tool, which gives support for developing tactic macros.
-	\item [Chapter 3] Provides an in-depth look at the implementation of \CSPcoq{}, including its abstract and concrete syntax, and language semantics. Furthermore, the LTS process representation support, using the GraphViz software, is also detailed in this chapter.
-	\item [Chapter 4] Concludes this monograph by presenting a comparison between the infrastructure described in this work and other interactive theorem provers based on CSP. It also addresses possible topics for future work.
+	\item [Chapter 2] Discusses fundamental concepts such as the CSP theory, the SOS approach, trace refinement and LTS representation. Additionally, this chapter introduces the Coq proof assistant and its functional language Gallina, along with an introduction to proof development (tactics) and the Ltac language, which gives support for proof automation.
+	\item [Chapter 3] Provides an in-depth look at the implementation of \CSPcoq{}, including its abstract and concrete syntaxes, in addition to the language semantics. Furthermore, the support for visualising processes as LTSs, using the GraphViz software, is also detailed in this chapter.
+	\item [Chapter 4] Concludes this monograph by presenting a comparison between the infrastructure described in this work and related solutions based on other interactive theorem provers. It also addresses possible topics for future work.
 \end{description}
