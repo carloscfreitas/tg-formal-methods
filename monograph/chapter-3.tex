@@ -5,59 +5,166 @@
 \label{chapter:csp_coq}
 % ---
 
-The \autoref{chapter:background} provided an overview of the essential concepts for understanding the implementation of the \CSPcoq{} language, setting the scene for an in-depth explanation of the language developed in this work. That being said, \autoref{chapter:csp_coq} will explain how each of these concepts combined together made it possible to develop a theory of communicating sequential processes in Coq proof assistant.
+Chapter~\ref{chapter:background} provided an overview of the essential concepts for understanding the implementation of \CSPcoq{}, setting the scene for an in-depth explanation of the language developed in this work. That being said, Chapter~\ref{chapter:csp_coq} explains how we developed a theory for communicating sequential processes in the Coq proof assistant.
 
-The \autoref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas \autoref{section:sos} explains how the SOS style of defining language semantics translates into Coq as an inductive declaration. Furthermore, \autoref{section:lts} provides details on both functional and inductive definitions of LTS, along with further explanation on the GraphViz software integration. Finally, \autoref{section:traces} guides the reader through the definition of traces refinement as an executable property and also presents randomized testing based on this property using QuickChick plugin.
+Section~\ref{section:syntax} discusses the implementation of the language's abstract and concrete syntaxes, whereas Section~\ref{section:sos} explains how the SOS style of defining language semantics translates into Coq as inductively defined propositions. Afterwards, Section~\ref{section:lts} provides details on both functional and inductive definitions of LTSs, along with further explanation on the GraphViz software integration. Finally, Section~\ref{section:traces} explains how we define traces refinement as an executable property and also presents randomised testing based on this property using the QuickChick tool.
+
+Our Coq characterisation of CSP is structured into the following files. We have a total of 675 LOC (lines of code) of formal definitions, and 94 LOC concerning the definition of special-purpose tactics.
+
+\begin{itemize}
+	\item \textbf{syntax.v}: the abstract and concrete syntaxes of \CSPcoq{}.
+	\item \textbf{semantics\_sos.v}: the SOS-style semantics of \CSPcoq{}.
+	\item \textbf{lts.v} characterisations of LTSs and integration with GraphViz.
+	\item \textbf{semantics\_trace.v}: characterisations of traces and integration with QuickChick.
+\end{itemize}
+
+In addition, we have 745 LOC of examples illustrating the formalised concepts. All code is available at our GitHub repository: \url{TODO}.
 
 % ---
 \section{Syntax}
 \label{section:syntax}
 % ---
 
-The \CSPcoq{} language provides support to all process constructors and operations discussed in \autoref{section:csp}. Those include the processes $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, and the operations event prefix, external choice, internal choice, alphabetized parallel, generalized parallel, interleave, sequential composition, and event hiding. This section introduces the reader to the implementation of both the abstract and concrete syntax of the \CSPcoq{} language in Coq.
+The \CSPcoq{} language provides support to all process constructors and operations discussed in Section~\ref{section:csp}. Those include the processes $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, the operations event prefix, external choice, internal choice, alphabetised parallelism, generalised parallelism, interleaving, sequential composition, and event hiding, in addition to process referencing. This section introduces the reader to the implementation of both abstract and concrete syntaxes of the \CSPcoq{}.
 
 % ---
 \subsection{Abstract syntax}
 % ---
 
-In order to define all these CSP operations in Coq, we declared the following inductive types: \emph{event}, \emph{event\_tau\_tick}, \emph{channel}, \emph{alphabet}, \emph{proc\_body}, and \emph{proc\_def}. The type \emph{event} represents all external events. As we said before, external events are all events that are neither internal ($ \tau $) nor indicate termination ($ \tick $). On the other hand, the type \emph{event\_tau\_tick} provides not only a constructor for the external events, but also for the especial events $ \tau $ and $ \tick $.
+In order to define these CSP operations in Coq, we declared the following inductive types: \emph{event}, \emph{event\_tau\_tick}, \emph{channel}, \emph{alphabet}, \emph{proc\_body}, and \emph{proc\_def}. The type \emph{event} represents all external events. As we have said before, external events are all events that are neither internal ($ \tau $) nor indicate termination ($ \tick $). The type \emph{event\_tau\_tick} provides not only a constructor for the external events, but also for the especial events $ \tau $ and $ \tick $.
 
-For describing a set of external events, we have the \emph{channel} and \emph{alphabet} types. They are syntactically equivalent, the difference between these two constructors being purely semantic: the \emph{channel} type is used to account for all external events that may be communicated in a \CSPcoq{} specification, while the constructor provided by the \emph{alphabet} type is applied, for example, to enumerate all external events in a process interface in an alphabetized parallel combination.
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{event} := \coqdocvar{string}.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{event\_tau\_tick} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Event} (\coqdocvar{e} : \coqdocvar{event})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Tau}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Tick}.\coqdoceol
+\end{coqdoccode}
 
-The \emph{proc\_body} and \emph{proc\_def} types describe, respectively, the constructors for the operations we mentioned earlier in the beginning of this subsection, and the process attribution statement. The constructors available for the \emph{proc\_body} type allow us to combine processes in order to create more complex ones, while the \emph{proc\_def} type provides a constructor that makes it possible to identify a process by a string, and that is, to give it a name.
+For describing a set of external events, we have the types \emph{channel} and \emph{alphabet}. Apart from considering different names of constructors, they are syntactically equivalent; the difference between these two types being semantic. The type \emph{channel} is used to declare external events that may be communicated in a \CSPcoq{} specification. The constructor provided by the type \emph{alphabet} is applied, for example, to enumerate all external events in the process interface of an alphabetised parallel composition.
 
-The last element from the CSP syntax that we described is the \emph{specification} type. A CSP specification can be perceived as a file containing multiple channels of events and process declarations. Ultimately, it is a context that holds information such as all the events that can be performed, and all process and corresponding definitions that compose a system. The way we introduce this concept in \CSPcoq{} is via a record type. Records are constructions that allow the definition of a set of attributes and propositions that must be satisfied in order to successfully define this structure.
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{alphabet} : \coqdockw{Type} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Alphabet} (\coqdocvar{events} : \coqdoctac{set} \coqdocvar{event}).\coqdoceol
+	\coqdockw{Inductive} \coqdocvar{channel} : \coqdockw{Type} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Channel} (\coqdocvar{events} : \coqdoctac{set} \coqdocvar{event}).\coqdoceol
+\end{coqdoccode}
 
-To illustrate the abstract syntax defined via inductive types in Coq, consider the \CSPM{} processes
-\
-\begin{flushleft}
-	PRINTER := accept -> print -> STOP
+The types \emph{proc\_body} and \emph{proc\_def} define, respectively, constructors for the CSP language (SKIP, STOP, process referencing, event prefix, external choice, internal choice, alphabetised parallelism, generalised parallelism, interleaving, sequential composition, and hiding) and means for declaring new processes (process attribution statement). The constructors made available by \emph{proc\_body} can be combined in order to describe complex behaviour. The type \emph{proc\_def} provides a constructor that makes it possible to identify a process by an identifier, that is, to give it a name.
 
-	PARKING\_PERMIT\_MCH := TICKET [ \{cash, ticket\} || \{cash, change\} ] CHANGE
-\end{flushleft}
-\
-and their representations in \CSPcoq{} language
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{proc\_body} : \coqdockw{Type} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{SKIP}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{STOP}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcRef} (\coqdocvar{name} : \coqdocvar{string})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcPrefix} (\coqdocvar{event} : \coqdocvar{event}) (\coqdocvar{proc} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcExtChoice} (\coqdocvar{proc1} \coqdocvar{proc2} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcIntChoice} (\coqdocvar{proc1} \coqdocvar{proc2} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcAlphaParallel} (\coqdocvar{proc1} \coqdocvar{proc2} : \coqdocvar{proc\_body}) (\coqdocvar{alph1} \coqdocvar{alph2} : \coqdocvar{alphabet})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcGenParallel} (\coqdocvar{proc1} \coqdocvar{proc2} : \coqdocvar{proc\_body}) (\coqdocvar{alph} : \coqdocvar{alphabet})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcInterleave} (\coqdocvar{proc1} \coqdocvar{proc2} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcSeqComp} (\coqdocvar{proc1} \coqdocvar{proc2} : \coqdocvar{proc\_body})\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{ProcHiding} (\coqdocvar{proc}: \coqdocvar{proc\_body}) (\coqdocvar{alph} : \coqdocvar{alphabet}).\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Inductive} \coqdocvar{proc\_def} : \coqdockw{Type} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Proc} (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{body} : \coqdocvar{proc\_body}).\coqdoceol
+\end{coqdoccode}
 
+The last definition of the CSP abstract syntax is \emph{specification}. A CSP specification can be perceived as a file containing multiple channels of events (\emph{ch\_list}) and declarations of processes (\emph{proc\_list}). Ultimately, it is a context that holds information such as all the events that can be performed, and all processes and corresponding definitions that compose a system. The way we introduce this concept in \CSPcoq{} is via a record type. Records are constructions that allow the definition of a set of attributes and propositions, which must be proved to hold when creating an instance of the record.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Record} \coqdocvar{specification} : \coqdockw{Type} := \coqdocvar{Build\_Spec} \{\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{ch\_list} : \coqdocvar{list} \coqdocvar{channel};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{proc\_list} : \coqdocvar{list} \coqdocvar{proc\_def};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{non\_empty\_proc\_ids} : \ensuremath{\lnot} \coqdocvar{In} \coqdocvar{EmptyString} (\coqdocvar{map} \coqdocvar{get\_proc\_id} \coqdocvar{proc\_list});\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{non\_empty\_events} : \ensuremath{\lnot} \coqdocvar{In} \coqdocvar{EmptyString} (\coqdocvar{concat\_channels} \coqdocvar{ch\_list});\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{no\_dup\_events\_proc\_ids} :
+	\coqdoceol
+	\coqdocindent{2.00em} \coqdocvar{NoDup} ((\coqdocvar{concat\_channels} \coqdocvar{ch\_list}) ++ (\coqdocvar{map} \coqdocvar{get\_proc\_id} \coqdocvar{proc\_list}));\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{no\_missing\_proc\_defs} : \coqdocvar{incl} (\coqdocvar{get\_proc\_refs} \coqdocvar{proc\_list}) (\coqdocvar{map} \coqdocvar{get\_proc\_id} \coqdocvar{proc\_list});\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{no\_missing\_events} : \coqdocvar{incl} (\coqdocvar{get\_events} \coqdocvar{proc\_list}) (\coqdocvar{concat\_channels} \coqdocvar{ch\_list})\coqdoceol
+	\coqdocnoindent
+	\}.\coqdoceol
+\end{coqdoccode}
+
+Therefore, when creating a CSP specification in \CSPcoq{}, one needs to prove that the following properties are met. As mentioned in Chapter~\ref{chapter:introduction}, we have developed a special-purpose tactic (\emph{solve\_spec\_ctx\_rules}) that automates the proof of such properties.
+
+\begin{itemize}
+	\item The empty string is not a valid identifier for the name of a process\\
+	(property: \emph{non\_empty\_proc\_ids}).
+	\item The empty string is not a valid identifier for the name of an external event\\
+	(property: \emph{non\_empty\_events}).
+	\item The name of processes and external events are unique\\
+	(property: \emph{no\_dup\_events\_proc\_ids}).
+	\item There are no references to undefined processes\\
+	(property: \emph{no\_missing\_proc\_defs}).
+	\item There are no references to undefined external events\\
+	(property: \emph{no\_missing\_events}).
+\end{itemize}
+
+To illustrate the \CSPcoq{} abstract syntax, consider the following \CSPM{} processes:
+%
+\begin{tabbing}
+	\hspace*{1em}\= \hspace*{5.4em} \= \kill	
+	PRINTER := accept -> print -> STOP\\
+	MACHINE := TICKET\\
+	\>\> [ \{cash, ticket\} || \{cash, change\} ]\\
+	\>\> CHANGE
+\end{tabbing}
+%
+\noindent{}and their representations in \CSPcoq{}:
+%
 \begin{flushleft}
 	Proc ``PRINTER'' (ProcPrefix (Event ``accept'') (ProcPrefix (Event ``print'') STOP))
 \end{flushleft}
 
 \begin{tabbing}
 	\hspace*{1em}\= \hspace*{2em} \= \kill
-	Proc ``PARKING\_PERMIT\_MCH'' (\\
+	Proc ``MACHINE'' (\\
 	\>	ProcAlphaParallel (ProcRef ``TICKET'') (ProcRef ``CHANGE'')\\
-	\>	(Alphabet (set\_add event\_dec ``cash'' (set\_add event\_dec ``ticket'' (empty\_set event))))\\
-	\>	(Alphabet (set\_add event\_dec ``cash'' (set\_add event\_dec ``change'' (empty\_set event))))\\
+	\>	(Alphabet (set\_add event\_dec ``cash''\\
+	\>\> (set\_add event\_dec ``ticket'' (empty\_set event))))\\
+	\>	(Alphabet (set\_add event\_dec ``cash''\\
+	\>\> (set\_add event\_dec ``change'' (empty\_set event))))\\
 	)
 \end{tabbing}
 
-As one might notice from the examples above, the abstract syntax -- though it dictates how well-formed expressions are constructed -- is not a pleasant way of writing statements or at least reading them. For that matter, we need a more convenient notation. One that resembles the \CSPM{} operators and, therefore, facilitates both implementation and understanding of \CSPcoq{} processes and specifications.
+As one can see from the examples above, the abstract syntax -- though it dictates how well-formed expressions are constructed -- is not a pleasant way of writing statements or at least reading them. For that matter, we need a more convenient notation. One that resembles the \CSPM{} operators and, therefore, facilitates both specification and understanding of \CSPcoq{} processes.
 
 % ---
 \subsection{Concrete syntax}
 % ---
 
-In order to define a more appropriate notation for the \CSPcoq{} language, the proof assistant's \coqdockw{Notation} command was used. This command allows the declaration of a new symbolic notation for an existing definition. The examples bellow demonstrate how this command is used to assign symbols (operators) to previously defined constructors.
+In order to define a more appropriate notation for the \CSPcoq{} language, the command \coqdockw{Notation} was used. It allows the declaration of a new symbolic notation for an existing definition. The examples bellow demonstrate how this command is used to assign symbols (operators) to previously defined constructors.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -65,26 +172,28 @@ In order to define a more appropriate notation for the \CSPcoq{} language, the p
 	\coqdocnoindent
 	\coqdockw{Notation} ``P [] Q'' := (\coqdocvar{ProcExtChoice} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 90, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
 	\coqdocnoindent
-	\coqdockw{Notation} ``P [[ A \symbol{92}\symbol{92} B ]] Q'' := (\coqdocvar{ProcAlphaParallel} \coqdocvar{P} \coqdocvar{Q} (\coqdocvar{Alphabet} \coqdocvar{A}) (\coqdocvar{Alphabet} \coqdocvar{B})) (\coqdoctac{at} \coqdockw{level} 90, \coqdockw{no} \coqdockw{associativity}).\coqdoceol
+	\coqdockw{Notation} ``P [[ A \symbol{92}\symbol{92} B ]] Q'' := (\coqdocvar{ProcAlphaParallel} \coqdocvar{P} \coqdocvar{Q} (\coqdocvar{Alphabet} \coqdocvar{A}) (\coqdocvar{Alphabet} \coqdocvar{B}))
+	\coqdoceol\coqdocnoindent (\coqdoctac{at} \coqdockw{level} 90, \coqdockw{no} \coqdockw{associativity}).\coqdoceol
 \end{coqdoccode}
 
 Along with the assignment of a notation symbol, we can specify its \emph{precedence level} and its \emph{associativity}. The precedence level helps Coq parse compound expressions, whereas the associativity setting helps to disambiguate expressions containing multiple occurrences of the same symbol. Coq uses precedence levels from 0 to 100, and left, right, or no associativity.
 
-In the command lines above, the prefix operation has the higher precedence among all three operators and associates to the right. On the other hand, the external choice has a left associativity while the alphabetized parallel operator does not associate at all, meaning that parentheses are necessary to create a compound expression with multiple parallel operations.
+In the lines above, the prefix operator has the higher precedence among all three operators and has right associativity. Differently, the external choice has left associativity while the alphabetised parallel operator does not associate at all, meaning that parentheses are necessary to create a compound expression with multiple parallel operations. Now, we can use these symbols to rewrite the process examples from the previous section in a much more friendly way.
 
-Then, we can use these symbols to rewrite the process examples from the previous subsection in a much more friendly and recognizable way:
+\begin{tabbing}
+	\hspace*{1em}\= \hspace*{6.4em} \= \kill	
+	``PRINTER'' ::= ``accept'' \texttt{-{}-}> ``print'' \texttt{-{}-}> STOP\\
 
-\begin{flushleft}
-	``PRINTER'' ::= ``accept'' \texttt{-{}-}> ``print'' \texttt{-{}-}> STOP
+	``MACHINE'' ::= ProcRef ``TICKET''\\
+	\>\> [[ \{\{``cash'', ``ticket''\}\} \textbackslash\textbackslash \ \{\{``cash'', ``change''\}\} ]]\\
+	\>\> ProcRef ``CHANGE''
+\end{tabbing}
 
-	``MACHINE'' ::= ProcRef ``TICKET'' [[ \{\{``cash'', ``ticket''\}\} \textbackslash\textbackslash \ \{\{``cash'', ``change''\}\} ]] ProcRef ``CHANGE''
-\end{flushleft}
-
-The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operators we discussed and the \CSPcoq{} language concrete syntax, achieved via Coq's \coqdockw{Notation} command:
+Table~\ref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operators we have discussed and the \CSPcoq{} language concrete syntax.
 
 \begin{table}[htb]
 	\begin{center}
-		\caption[The \CSPcoq{} concrete syntax]{The \CSPcoq{} concrete syntax.}
+		\caption[The \CSPcoq{} concrete syntax]{The \CSPcoq{} concrete syntax}
 		\label{tab:cspm-csp_coq}
 		\begin{tabular}{ |l|c|c| }
 			\hline
@@ -106,6 +215,8 @@ The \autoref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operato
 		\end{tabular}
 	\end{center}
 \end{table}
+
+Apart from some different symbols (necessary to avoid conflicts with reversed keywords -- e.g., ``-{}->'' and ``;;''), and how to refer to other CSP processes (ProRef ``P''), the concrete syntax of \CSPcoq{} is close to that of CSP$_{M}$.
 
 % ---
 \section{Structured operational semantics}
