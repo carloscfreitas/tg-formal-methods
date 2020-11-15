@@ -287,7 +287,7 @@ As one can see, in general, the syntax of the machine-readable version of CSP is
 \label{section:coq}
 % ---
 
-A proof assistant is a software for helping construct proofs of logical propositions. Essentially, it is a hybrid tool that automates the more routine aspects of building proofs while relying on human intervention for more complex steps. There is a variety of proof assistants including Isabelle, Agda, ATS, Idris and Coq, among others. This work is based around the Coq proof assistant.
+A proof assistant (an interactive theorem prover) is a software for helping to construct proofs of logical propositions. Essentially, it is a hybrid tool that automates the more routine aspects of building proofs while relying on human intervention for more complex steps. When less human intervention is required, these tools are typically referred as theorem provers. There is a variety of (interactive) theorem provers including Isabelle~\cite{nipkow:isabelle}, Agda~\cite{norell:thesis}, Idris~\cite{brady:idris}, PVS~\cite{rushby:pvs} and Coq~\cite{bertot:coq}, among others. This work is based on the Coq proof assistant.
 
 Coq can be viewed as a combination of a functional programming language plus a set of tools for stating and proving logical assertions. Moreover, the Coq environment provides high-level facilities for proof development, including a large library of common definitions and lemmas, powerful tactics for constructing complex proofs semi-automatically, and a special-purpose programming language for defining new proof-automation tactics for specific situations.
 
@@ -302,9 +302,9 @@ Coq's native functional programming language is called \emph{Gallina}. Before we
 	\ensuremath{|} \coqdocvar{S} (\coqdocvar{n} : \coqdocvar{nat}).\coqdoceol
 \end{coqdoccode}
 
-This declaration tells Coq that we are defining a \emph{type}. The capital-letter $ O $ constructor represents zero. When the $ S $ constructor is applied to the representation of the natural number $ n $, the result is the representation of $ n+1 $, where $ S $ stands for ``successor''. An $ \coqdockw{Inductive} $ definition carves out a subset of the whole space of constructor expressions and gives it a name, in this case, $ nat $.
+This declaration tells Coq that we are defining a \emph{type}. The $ O $ constructor represents zero. When the $ S $ constructor is applied to the representation of a natural number $ n $, the result is the representation of $ S\ n $ (or simply $ n+1 $), where $ S $ stands for ``successor''. An $ \coqdockw{Inductive} $ definition carves out a subset of the whole space of constructor expressions and gives it a name, in this case, $ nat $.
 
-Having defined $ nat $, we can write functions that operate on natural numbers, such as the predecessor function:
+Having defined $ nat $, we can write functions that operate on natural numbers, such as the predecessor function, whose body is defined using pattern matching.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -319,7 +319,7 @@ Having defined $ nat $, we can write functions that operate on natural numbers, 
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-Note that we do not need recursion to define the predecessor function, but simple pattern matching is not enough for more interesting computations involving natural numbers. For example, to check that a number $ n $ is even, we may need to recursively check whether $ n-2 $ is even. In order to do that, we use the keyword $ \coqdockw{Fixpoint} $ instead of $ \coqdockw{Definition} $:
+Note that we do not need recursion to define the predecessor function, but simple pattern matching is not enough for more interesting computations involving natural numbers. For example, to check that a number $ n $ is even, we may need to recursively check whether $ n-2 $ is even. In order to do that, we use the keyword $ \coqdockw{Fixpoint} $ instead of $ \coqdockw{Definition} $.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -336,7 +336,7 @@ Note that we do not need recursion to define the predecessor function, but simpl
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-Yet another way for defining evenness is through \emph{inductive declaration}. Consider the following two rules: \emph{the number $ 0 $ is even}, and \emph{if $ n $ is even, then $ S \ (S \ n) $ is even}. Lets call the first rule $ ev\_0 $ and then the second $ ev\_SS $. Using $ ev $ for the name of evenness property, we can write the following inference rules:
+Yet another way for defining evenness is through \emph{inductively defined propositions}. Consider the following two rules: \emph{the number $ 0 $ is even}, and \emph{if $ n $ is even, then $ S \ (S \ n) $ is even}. Let us call the first rule $ ev\_0 $ and then the second $ ev\_SS $. Using $ ev $ for the name of the evenness property, we can write the following inference rules.
 
 \begin{prooftree}
 	\AxiomC{}
@@ -350,7 +350,7 @@ Yet another way for defining evenness is through \emph{inductive declaration}. C
 	\UnaryInfC{$ ev \ (S \ (S \ n)) $}
 \end{prooftree}
 
-Now, we can translate these rules into a formal Coq definition. Each constructor in this definition corresponds to an inference rule:
+We can formally define these rules in Coq as follows. Each constructor in this definition corresponds to an inference rule.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -361,17 +361,28 @@ Now, we can translate these rules into a formal Coq definition. Each constructor
 	\ensuremath{|} \coqdocvar{ev\_SS} (\coqdocvar{n} : \coqdocvar{nat}) (\coqdocvar{H} : \coqdocvar{ev} \coqdocvar{n}) : \coqdocvar{ev} (\coqdocvar{S} (\coqdocvar{S} \coqdocvar{n})).\coqdoceol
 \end{coqdoccode}
 
-This definition is different from previous use of $ \coqdockw{Inductive} $. We are defining a function from $ nat $ to $ Prop $, in other words, a property of numbers. The type of each constructor must be specified explicitly (after a colon), and each constructor's type must have the form $ ev \ n $ for some natural number $ n $.
+This definition is different from the previous use of $ \coqdockw{Inductive} $. Here, we are defining a function from $ nat $ to $ Prop $, in other words, a property of numbers. The type of each constructor must be specified explicitly (after a colon), and in this case each constructor's type must have the form $ ev \ n $ for some natural number $ n $.
+
+Yet another style can be used to formalise the notion of evenness. The following definition (\emph{even}) states that a natural number $n$ is even if exists a natural number $n'$ such that $n = 2 \times n'$. It is said that \emph{even} is a \emph{propositional function}, since it is a function that builds a logical proposition (\coqdockw{Prop}) from the given arguments.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{even} (\coqdocvar{n} : \coqdocvar{nat}) : \coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdoctac{\ensuremath{\exists}} (\coqdocvar{n'} : \coqdocvar{nat}), \coqdocvar{n} = 2 \ensuremath{\times} \coqdocvar{n'}.\coqdoceol
+\end{coqdoccode}
+
+Therefore, in Coq, we can formalise concepts in functional (\emph{evenb}), inductive (\emph{ev}) and logical (\emph{even}) terms. Each style has its pros and cons. Generally speaking, functional definitions are computable and promotes automatic simplification during proofs. Differently, inductive and logical definitions promote the application of rewriting rules during proof development.
 
 % ---
 \subsection{Building proofs}
 % ---
 
-As a proof development system, Coq provides interactive proof methods, decision and semi-decision algorithms, and a tactic language for letting the user define its own proof methods. Proof development in Coq is done through a language of tactics that allows a user-guided proof process.
+As a proof development system, Coq provides interactive proof methods, decision and semi-decision procedures, and a tactic language for letting the user define its own proof methods. Proof development in Coq is done through a language of tactics that allows a user-guided proof process.
 
 Recall the functional definition of evenness we introduced in the previous section, \coqdocvar{evenb}. Suppose we want to prove that consecutive numbers have opposite parity. In other words, if $ S \ n $ is even, then $ n $ is not, and if $ S \ n $ is not even, then $ n $ is. One way to assert this statement is through the following proposition: $ \forall \ (n:nat), \ evenb \ (S \ n) = negb \ (evenb \ n) $.
 
-Eventually, during a proof development, one may find useful to make assertions about smaller intermediary steps of a theorem proof. This can be done either inside the main proof tree or in a completely separate one. The ``divide and conquer'' approach can help decreasing the number of steps in a proof and even reduce its overall complexity. In this example, we will first introduce a lemma to prove the involutive property of the negation function \coqdocvar{negb}. This can be achieved in Coq with following commands:
+During proof development, one may find useful to make assertions about smaller intermediary steps of a theorem. This can be done either inside the main proof tree or in a completely separate one. The ``divide and conquer'' approach can help decreasing the number of steps in a proof and even reduce its overall complexity. In this example, we will first introduce a lemma to prove the involutive property of the boolean negation function \coqdocvar{negb}. This can be achieved in Coq with following commands. 
 
 \begin{coqdoccode}
 	\coqdocemptyline
@@ -391,16 +402,20 @@ Eventually, during a proof development, one may find useful to make assertions a
 	\coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-\noindent See the proof for Lemma \coqdocvar{negb\_involutive} in table \ref{Proofs:coq-example:Lemma:negb-involutive}
+Table~\ref{Proofs:coq-example:Lemma:negb-involutive} shows how each tactic changes the proof goal until proving the original claim. The proof editing mode in Coq is entered whenever asserting a statement. Keywords such as \coqdockw{Lemma}, \coqdockw{Theorem}, and \coqdockw{Example} do so by allowing us to give the statement a name and the proposition we want to prove. Additionally, the commands \coqdockw{Proof} and \coqdockw{Qed} delimit, respectively, the beginning and the end of the sequence of tactic commands.
+
+The keywords \coqdoctac{destruct}, \coqdoctac{simpl}, and \coqdoctac{reflexivity} are examples of tactics. A tactic is a command that is used to guide the process of checking some claim we are making. In the context of this proof, the tactic \coqdoctac{destruct} generates two sub-goals, one for each boolean value, which we must prove separately in order to prove the main goal. This strategy is also known as proof by case analysis. The command $-$ is then used to focus on the next generated sub-goal.
+
+The tactic \coqdoctac{simpl} is often used in situations where we want to evaluate a compound expression, eventually reducing it to a simplified, easier-to-understand term. It facilitates our decisions in a proof development by resolving all the computations that can be done in a given state of the goal. Additionally, the tactic \coqdoctac{reflexivity} finishes a proof by showing that both sides of an equation contain identical values.
 
 \begin{longtable}{| S | P |}
-	\caption{Proof of Lemma negb\_involutive}\\
+	\caption{Proof of lemma negb\_involutive}\\
 	\hline
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
 	\endfirsthead
 
-	\caption{Proof of Lemma negb\_involutive continued}\\
+	\caption{Proof of negb\_involutive continued}\\
 	\hline
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
@@ -445,13 +460,7 @@ Eventually, during a proof development, one may find useful to make assertions a
 	\hline
 \end{longtable}
 
-The proof editing mode in Coq is entered whenever asserting a statement. Keywords such as \coqdockw{Lemma}, \coqdockw{Theorem}, and \coqdockw{Example} do so by allowing us to give the statement a name and the proposition we want to prove. Additionally, the commands \coqdockw{Proof} and \coqdockw{Qed} delimit, respectively, the beginning and the end of the sequence of tactic commands.
-
-The keywords \coqdoctac{destruct}, \coqdoctac{simpl}, and \coqdoctac{reflexivity} are examples of tactics. A tactic is a command that is used to guide the process of checking some claim we are making. The tactic \coqdoctac{destruct} generates two sub-goals, one for each boolean value, which we must prove separately in order to prove the main goal. This strategy is also known as proof by case analysis.
-
-The tactic \coqdoctac{simpl} is often used in situations where we want to evaluate a compound expression, eventually reducing it to a simplified, easier-to-understand term. It facilitates our decisions in a proof development by resolving all the computations that can be done in a given state of the goal. Additionally, the tactic \coqdoctac{reflexivity} finishes a proof by showing that both sides of an equation contain identical values.
-
-Once we proved this lemma, it is now available to be used inside other proofs such as the one of the theorem we stated in the beginning of this section:
+Once we proved this lemma, it is now available to be used inside other proofs such as the theorem we have stated before. In what follows, we show its proof script.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -472,10 +481,15 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	\coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-\noindent See the proof for Theorem \coqdocvar{evenb\_S} in table \ref{Proofs:coq-example:Theorem:evenb-S}
+See the step-by-step proof for Theorem \coqdocvar{evenb\_S} in Table \ref{Proofs:coq-example:Theorem:evenb-S}. The quantifier \coqdockw{\ensuremath{\forall}} \coqdocvar{n}:\coqdocvar{nat} indicates that we want to prove this claim considering all natural numbers $ n $. The tactic \coqdoctac{intros} performs universal instantiation, rewriting the claim considering an arbitrary natural number $ n $, which is declared in the proof context (all definitions above the proof horizontal bar).
+
+This example demonstrates a proof by induction over natural numbers that is made possible in Coq by the \coqdoctac{induction} tactic. Following this principle, to show that a proposition holds for all natural numbers $ n $ we must prove: the base case ($ n = 0 $), and then the induction step, which is, for any number $ n $, if the proposition holds for $ n $, then so it does for $ S \ n $.
+
+The tactic \coqdoctac{rewrite} tells Coq to perform a replacement in the goal, which can be based on an assumption (hypothesis) from the proof context or on a completely separate proof such as the Lemma \coqdocvar{negb\_involutive}.
+
 
 \begin{longtable}{| S | P |}
-	\caption{Proof of Theorem evenb\_S}\\
+	\caption{Proof of theorem evenb\_S}\\
 	\hline
 	\coqpsvstephdr & \coqpsvsithdr\\
 	\hline
@@ -570,13 +584,7 @@ Once we proved this lemma, it is now available to be used inside other proofs su
 	\hline
 \end{longtable}
 
-Note that we have added the quantifier \coqdockw{\ensuremath{\forall}} \coqdocvar{n}:\coqdocvar{nat}, so that our theorem talks about all natural numbers $ n $. The tactic \coqdoctac{intros} is responsible for moving the quantifier into the context of current assumptions.
-
-This example demonstrates a proof by induction over natural numbers that is made possible in Coq by the \coqdoctac{induction} tactic. Following this principle, to show that a proposition holds for all natural numbers $ n $ we must prove: the base case ($ n = 0 $), and then the induction step, which is, for any number $ n' $, if the proposition holds for $ n' $, then so it does for $ S \ n' $.
-
-The tactic \coqdoctac{rewrite} tells Coq to perform a replacement in the goal, whether it is based on an assumption (hypothesis) from the proof context or a completely separate proof such as the Lemma \coqdocvar{negb\_involutive}.
-
-Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, then the predecessor of the predecessor of $ n $ is also even. This theorem can be proved in Coq using the following commands:
+To illustrate other tactics, consider another theorem on natural numbers: for all $ n $, if $ n $ is even, then the predecessor of the predecessor of $ n $ is also even. This theorem can be proved in Coq as follows. Note that here we are referring to the inductive definition of evenness (\emph{ev}).
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -597,7 +605,9 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	\coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-\noindent See the proof for Theorem \coqdocvar{ev\_minus2} in table \ref{Proofs:coq-example:Theorem:ev-minus2}
+See the proof for Theorem \coqdocvar{ev\_minus2} in Table \ref{Proofs:coq-example:Theorem:ev-minus2}. In this proof, besides performing universal instantiation, the tactic \coqdoctac{intros} moves the implication antecedent to the proof context as a hypothesis. One needs to prove the implication consequent assuming that its antecedent is true; otherwise, the claim would be trivially true since, from contradiction, anything follows (the \emph{Ex falso quodlibet} principle).
+
+As we have discussed before, the tactic \coqdoctac{destruct} performs proof by case analysis. In this example, it is responsible for generating, from the hypothesis, two sub-goals based on the inductive definition of evenness we have provided: one where $ n = 0 $ and another where $ n = S \ (S \ n) $. Once again, we must prove them separately so Coq accepts the theorem.
 
 \begin{longtable}{| S | P |}
 	\caption{Proof of Theorem ev\_minus2}\\
@@ -663,21 +673,17 @@ Consider another theorem on natural numbers: for all $ n $, if $ n $ is even, th
 	\hline
 \end{longtable}
 
-This time around, the tactic \coqdoctac{intros} moves not only the quantifier into the context, but also the \emph{hypothesis} that consists of the antecedent of the implication (\emph{modus ponens}).
+We then proceed to use the tactic \coqdoctac{apply}, passing the term we find useful for proving each sub-goal as argument. In the first branch, where our goal is to prove $ ev \ 0 $, we apply the first rule of our inductive definition, $ ev\_0 $, which concludes this sub-proof, since it provides evidence that $ ev \ 0 $ is true. In the second branch, after simplification, we have $ ev \ n $ as goal, which is already an assumption of ours (introduced to the proof context by the command \coqdoctac{intros}). In this situation, the tactic \coqdoctac{apply} also concludes the second sub-proof, thus proving the entire statement (theorem \coqdocvar{ev\_minus2}).
 
-As we discussed before, the tactic \coqdoctac{destruct} introduces proof by case analysis. In this example, it is responsible for generating, from the hypothesis, two sub-goals based on the inductive definition of evenness we have provided: one where $ n = 0 $ and the other where $ n = S \ (S \ n) $. Once again, we must prove them separately so Coq accepts the theorem.
-
-We then proceed to use the tactic \coqdoctac{apply}, passing the term we find useful for proving each sub-goal as argument. In the first branch, where our goal is to prove $ ev \ 0 $, we apply the first rule of our inductive definition, $ ev\_0 $, which concludes this sub-proof. In the second branch, we have $ ev \ n $ as goal, which is already an assumption of ours (introduced to the proof context by the command \coqdoctac{intros}). This also concludes the second sub-proof, thus proving the entire statement (theorem \coqdocvar{ev\_minus2}).
-
-There are many other tactics and variations of them that can be used when proving a proposition. Apart from the ones we have already discussed in this subsection, other commonly used tactic commands are \coqdoctac{unfold}, \coqdoctac{inversion}, and \coqdoctac{contradiction}. Further explanation on theses tactics will be provided as needed throughout the \autoref{chapter:csp_coq}.
+There are many other tactics and variations that can be used when proving a proposition. Apart from the ones we have already discussed in this section, other commonly used tactic commands are \coqdoctac{unfold}, \coqdoctac{inversion}, and \coqdoctac{contradiction}. Further explanation on theses tactics will be provided as needed.
 
 % ---
 \subsection{The tactics language}
 % ---
 
-Ltac is the tactic language for Coq. It provides the user with a high-level ``toolbox''  for tactic creation, allowing one to build complex tactics by combining existing ones with constructs such as conditionals, looping, backtracking, and error catching.
+Ltac is the tactics language for Coq. It provides the user with a high-level ``toolbox''  for tactic creation, allowing one to build complex tactics by combining existing ones with constructs such as conditionals, looping, backtracking, and error catching.
 
-Imagine we want to prove that the number 4 does not appear in the list of consecutive natural numbers ranging from 0 to 3. By using the keyword \coqdockw{Example}, we can assert this statement in Coq and develop our proof:
+Imagine we want to prove that the number 4 does not appear in the list of consecutive natural numbers ranging from 0 to 3. By using the keyword \coqdockw{Example}, we can assert this statement in Coq and develop our proof. See the proof script in what follows.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -708,9 +714,11 @@ Imagine we want to prove that the number 4 does not appear in the list of consec
 	\coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-The first tactic unfolds the definition of \ensuremath{\lnot} (not) in the goal, replacing our initial statement by \coqdocvar{In} 4 [0 ; 1 ; 2 ; 3] \ensuremath{\rightarrow} \coqdocvar{False}. The second tactic reduces the new goal by computing the function \coqdocvar{In}, which leaves us with the disjunctions $ 0 = 4 \lor 1 = 4 \lor 2 = 4 \lor 3 = 4 \lor \coqdocvar{False} $ in the antecedent of the implication. Then, the tactic \coqdoctac{intros} moves this antecedent to the proof context, introducing a new hypothesis \coqdocvar{H} and leaving the literal \coqdocvar{False} as goal.
+The first tactic unfolds the definition of \ensuremath{\lnot} (not) in the goal, replacing our initial statement by \coqdocvar{In} 4 [0 ; 1 ; 2 ; 3] \ensuremath{\rightarrow} \coqdocvar{False}. In Coq, the logical negation of $P$ is defined as follows: $P$ \ensuremath{\rightarrow} \coqdocvar{False}. Therefore, if $P$ is true, the obtained proposition is false; if $P$ is false, the obtained proposition is true, as expected.
 
-From this point on, the proof develops a pattern: we perform a destruction followed by an inversion of the hypothesis until we can end the proof by contradiction. The recurrence of the tactic \coqdoctac{destruct} lets us focus in one equality from the disjunction at a time: first the hypothesis becomes $ 0 = 4 $, then $ 1 = 4 $ and so on. The tactic \coqdoctac{inversion} finishes each sub proof created by the previous command by deriving all the necessary conditions that should hold for the assumption to be proved. In this case, since none of these equalities is true, there is no condition that satisfies the proposition, thus proving our goal.
+The second tactic reduces the new goal by computing the function \coqdocvar{In}, which leaves us with the disjunctions $ 0 = 4 \lor 1 = 4 \lor 2 = 4 \lor 3 = 4 \lor \coqdocvar{False} $ in the antecedent of the implication. Then, the tactic \coqdoctac{intros} moves this antecedent to the proof context, introducing a new hypothesis \coqdocvar{H} and leaving the literal \coqdocvar{False} as the proof goal.
+
+From this point on, the proof has the following pattern: we perform a destruction followed by an inversion of the hypothesis until we can end the proof by contradiction. The recurrence of the tactic \coqdoctac{destruct} lets us focus in one equality from the disjunction at a time: first the hypothesis becomes $ 0 = 4 $, then $ 1 = 4 $ and so on. The tactic \coqdoctac{inversion} finishes each sub-proof created by the previous command by deriving all the necessary conditions that should hold for the assumption to be proved. In this case, since none of these equalities is true, there is no condition that satisfies the proposition, thus proving our goal. The tactic \coqdoctac{contradiction} finishes the proof by searching for a \emph{contradiction} in the proof context. We also note the use of $-$, $\times$, $+$ and $\{ \}$ to focus on nested sub-goals.
 
 Since this pattern in the sequence of tactics is now exposed, we can define a tactic macro for proving propositions of the format ``not in'' using the keyword \coqdockw{Ltac}:
 
@@ -723,6 +731,11 @@ Since this pattern in the sequence of tactics is now exposed, we can define a ta
 	\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{repeat} (\coqdoctac{contradiction} + (\coqdoctac{destruct} \coqdocvar{H}; [> \coqdoctac{inversion} \coqdocvar{H} \ensuremath{|} ]))\coqdoceol
 	\coqdocindent{1.00em}
 	).\coqdoceol
+\end{coqdoccode}
+
+The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function \coqdocvar{not} (the propositional function that represents the logical not in Coq), therefore deriving an implication. Then it moves the implication antecedent to the proof context. Finally, it repeats the following steps until the proof is finished: try to finish the proof by searching for a \emph{contradiction} in the assumptions (such as a false hypothesis); if it fails, \emph{destruct} the hypothesis and apply \emph{inversion} to it in order to prove the first sub-goal yielded by the previous tactic. With this new user-defined tactic, the previous example can now be provided as follows.
+
+\begin{coqdoccode}	
 	\coqdocemptyline
 	\coqdocnoindent
 	\coqdockw{Example} \coqdocvar{elem\_not\_in\_list'} : \ensuremath{\lnot} (\coqdocvar{In} 4 [0 ; 1 ; 2 ; 3]).\coqdoceol
@@ -730,19 +743,18 @@ Since this pattern in the sequence of tactics is now exposed, we can define a ta
 	\coqdockw{Proof}. \coqdocvar{solve\_not\_in}. \coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-The new tactic \coqdocvar{solve\_not\_in} works by first unfolding the function \coqdocvar{not}, therefore deriving an implication, then moving the premise to the context of assumption, and finally repeating the following steps until the proof is finished: try to finish the proof by searching for a \emph{contradiction} in the assumptions (such as a false hypothesis), if it fails, \emph{destruct} the hypothesis and apply \emph{inversion} to it in order to prove the first sub-goal yielded by the previous tactic.
+As one can see, with no further user intervention besides invoking the appropriate tactic. Furthermore, this proof script would work for lists of arbitrary size. Therefore, we say that \coqdocvar{solve\_not\_in} describes a decision procedure for proving that some element is not a member of a given list.
 
 % ---
-%TODO
 \section{QuickChick}
 \label{section:quickchick}
 % ---
 
-QuickChick is a set of tools and techniques for combining randomized property-based testing with formal specification and proof in the Coq ecosystem. It is the equivalent of Haskell's QuickCheck for Coq proof assistant.
+QuickChick is a set of tools and techniques for combining randomised property-based testing with formal specifications and proofs in the Coq ecosystem. It is the Coq equivalent of Haskell's QuickCheck tool.
 
-There are four basic elements in property-based random testing: an \emph{executable property} such as for deciding whether a number is even, \emph{generators} for random inputs to the property, \emph{printers} for converting data structures like numbers to strings when reporting counterexamples, and \emph{shrinkers}, which are used to search for minimal counterexamples when errors occur.
+There are four basic elements in property-based random testing: an \emph{executable property}, \emph{generators} of random inputs to the property, \emph{printers} for converting data structures like numbers to strings when reporting counterexamples, and \emph{shrinkers}, which are used to search for minimal counterexamples when errors occur.
 
-Consider the following example extracted from \citeonline{Lampropoulos:SF4}. The function \emph{remove} takes a natural number $ x $ and a list of natural numbers $ l $ and removes $ x $ from the list.
+Consider the following example extracted from \citeonline{Lampropoulos:SF4}. The function \emph{remove} takes a natural number $ x $ and a list of natural numbers $ l $ and removes (the first occurence of) $ x $ from the list.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -757,21 +769,21 @@ Consider the following example extracted from \citeonline{Lampropoulos:SF4}. The
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-We can write assertions that represent our expectations regarding this function. One possible specification for \emph{remove} might be this property:
+We can write assertions that represent our expectations regarding this function. One possible specification for \emph{remove} could be the following property:
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Conjecture} \coqdocvar{removeP} : \coqdockw{\ensuremath{\forall}} \coqdocvar{x} \coqdocvar{l},  \ensuremath{\lnot} (\coqdocvar{In} \coqdocvar{x} (\coqdocvar{remove} \coqdocvar{x} \coqdocvar{l})).\coqdoceol
 \end{coqdoccode}
 
-The keyword \coqdockw{Conjecture} treats our property \coqdocvar{removeP} as an axiom. This proposition claims that $ x $ never occurs in the result of $ \mathit{remove} \ x \ l $ for any $ x $ and $ l $. Such statement turns out to be false, as we would discover if we were to try to prove it. A different — perhaps much more efficient — way to discover the discrepancy between the definition and specification is to test it:
+The keyword \coqdockw{Conjecture} treats our property \coqdocvar{removeP} as an axiom. This proposition claims that $ x $ never occurs in the result of $ \mathit{remove} \ x \ l $ for any $ x $ and $ l $. Such statement turns out to be false, as we would discover if we were to try to prove it. A different — perhaps much more efficient — way to discover the discrepancy between the definition and specification is to test it using QuickChick.
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdocvar{QuickChick} \coqdocvar{removeP}.\coqdoceol
 \end{coqdoccode}
 
-The \coqdocvar{QuickChick} command takes an ``executable'' property and attempts to falsify it by running it on many randomly generated inputs, resulting in output like this:
+The \coqdocvar{QuickChick} command takes an executable property and attempts to falsify it by running it on many randomly generated inputs, resulting in an output as follows.
 
 \begin{tabbing}
 	\emph{0} \\
@@ -781,5 +793,5 @@ The \coqdocvar{QuickChick} command takes an ``executable'' property and attempts
 
 This means that, if we run \emph{remove} with $ x $ being 0 and $ l $ being the two-element list containing two zeros, then the property \coqdocvar{removeP} fails.
 
-With this example in hand, we can see that the \emph{then} branch of remove fails to make a recursive call, which means that only one occurrence of $ x $ will be removed from the list. The last line of the output records that it took 17 tests to identify some fault-inducing input and 12 ``shrinks'' to reduce it to a minimal counterexample.
+With this example in hand, we can see that the \emph{then} branch of \emph{remove} fails to make a recursive call, which means that only the first occurrence of $ x $ will be removed from the list. The last line of the output records that 17 tests were necessary to identify some fault-inducing input and 12 shrinks to reduce it to a minimal counterexample.
 
