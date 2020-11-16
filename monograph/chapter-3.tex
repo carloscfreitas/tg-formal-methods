@@ -223,36 +223,48 @@ Apart from some different symbols (necessary to avoid conflicts with reversed ke
 \label{section:sos}
 % ---
 
-Now that we have a good understanding of not only how the abstract syntax but also a convenient notation of the \CSPcoq{} language were implemented in the proof assistant, it is time for us to discuss language semantics in Coq. All the declarations presented in this section are based on the inference rules discussed in \autoref{subsection:sos}. More specifically, we will address how those SOS rules from the previous chapter were ported into Coq's environment.
+Now that we have a good understanding of how the abstract syntax and also a convenient notation of the \CSPcoq{} language were implemented in Coq, it is time to discuss the language semantics in Coq. All declarations presented in this section are based on the inference rules discussed in Section~\ref{subsection:sos}. More specifically, we will address how those SOS rules were defined in Coq's environment.
 
-Recall the inductive definition of the evenness property exemplified in \autoref{section:coq}. In that example, it was possible to rewrite the inference rules for such property in terms of an inductive declaration in Coq, where each rule was translated into a propositional statement, more specifically, a logical implication. We will use the same approach to define the semantic rules of the \CSPcoq{} language.
+Recall the inductive definition of the evenness property exemplified in Section~\ref{section:coq}. In that example, it was possible to rewrite the inference rules for such a property in terms of an inductive declaration in Coq, where each rule was translated into a propositional statement. We will use the same approach to define the semantic rules of \CSPcoq{}.
 
-Initially, a notation was defined to represent the SOS relation, in order to increase the readability of the inductive declaration. Thus, this new notation could be used in the constructors of the relational definition. The following Coq command line, similarly to the ones in the previous section, creates the infix notation ``S \# P // a ==> Q'', which can be pronounced ``in the specification \emph{S}, the process \emph{P}, after communicating \emph{a}, behaves like the process \emph{Q}'':
+Initially, a notation was defined to represent the SOS relation, in order to increase the readability of the inductive declaration. Thus, this new notation could be used in the constructors of the relational definition. The following Coq command line,creates the infix notation ``S \# P // a ==> Q'', which can be pronounced ``in the specification \emph{S}, the process \emph{P}, after communicating \emph{a}, behaves like the process \emph{Q}''.
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Reserved Notation} ``S '\#' P '//' a '==>' Q'' (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
 \end{coqdoccode}
 
-To exemplify the usage of this notation inside the inductive definition, lets revisit the inference rule for the prefix operator:
+To exemplify the usage of this notation inside our inductive definition, let us revisit the inference rule for the prefix operator. It states that, after performing the event $a$, the process $a \then P$ behaves as $P$.
 
 \begin{prooftree}
 	\AxiomC{}
 	\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
 \end{prooftree}
 
-This structure can be translated into Coq as a single constructor in the SOS relation:
+This structure can be translated into Coq as a single constructor in the SOS relation. Note that this definition relates a specification (\emph{specification}), a behaviour (\emph{proc\_body}), and an event (\emph{event\_tau\_tick}) with another behaviour (\emph{proc\_body}).
 
 \begin{coqdoccode}
 	\coqdocnoindent
-	\ensuremath{|} \coqdocvar{prefix\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event}) :\coqdoceol
+	\coqdockw{Inductive} \coqdocvar{sosR} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdocvar{event\_tau\_tick} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
 	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{prefix\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event}) :\coqdoceol
+	\coqdocindent{1.50em}
 	\coqdocvar{S} \# (\coqdocvar{a} \texttt{-{}-}> \coqdocvar{P}) // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P}\coqdoceol
 \end{coqdoccode}
 
-As far as the notation goes, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process \emph{a -{}-> P}, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, resolves to $ P $.
+Considering the defined notation, this constructor can be interpreted as follows: given a specification $ S $, a process $ P $, and an event $ a $, in the context of $ S $, the process \emph{a -{}-> P}, after communicating event $ a $, behaves as the process $ P $. In other words, it is always true that, in the prefix operation $ a \then P $, after $ a $ is performed, it resolves to $ P $.
 
-Consider the following examples of constructors from the SOS relation. They refer to the external choice and alphabetized parallelism operations respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics, as explained in \autoref{subsection:sos}. However, the definitions we are about to discuss only consider two of these rules: one that evaluates the external choice to the left-hand side operand, and the joint step rule of the alphabetized parallelism operation, that represents the synchronization event between the processes.
+The constructors \coqdocvar{ext\_choice\_left\_rule} and \coqdocvar{alpha\_parall\_joint\_rule} illustrate part of the formalisation of the external choice and the alphabetised parallelism operations, respectively. Note that each one of these operations need more than one inference rule in order to fully describe their semantics (see Section~\ref{subsection:sos}). The following definitions consider two of these rules.
+
+The \coqdocvar{ext\_choice\_left\_rule} constructor encodes the inference rule that solves the external choice operation for the left operand. As we have explained before, this behaviour is described by the following rule \
+%
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\RightLabel{\quad ($ a \neq \tau $)}
+	\UnaryInfC{$ P \extchoice Q \trans(2)[a] P' $}
+\end{prooftree}
+%
+which translates into the following logical proposition
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -264,7 +276,23 @@ Consider the following examples of constructors from the SOS relation. They refe
 	\coqdocindent{3.00em}
 	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
 	\coqdocindent{3.00em}
-	(\coqdocvar{S} \# \coqdocvar{P} [] \coqdocvar{Q} // \coqdocvar{a} ==> \coqdocvar{P'})\coqdoceol
+	(\coqdocvar{S} \# \coqdocvar{P} [] \coqdocvar{Q} // \coqdocvar{a} ==> \coqdocvar{P'})
+\end{coqdoccode}
+
+In this statement, we can see that the first clause corresponds to the side condition of the inference rule, which guarantees that the event $a$ is not the internal event $ \tau $. The second clause is the main premise of the rule, ensuring that it is possible for the event $ a $ to evolve the process $ P $ into $ P' $ in the specification $ S $. Together, the side condition and the hypothesis establish the necessary conditions to resolve the external choice operation to the left-hand operand.
+
+Similarly, the constructor \coqdocvar{alpha\_parall\_joint\_rule} formalises the inference rule that defines the synchronous communication of an event by two parallel processes (considering alphabetised parallelism). This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event $a$ belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure that this event is able to evolve both operands of the combination, that is, the processes to the left- and to the right-hand side of the parallelism operator can communicate this event.
+
+\begin{prooftree}
+	\AxiomC{$ P \trans(2)[a] P' $}
+	\AxiomC{$ Q \trans(2)[a] Q' $}
+	\RightLabel{\quad ($ a \in A^{\tick} \cap B^{\tick} $)}
+	\BinaryInfC{$ P \parallel[A][B] Q \trans(2)[a] P' \parallel[A][B] Q' $}
+\end{prooftree}
+
+The side condition and the premises are rewritten in the inductive definition as antecedents of a logical implication.
+
+\begin{coqdoccode}
 	\coqdocnoindent
 	\ensuremath{|} \coqdocvar{alpha\_parall\_joint\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{Q} : \coqdocvar{proc\_body}) (\coqdocvar{A} \coqdocvar{B} : \coqdoctac{set} \coqdocvar{event}) :\coqdoceol
 	\coqdocindent{1.00em}
@@ -279,50 +307,9 @@ Consider the following examples of constructors from the SOS relation. They refe
 	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
 \end{coqdoccode}
 
-The \coqdocvar{ext\_choice\_left\_rule} constructor encodes the inference rule that solves the external choice operation for the left operand. As we saw earlier, this behavior is described in the SOS by the rule \
-\
-\begin{prooftree}
-	\AxiomC{$ P \trans(2)[a] P' $}
-	\RightLabel{\quad ($ a \neq \tau $)}
-	\UnaryInfC{$ P \extchoice Q \trans(2)[a] P' $}
-\end{prooftree}
-\
-which translates into the logical proposition
+Note that this constructor does not consider the $ \tick $ event as a possible synchronisation event, even though it is included in the inference rule (side condition) we saw above. In Coq, external events and $\tick$ are defined using different constructors (\emph{Event} and \emph{Tick}), and, thus, cannot be part of the same set. We need to create different rules for each one. Therefore, the constructor \coqdocvar{alpha\_parall\_tick\_joint\_rule} formalises this joint step when the performed event is $\tick$.
 
-\begin{coqdoccode}
-	\coqdocnoindent
-	\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{a} \coqdocvar{Tau} \ensuremath{\rightarrow}
-	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}
-	(\coqdocvar{S} \# \coqdocvar{P} [] \coqdocvar{Q} // \coqdocvar{a} ==> \coqdocvar{P'})\coqdoceol
-\end{coqdoccode}
-
-In this statement, we can see that the first term corresponds to the side condition of the inference rule, which guarantees that the event in question is not the internal event $ \tau $. The second term is the main premise of the rule, ensuring that it is possible for the event $ a $ to evolve the process $ P $ into $ P' $ in the specification $ S $. Together, the side condition and hypothesis establish the necessary conditions to resolve the external choice operation to the left hand operand.
-
-Similarly, the inference rule that defines the synchronous communication of an event by two processes combined by the alphabetized parallelism operation, is described in Coq by the constructor \coqdocvar{alpha\_parall\_joint\_rule}. This rule, as we can see from its sequent notation below, has a side condition which guarantees that the event in question belongs to the intersection of the processes interfaces. Furthermore, it has two premises, which ensure this event is able to evolve both operands of the combination, that is, the processes to the left and to the right of the parallelism operator can communicate the event.
-
-\begin{prooftree}
-	\AxiomC{$ P \trans(2)[a] P' $}
-	\AxiomC{$ Q \trans(2)[a] Q' $}
-	\RightLabel{\quad ($ a \in A^{\tick} \cap B^{\tick} $)}
-	\BinaryInfC{$ P \parallel[A][B] Q \trans(2)[a] P' \parallel[A][B] Q' $}
-\end{prooftree}
-
-The side condition and the premises are rewritten in the inductive definition as antecedents of a logical implication:
-
-\begin{coqdoccode}
-	\coqdocnoindent
-	\coqdocvar{set\_In} \coqdocvar{a} (\coqdocvar{set\_inter} \coqdocvar{event\_dec} \coqdocvar{A} \coqdocvar{B}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocnoindent
-	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocnoindent
-	(\coqdocvar{S} \# \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{Q'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocnoindent
-	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
-\end{coqdoccode}
-
-Note that this constructor does not consider the $ \tick $ event as a possible synchronization event between the processes, even though it is included in the inference rule (side condition) we saw above. The reason for this is that we defined another constructor, \coqdocvar{alpha\_parall\_tick\_joint\_rule}, dedicated exclusively to this joint step allowed by the termination event.
-
-The last example of constructor we want to highlight from the inductive definition of the SOS is the \emph{process reference} operation. This constructor defines the rules for unfolding a process definition inside the body of another process:
+The last example of constructor we want to highlight from the inductive definition of the SOS is the \emph{process reference} operation. This constructor defines the rule for unfolding a process definition inside the body of another process.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -337,18 +324,20 @@ The last example of constructor we want to highlight from the inductive definiti
 	\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tau} ==> \coqdocvar{Q}\coqdoceol
 \end{coqdoccode}
 
-As we can see, there are two premises for successfully unfolding a definition. First, the process that needs unfolding must be of the form \coqdocvar{ProcRef} \coqdocvar{name}, where \coqdocvar{ProcRef} is a constructor of the type \coqdocvar{proc\_body}, and \coqdocvar{name} is a string that identifies the process in a specification. Second, the process referenced by \coqdocvar{ProcRef} \coqdocvar{name} must be defined in the specification. To that end, the function \coqdocvar{get\_proc\_body} searches for this definition inside the specification, while the equality ensures this search results in ``$ Some \ Q $'', where $ Q $ is a process body. It is important to emphasize that such definition differs from the one implemented by the FDR tool. This approach will allow an ill-formed recursion such as $ P := P $ to be declared in \CSPcoq{}, introducing a $ \tau $ action to represent the effort of unfolding the definition and, therefore, increasing the process LTS size.
+As we can see, there are two premises for successfully unfolding a definition. First, $P$ must be of the form \coqdocvar{ProcRef} \coqdocvar{name}, where \coqdocvar{ProcRef} is a constructor of type \coqdocvar{proc\_body}, and \coqdocvar{name} is a string that identifies a process. Second, the process referenced by \coqdocvar{ProcRef} \coqdocvar{name} must be defined in the specification. The auxiliary function \coqdocvar{get\_proc\_body} searches for this definition inside the specification, while the equality ensures that this search results in ``$ Some \ Q $'', where $ Q $ is a process body. If such a process name is not found in the specification, this auxiliary function yields ``\emph{None}''.
+
+Although we reflect the original reference rule, it is important to emphasise that our definition in Coq differs from the one implemented by the FDR tool. As explained in~\citeonline[p.~203, footnote 7]{roscoe:ucs}, it does not introduce this $\tau$ action to prevent from increasing the size of the state space. However, as a consequence, FDR diverges (stops responding) when analysing definitions such as $P = P$. This does not happen in \CSPcoq{}.
 
 % ---
 \section{Labelled transition systems}
 \label{section:lts}
 % ---
 
-Now that we can define syntactically and semantically correct CSP processes in Coq through the definitions we declared so far, we will introduce yet another way of implementing processes, based on the idea of labelled transition systems. This section will cover how the LTS concept was embedded in the proof assistant via functional and inductive definitions, and how \CSPcoq{} provides support to the GraphViz software, which enables a graph visualization of CSP processes.
+Now, considering the SOS presented before and implemented in Coq, we discuss another way of representing processes, based on the idea of labelled transition systems (LTSs). This section will cover how the LTS concept is embedded in Coq via functional and inductive definitions, and how \CSPcoq{} provides support to the GraphViz software, which enables a graphical visualisation of CSP processes.
 
-A labelled transition system consists of a non-empty set of states $ S $, with a designated initial state $ P_{0} $, a set of labels $ L $, and a ternary relation $ P \trans[x] Q $ meaning that the state $ P $ can perform an action labelled $ x $ and move to state $ Q $. In Coq, we defined a LTS in two different and complementary ways: a computable function and a relation.
+A labelled transition system consists of a non-empty set of states $ S $, with a designated initial state $ P_{0} $, a set of labels $ L $, and a ternary relation (a set of triples of the form $(P,x,Q)$, meaning that the state $ P $ can perform an action labelled as $ x $ and move to state $ Q $). In Coq, we define a LTS in two different and complementary ways: a computable function and a relation.
 
-To illustrate these definitions, consider the following \CSPcoq{} specification:
+To illustrate these definitions, consider the following \CSPcoq{} specification.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -369,11 +358,11 @@ To illustrate these definitions, consider the following \CSPcoq{} specification:
 	\coqdockw{Defined}.\coqdoceol
 \end{coqdoccode}
 
-Initially, the process ``P'' can perform either ``a'' or ``c''. If ``a'' gets communicated, the external choice resolves to the process ``b'' -{}-> STOP, which can then perform ``b'' and finish the execution. On the other hand, if the event ``c'' gets communicated instead, then the combination resolves to the process STOP and also terminates. Therefore, we can list three transitions for the process ``P'': from state (``a'' -{}-> ``b'' -{}-> STOP) [] (``c'' -{}-> STOP) to state ``b'' -{}-> STOP with event ``a'', from state (``a'' -{}-> ``b'' -{}-> STOP) [] (``c'' -{}-> STOP) to state STOP with event ``c'', and from state ``b'' -{}-> STOP to state STOP with event ``b''. To better describe these transitions, we will be using the 3-tuple notation ($ P $, $ a $, $ Q $), where $ P $ is the source state, $ a $ is the action (event), and $ Q $ is the target state.
+Initially, the process ``P'' can perform either ``a'' or ``c''. If ``a'' gets communicated, the external choice resolves to the process ``b'' -{}-> STOP, which can then perform ``b'' and finish the execution. Differently, if the event ``c'' gets communicated instead, then the composition resolves to the process STOP and also terminates. Therefore, we can list three transitions for ``P'': from state \emph{(``a'' -{}-> ``b'' -{}-> STOP) [] (``c'' -{}-> STOP)} to state \emph{``b'' -{}-> STOP} by performing ``a'', from state \emph{(``a'' -{}-> ``b'' -{}-> STOP) [] (``c'' -{}-> STOP)} to state STOP by performing \emph{``c''}, and from state \emph{``b'' -{}-> STOP} to state \emph{STOP} by performing ``b''. To better describe these transitions, we will use the 3-tuple notation ($ P $, $ a $, $ Q $), where $ P $ is the source state, $ a $ is the action (event), and $ Q $ is the target state.
 
-We can apply the same intuition from this example in the implementation of a functional definition of LTS in Coq: starting with the initial state, compute all the immediate transitions available from this state, meaning all 3-tuples where the target states can be reached in one step from $ S_{0} $. Mark the initial state as ``visited'' and any other state discovered in the previous step as ``not visited''. Then, repeat this step for each unvisited state until there are no states to be visited anymore, keeping track of the states you have already visited and the ones that haven't been visited yet.
+We can apply the same intuition from this example in the implementation of a functional definition of LTSs in Coq. Starting from the initial state $S_{0}$, compute all the immediate transitions available from this state, that is, all 3-tuples where the target states can be reached in one step from $ S_{0} $. Mark the initial state as ``visited'' and mark any other state discovered in the previous step as ``not visited''. Then, repeat this step for each unvisited state until there are no states to be visited anymore.
 
-Let \coqdocvar{compute\_ltsR} be the function yielded by this algorithm, the following Coq command outputs the set of transitions from the LTS of the process ``P'':
+Let \coqdocvar{compute\_ltsR} be the function that implements the idea described in the previous paragraph, the following Coq command computes the set of transitions of ``P''.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -388,6 +377,10 @@ Let \coqdocvar{compute\_ltsR} be the function yielded by this algorithm, the fol
 	\>	(``b'' -{}-> STOP, Event ``b'', STOP)]\\
 	: option (set transition)
 \end{tabbing}
+
+%TODO -- stopped here
+% comment on well-founded recursion
+% comment on creating an heuristic for $n$
 
 Note that we added an integer as the third parameter of the function \coqdocvar{compute\_ltsR}. Since every recursive definition (\coqdockw{Fixpoint}) in Coq must have an argument that explicitly decreases in each recursive call to ensure termination, the third parameter fulfills this premise. Therefore, the number of recursive calls is limited in order to prevent endless computations: this function only returns a set of transitions when it's able to visit all the states of the LTS before reaching the limit.
 
@@ -463,7 +456,7 @@ The constructor \coqdocvar{lts\_empty\_rule} implies that the LTS relation holds
 \subsection{GraphViz integration}
 % ---
 
-GraphViz is an open source graph visualization software that takes descriptions of graphs in a simple text language -- in our case, the DOT language -- and make diagrams in useful formats, such as images, SVG, and PDF. Moreover, this tool allows the customization of these diagrams, such as options for colors, fonts, hyperlinks, and custom node shapes. Providing support for this software enables \CSPcoq{} programmers to generate a graph from the description of a LTS with one line of command. That way, the behavior of a process may be inspected and analyzed more easily, since a visual representation will be available.
+GraphViz is an open source graph visualization software that takes descriptions of graphs in a simple text language -- in our case, the DOT language -- and make diagrams in useful formats, such as images, SVG, and PDF. Moreover, this tool allows the customization of these diagrams, such as options for colors, fonts, hyperlinks, and custom node shapes. Providing support for this software enables \CSPcoq{} programmers to generate a graph from the description of a LTS with one line of command. That way, the behaviour of a process may be inspected and analyzed more easily, since a visual representation will be available.
 
 In order to build the description of a graph in DOT language, it is necessary to define a mapping of the constructors of \coqdocvar{event\_tau\_tick} and \coqdocvar{proc\_body} types to the \coqdocvar{string} type. That way, it will be possible to convert each tuple from the LTS into a statement that corresponds to a transition of a graph in DOT syntax. One way to achieve this in Coq is through the \coqdockw{Coercion} command, which assigns a conversion function that maps an expression of one type into another.
 
@@ -571,7 +564,7 @@ The \autoref{image:machine_lts} shows the expected output: an image in JPEG form
 \label{section:traces}
 % ---
 
-As we saw earlier in \autoref{subsection:traces-refinement}, a simple but effective way to analyze the behavior of a process is through the sequence of externally visible events such process is capable of performing over time. This communication history is called \emph{trace}. Using the concepts we saw previously, we may perceive trace as a list of actions that takes from one state to another in a LTS, or even the sequence of external events that one process can be communicate according to the operational semantics.
+As we saw earlier in \autoref{subsection:traces-refinement}, a simple but effective way to analyse the behaviour of a process is through the sequence of externally visible events such process is capable of performing over time. This communication history is called \emph{trace}. Using the concepts we saw previously, we may perceive trace as a list of actions that takes from one state to another in a LTS, or even the sequence of external events that one process can be communicate according to the operational semantics.
 
 % ---
 \subsection{Traces-related concepts}
