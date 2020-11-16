@@ -162,6 +162,7 @@ As one can see from the examples above, the abstract syntax -- though it dictate
 
 % ---
 \subsection{Concrete syntax}
+\label{sec:concrete-syntax}
 % ---
 
 In order to define a more appropriate notation for the \CSPcoq{} language, the command \coqdockw{Notation} was used. It allows the declaration of a new symbolic notation for an existing definition. The examples bellow demonstrate how this command is used to assign symbols (operators) to previously defined constructors.
@@ -307,7 +308,7 @@ The side condition and the premises are rewritten in the inductive definition as
 	\coqdocvar{S} \# \coqdocvar{P} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q} // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P'} [[ \coqdocvar{A} \symbol{92}\symbol{92} \coqdocvar{B} ]] \coqdocvar{Q'}\coqdoceol
 \end{coqdoccode}
 
-Note that this constructor does not consider the $ \tick $ event as a possible synchronisation event, even though it is included in the inference rule (side condition) we saw above. In Coq, external events and $\tick$ are defined using different constructors (\emph{Event} and \emph{Tick}), and, thus, cannot be part of the same set. We need to create different rules for each one. Therefore, the constructor \coqdocvar{alpha\_parall\_tick\_joint\_rule} formalises this joint step when the performed event is $\tick$.
+Note that this constructor does not consider the $ \tick $ event as a possible synchronisation event, even though it is included in the inference rule (side condition) we saw above. In Coq, external events and $\tick$ are defined using different constructors (\emph{Event} and \emph{Tick}), and, thus, cannot be part of the same set. We need to create different rules for each one. Therefore, the constructor \coqdocvar{alpha\_parall\_tick\_joint\_rule} formalises this joint step when the performed event is $\tick$. The term \emph{event\_dec} provides evidence that the comparison of events is decidable.
 
 The last example of constructor we want to highlight from the inductive definition of the SOS is the \emph{process reference} operation. This constructor defines the rule for unfolding a process definition inside the body of another process.
 
@@ -362,7 +363,7 @@ Initially, the process ``P'' can perform either ``a'' or ``c''. If ``a'' gets co
 
 We can apply the same intuition from this example in the implementation of a functional definition of LTSs in Coq. Starting from the initial state $S_{0}$, compute all the immediate transitions available from this state, that is, all 3-tuples where the target states can be reached in one step from $ S_{0} $. Mark the initial state as ``visited'' and mark any other state discovered in the previous step as ``not visited''. Then, repeat this step for each unvisited state until there are no states to be visited anymore.
 
-Let \coqdocvar{compute\_ltsR} be the function that implements the idea described in the previous paragraph, the following Coq command computes the set of transitions of ``P''.
+Let \coqdocvar{compute\_ltsR} be the function that implements the idea described in the previous paragraph, the following Coq command computes the set of transitions of ``P''. We omit here the formal definition of this function, but it is available at our GitHub repository.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -378,14 +379,27 @@ Let \coqdocvar{compute\_ltsR} be the function that implements the idea described
 	: option (set transition)
 \end{tabbing}
 
-%TODO -- stopped here
-% comment on well-founded recursion
-% comment on creating an heuristic for $n$
+Note that we need to provide a natural number to the function \coqdocvar{compute\_ltsR} (e.g., 1000). In Coq, to ensure termination, every recursive definition (\coqdockw{Fixpoint}) should have an argument that explicitly decreases in each recursive call. During recursion, since new states may be reached, Coq cannot automatically infer what is the decreasing argument. The natural number ensures this premise (decreasing argument). Therefore, the number of recursive calls is limited by the provided number. However, it is also important to emphasise that, from the yielded result, one can easily assess whether the transition relation has been fully constructed. If the provided argument is not enough for computing all transitions, the function yields \emph{None} instead of \emph{Some} list.
 
-Note that we added an integer as the third parameter of the function \coqdocvar{compute\_ltsR}. Since every recursive definition (\coqdockw{Fixpoint}) in Coq must have an argument that explicitly decreases in each recursive call to ensure termination, the third parameter fulfills this premise. Therefore, the number of recursive calls is limited in order to prevent endless computations: this function only returns a set of transitions when it's able to visit all the states of the LTS before reaching the limit.
+We can prove the correctness of our functional definition for computing LTSs by means of the SOS presented in Section~\ref{section:sos}. If $ T $ is the set of transitions in the LTS representation of process $ P $, then every possible communication of $ P $ -- and its components (inner processes) -- is present in $ T $, and every transition in $ T $ is a valid communication of process $ P $ (or the sub-processes that make up $ P $). With this in mind, we provide an inductive definition for LTSs, which is based on the underlying SOS. Nevertheless, the prove of correctness of \coqdocvar{compute\_ltsR} is left as future work.
 
-Once we have our result, we may still want to check whether this set of transitions is indeed the LTS of the process in question. One way to prove this is by demonstrating that for every process $ P $ and $ Q $, and event $ a $, $ P $ behaves like $ Q $ after communicating $ a $ if, and only if, the 3-tuple ($ P $, $ a $, $ Q $) belongs to the set of transitions. In other words, if $ T $ is the set of transitions in the LTS representation of the process $ P $, then every possible communication of $ P $ -- and its components (inner processes) -- is present in $ T $, and every transition in $ T $ is a valid communication of process $ P $ (or the sub-processes that make up $ P $). With that in mind, an inductive definition might be useful to prove this kind of assertion.
+Given a specification ($S$), a process identifier ($name$), and a set of transitions ($T$), the propositional function \emph{ltsR} yields a predicate that is true if $T$ is the set of transitions of $P$, according to the \CSPcoq{} SOS. First, $name$ needs to be a process defined in the specification, and $T$ may not have duplicate entries. If these two conditions hold, we say that $T$ is the correct of transitions if it is related to the definition of $P$ (i.e., its \emph{body}) by the inductively defined proposition \emph{ltsR'}.
 
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{ltsR} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition}) : \coqdockw{Prop} :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{name} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{body} \ensuremath{\Rightarrow} \coqdocvar{NoDup} \coqdocvar{T} \ensuremath{\land} \coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} [\coqdocvar{body}] \coqdocvar{nil}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{False}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}	
+
+The inductively defined proposition (LTS relation) is formalised as follows \emph{ltsR'}. It has two constructors, which capture (inductively) a breadth-first search. Its last two arguments (\coqdoctac{set} \coqdocvar{proc\_body}) control the visited and the to-visit states (represented as process behaviours), respectively. The first constructor (\coqdocvar{lts\_empty\_rule}) states that when no states remain to be visited (\emph{nil}), the corresponding LTS is empty (\emph{nil}).
+	
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Inductive} \coqdocvar{ltsR'} :\coqdoceol
@@ -404,6 +418,20 @@ Once we have our result, we may still want to check whether this set of transiti
 	\coqdocindent{3.00em}
 	\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{nil} \coqdocvar{nil} \coqdocvar{visited}\coqdoceol
 	\coqdocindent{1.00em}
+\end{coqdoccode}
+
+The second constructor (\coqdocvar{lts\_inductive\_rule}) captures the induction step of our definition. Provided that:
+%
+\begin{itemize}
+	\item $P$ is an arbitrary state/process;
+	\item $T$ is a set of transitions;
+	\item $T'$ is the set of transitions emanating from $P$ in $T$, such that a triple $(P,a,P')$ is in $T'$ if, and only if, according to the SOS, $P$ behaves as $P'$ after performing $a$;
+	\item $T''$ is defined as $T - T'$ (i.e., the transitions not emanating from $P$ in $T$)
+\end{itemize}
+%
+we can prove that $T$ is the set of transitions of $P :: tl$ (i.e., the process $P$ follower by an arbitrary list of other states/processes still to be visited -- the tail \emph{tl}), if we prove that $T''$ is the set of transitions of \emph{to\_visit}, which is the list of states to visit updated by including the states reached by $T'$ and excluding the already visited ones (\emph{visited'}), which includes the previously visited states in addition to $P$.
+
+\begin{coqdoccode}
 	\ensuremath{|} \coqdocvar{lts\_inductive\_rule}\coqdoceol
 	\coqdocindent{4.00em}
 	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
@@ -433,34 +461,28 @@ Once we have our result, we may still want to check whether this set of transiti
 	\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T'{}'} \coqdocvar{to\_visit} \coqdocvar{visited'} \ensuremath{\rightarrow}\coqdoceol
 	\coqdocindent{3.00em}
 	\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} (\coqdocvar{P} :: \coqdocvar{tl}) \coqdocvar{visited}.\coqdoceol
-	\coqdocemptyline
-	\coqdocnoindent
-	\coqdockw{Definition} \coqdocvar{ltsR} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition}) : \coqdockw{Prop} :=\coqdoceol
-	\coqdocindent{1.00em}
-	\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{name} \coqdockw{with}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \coqdocvar{Some} \coqdocvar{body} \ensuremath{\Rightarrow} \coqdocvar{NoDup} \coqdocvar{T} \ensuremath{\land} \coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} [\coqdocvar{body}] \coqdocvar{nil}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{False}\coqdoceol
-	\coqdocindent{1.00em}
-	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-The constructor \coqdocvar{lts\_empty\_rule} implies that the LTS relation holds when there are neither states to be visited nor transitions to validate anymore. On the other hand, the inductive step is described by the constructor \coqdocvar{lts\_inductive\_rule}, which proposes that $ T $ represents the set of transitions of the LTS of process $ P $ if the following two premises are satisfied:
-\begin{itemize}
-	\item Let $ T' $ be the subset of $ T $ containing all transitions from state $ P $, $ P \trans[a] Q \iff (P, a, Q) \in T'$;
-	\item Let $ T'' $ be the set of all remaining transitions and $ S $ the set of states yet to be visited (union of the set of new states that can be reached from $ P $ and other unvisited states), the LTS relation must hold also for the sets $ T'' $ and $ S $.
-\end{itemize}
+The successive application of the induction step will progressively relate a set of transitions with all states reached from the initial one. This formal definition can be used to prove that a particular result of \coqdocvar{compute\_ltsR} is correct, as illustrated in the following example, where $ls$ is the list yielded by \coqdocvar{compute\_ltsR} \coqdocvar{SPEC} ``P'' 1000.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Example} \coqdocvar{lts1\_is\_valid} :\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{ltsR} \coqdocvar{SPEC} ``P'' ls.\coqdoceol
+	\coqdocnoindent
+	\coqdockw{Proof}. $\ldots$ \coqdockw{Qed.}\coqdoceol
+\end{coqdoccode}
+
+During the development of this work, we have used this idea to validate the function \coqdocvar{compute\_ltsR}; proving that the computed LTSs are correct indeed.
 
 % ---
 \subsection{GraphViz integration}
 % ---
 
-GraphViz is an open source graph visualization software that takes descriptions of graphs in a simple text language -- in our case, the DOT language -- and make diagrams in useful formats, such as images, SVG, and PDF. Moreover, this tool allows the customization of these diagrams, such as options for colors, fonts, hyperlinks, and custom node shapes. Providing support for this software enables \CSPcoq{} programmers to generate a graph from the description of a LTS with one line of command. That way, the behaviour of a process may be inspected and analyzed more easily, since a visual representation will be available.
+GraphViz is an open source graph visualisation software that takes descriptions of graphs in simple textual languages -- in our case, the DOT language -- and creates diagrams in useful formats, such as SVG and PDF. Moreover, this tool allows the customisation of these diagrams, modifying colors, fonts, hyperlinks, and using custom node shapes. Providing support for this software enables \CSPcoq{} users to generate a graph from the description of a LTS with one command line. That way, the behaviour of a process may be inspected and validated more easily, since a visual representation is available.
 
-In order to build the description of a graph in DOT language, it is necessary to define a mapping of the constructors of \coqdocvar{event\_tau\_tick} and \coqdocvar{proc\_body} types to the \coqdocvar{string} type. That way, it will be possible to convert each tuple from the LTS into a statement that corresponds to a transition of a graph in DOT syntax. One way to achieve this in Coq is through the \coqdockw{Coercion} command, which assigns a conversion function that maps an expression of one type into another.
-
-Consider the following coercion from type \coqdocvar{event\_tau\_tick} to type \coqdocvar{string}:
+In order to build the description of a graph in the DOT language, it is necessary to define a mapping of the constructors of the types \coqdocvar{event\_tau\_tick} and \coqdocvar{proc\_body} to the \coqdocvar{string} type. That way, it is possible to convert each tuple from the LTS into a statement that corresponds to a transition of a graph in the DOT syntax. One way to achieve this in Coq is through the \coqdockw{Coercion} command, which assigns a conversion function that maps an expression of one type into another. For example, consider the following coercion from the type \coqdocvar{event\_tau\_tick} to the type \coqdocvar{string}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -480,9 +502,9 @@ Consider the following coercion from type \coqdocvar{event\_tau\_tick} to type \
 	\coqdockw{Coercion} \coqdocvar{event\_tau\_tick\_to\_str} : \coqdocvar{event\_tau\_tick} >-> \coqdocvar{string}.\coqdoceol
 \end{coqdoccode}
 
-As we can see from the code snippet above, initially, we defined a function that takes an element of type \coqdocvar{event\_tau\_tick} and returns a string representation of that element. Then, a coercion between the two types is established: from this point on, Coq will convert an element of type \coqdocvar{event\_tau\_tick} into a string whenever it is necessary.
+As we can see from the code snippet above, initially, we defined a function that takes an element of type \coqdocvar{event\_tau\_tick} and yields a string representation of this element. Then, a coercion between the two types is established: from this point on, Coq will convert an element of type \coqdocvar{event\_tau\_tick} into a string whenever it is necessary.
 
-Once the coercions are configured, we can define a function to create the description of a graph in the DOT language from the set of tuples that make up the LTS. The intuition behind this function is as follows: the first tuple to be processed has its starting state identified as the graph's initial node (bold and red border), and each tuple -- the first included -- is rewritten as a DOT syntax transition statement. In other words, the tuple (P, e, Q) generates the string ``<P> -> <Q> [label = <e>];'', as shown in the definitions below:
+Once the possible coercions are stated, we define in Coq the function \coqdocvar{generate\_dot} to create the description of a graph in the DOT language from the set of tuples that make up the LTS. The intuition behind this function is as follows. The first tuple to be processed has its starting state identified as the graph's initial node (bold and red border), and each tuple -- the first included -- is rewritten as a DOT syntax transition statement. In other words, the tuple $(P, e, Q)$ is translated to the string ``<P> -> <Q> [label = <e>];'' by this function, as shown in the definitions below. Note that the function \coqdocvar{generate\_dot} relies on the auxiliary and recursive function \coqdocvar{generate\_dot'}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -492,12 +514,14 @@ Once the coercions are configured, we can define a function to create the descri
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{nil} \ensuremath{\Rightarrow} ``''\coqdoceol
 	\coqdocindent{1.00em}
-	\ensuremath{|} (\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl} \ensuremath{\Rightarrow} `` <'' ++ \coqdocvar{P} ++ ``> -> <'' ++ \coqdocvar{Q} ++ ``>'' ++ `` [label=<'' ++ \coqdocvar{e} ++ ``>];'' ++ (\coqdocvar{generate\_dot'} \coqdocvar{tl})\coqdoceol
+	\ensuremath{|} (\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl} \ensuremath{\Rightarrow} `` <'' ++ \coqdocvar{P} ++ ``> -> <'' ++ \coqdocvar{Q} ++ ``>'' ++\coqdoceol
+	\coqdocindent{9.30em}`` [label=<'' ++ \coqdocvar{e} ++ ``>];'' ++ (\coqdocvar{generate\_dot'} \coqdocvar{tl})\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
 	\coqdocemptyline
 	\coqdocnoindent
-	\coqdockw{Definition} \coqdocvar{style\_initial\_state} (\coqdocvar{P} : \coqdocvar{proc\_body}) : \coqdocvar{string} := ``<'' ++ \coqdocvar{P} ++ ``> [style=bold, color=red];''.\coqdoceol
+	\coqdockw{Definition} \coqdocvar{style\_initial\_state} (\coqdocvar{P} : \coqdocvar{proc\_body}) : \coqdocvar{string} :=\coqdoceol
+	\coqdocindent{1.00em} ``<'' ++ \coqdocvar{P} ++ ``> [style=bold, color=red];''.\coqdoceol
 	\coqdocemptyline
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{generate\_dot} (\coqdocvar{lts} : \coqdocvar{option} (\coqdoctac{set} \coqdocvar{transition})) : \coqdocvar{string} :=\coqdoceol
@@ -506,14 +530,15 @@ Once the coercions are configured, we can define a function to create the descri
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{Some} ((\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl}) \ensuremath{\Rightarrow}\coqdoceol
 	\coqdocindent{2.00em}
-	``digraph LTS \{ '' ++ (\coqdocvar{style\_initial\_state} \coqdocvar{P}) ++ (\coqdocvar{generate\_dot'} ((\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl})) ++ `` \}''\coqdoceol
+	``digraph LTS \{ '' ++ (\coqdocvar{style\_initial\_state} \coqdocvar{P}) ++\coqdoceol
+	\coqdocindent{2.00em} (\coqdocvar{generate\_dot'} ((\coqdocvar{P}, \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{tl})) ++ `` \}''\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{\_} \ensuremath{\Rightarrow} ``''\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-To demonstrate what these definitions can achieve, recall the process MACHINE from the section 3.1.2. Here is a complete definition of that process in \CSPcoq{}:
+To demonstrate these definitions, recall the MACHINE example from Section~\ref{sec:concrete-syntax}. In what follows, we present its complete definition in \CSPcoq{}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -531,33 +556,37 @@ To demonstrate what these definitions can achieve, recall the process MACHINE fr
 	\coqdocindent{2.00em}
 	; ``CHANGE'' ::= ``cash'' -{}-> ``change'' -{}-> \coqdocvar{ProcRef} ``CHANGE''\coqdoceol
 	\coqdocindent{2.00em}
-	; ``MACHINE'' ::= \coqdocvar{ProcRef} ``TICKET'' [[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]] \coqdocvar{ProcRef} ``CHANGE'' ]\coqdoceol
+	; ``MACHINE'' ::= \coqdocvar{ProcRef} ``TICKET''\coqdoceol
+	\coqdocindent{10.50em}[[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]]\coqdoceol
+	\coqdocindent{10.50em}\coqdocvar{ProcRef} ``CHANGE'' ]\coqdoceol
 	\coqdocindent{1.00em}
 	).\coqdoceol
 	\coqdocnoindent
 	\coqdockw{Defined}.\coqdoceol
 \end{coqdoccode}
 
-To generate the description of the graph in DOT syntax for the process MACHINE, simply run this command in Coq:
+Considering the process MACHINE, to generate the graph description in the DOT syntax from the corresponding LTS, we simply run the following command in Coq:
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Compute} \coqdocvar{generate\_dot} (\coqdocvar{compute\_ltsR} \coqdocvar{PARKING\_PERMIT\_MCH} ``MACHINE'' 1000).\coqdoceol
 \end{coqdoccode}
 
-We can then save the string output to a file named LTS.gv and run the following command in a terminal with the GraphViz software installed:
+We can then save the string output to a file named LTS.gv and run the following command in a terminal, provided that the GraphViz software has been installed:
 
-\emph{\$ dot -Nlabel=``'' -Nshape=circle -Tjpeg LTS.gv -o LTS.jpeg}
+\noindent \emph{\$ dot -Nlabel=``'' -Nshape=circle -Tjpeg LTS.gv -o LTS.jpeg}
 
-The \autoref{image:machine_lts} shows the expected output: an image in JPEG format containing a graph -- with nodes shaped as circles and no labels -- that represents the process LTS:
+Figure~\ref{image:machine_lts} shows the obtained output: an image in the JPEG format containing a graph -- with nodes shaped as circles and no labels -- that represents the process LTS.
 
 \begin{figure}[htb]
 	\caption[Example LTS: The process MACHINE]{Example LTS: The process MACHINE.}
 	\label{image:machine_lts}
 	\begin{center}
-		\includegraphics[scale=0.75]{images/parking_permit_mch_lts.pdf}
+		\includegraphics[scale=0.55]{images/parking_permit_mch_lts.pdf}
 	\end{center}
 \end{figure}
+
+In \CSPcoq, it is also possible to generate such a graph displaying the behaviours (process bodies) associated with each state. Although this decreases the graph readability, it permits the user to know precisely the behaviour represented by each state.
 
 % ---
 \section{Traces refinement}
