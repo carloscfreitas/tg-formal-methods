@@ -396,10 +396,10 @@ Given a specification ($S$), a process identifier ($name$), and a set of transit
 	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{False}\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
-\end{coqdoccode}	
+\end{coqdoccode}
 
 The inductively defined proposition (LTS relation) is formalised as follows \emph{ltsR'}. It has two constructors, which capture (inductively) a breadth-first search. Its last two arguments (\coqdoctac{set} \coqdocvar{proc\_body}) control the visited and the to-visit states (represented as process behaviours), respectively. The first constructor (\coqdocvar{lts\_empty\_rule}) states that when no states remain to be visited (\emph{nil}), the corresponding LTS is empty (\emph{nil}).
-	
+
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Inductive} \coqdocvar{ltsR'} :\coqdoceol
@@ -615,7 +615,7 @@ After defining this new type, we can formalise being a trace as a relationship b
 		\AxiomC{}
 		\UnaryInfC{$ \mathit{trace} \ P \ nil $}
 	\end{prooftree}
-	
+
 	\item a non-empty list $L = h :: tl$ is a trace of a process $P$ if $P$ behaves as $Q$ after communicating $h$, which cannot be $\tau$, and the remaining events of this list is a trace of the process resulting from this communication;
 	\begin{prooftree}
 		\AxiomC{$ P \trans[h] Q $}
@@ -646,8 +646,8 @@ Now, we create an inductively defined proposition to formalise the traces notion
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{event\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{h} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{tl} : \coqdocvar{trace}) :\coqdoceol
 	\coqdocindent{2.00em}
-	\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{h} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol	
-	\coqdocindent{2.00em}	
+	\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{h} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol
+	\coqdocindent{2.00em}
 	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{h} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
 	\coqdocindent{2.00em}
 	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{tl} \ensuremath{\rightarrow}\coqdoceol
@@ -802,11 +802,19 @@ In order to create the checker, first we need to define a generator of random in
 	\coqdocindent{7.00em}
 	\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
 	\coqdocindent{8.00em}
-	\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{e} :: \coqdocvar{ts})\coqdoceol
+	\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Event} \coqdocvar{e} :: \coqdocvar{ts})\coqdoceol
 	\coqdocindent{7.00em}
 	)\coqdoceol
 	\coqdocindent{6.00em}
-	\ensuremath{|} (\coqdocvar{\_}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\ensuremath{|} (\coqdocvar{Tick}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+	\coqdocindent{7.00em}
+	\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+	\coqdocindent{8.00em}
+	\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Tick} :: \coqdocvar{ts})\coqdoceol
+	\coqdocindent{7.00em}
+	)\coqdoceol
+	\coqdocindent{6.00em}
+	\ensuremath{|} (\coqdocvar{Tau}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
 	\coqdocindent{7.00em}
 	\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
 	\coqdocindent{8.00em}
@@ -950,7 +958,7 @@ Once the random trace generator is defined, we need an executable property to ev
 	\coqdocindent{4.00em}
 	\coqdockw{let} \coqdocvar{result} := \coqdocvar{map} (\coqdockw{fun} \coqdocvar{t} \ensuremath{\Rightarrow}\coqdoceol
 	\coqdocindent{5.00em}
-	\coqdockw{if} \coqdocvar{is\_equal} (\coqdocvar{fst} \coqdocvar{t}) (\coqdocvar{Event} \coqdocvar{e})\coqdoceol
+	\coqdockw{if} \coqdocvar{negb} (\coqdocvar{is\_equal} (\coqdocvar{fst} \coqdocvar{t}) (\coqdocvar{Tau}))\coqdoceol
 	\coqdocindent{5.00em}
 	\coqdockw{then} \coqdocvar{check\_trace'} \coqdocvar{S} (\coqdocvar{snd} \coqdocvar{t}) \coqdocvar{es} \coqdocvar{fuel'}\coqdoceol
 	\coqdocindent{5.00em}
