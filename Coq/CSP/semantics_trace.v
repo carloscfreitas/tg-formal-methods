@@ -501,15 +501,15 @@ Sample (gen_valid_trans S_PRINTER0 ("accept" --> "print" --> STOP)).
 
 Sample (gen_valid_trace S_PRINTER0 "PRINTER0" 3).
 
-Compute (check_trace S_PRINTER0 "PRINTER0" ["accept" ; "print"] 1000).
+Compute (check_trace S_PRINTER0 "PRINTER0" [Event "accept" ; Event "print"] 1000).
 
 Example PRINTER0_empty_trace_auto : traceR S_PRINTER0 "PRINTER0" nil.
 Proof. solve_trace. Qed.
 
-Example PRINTER0_trace1_auto : traceR S_PRINTER0 "PRINTER0" ["accept"].
+Example PRINTER0_trace1_auto : traceR S_PRINTER0 "PRINTER0" [Event "accept"].
 Proof. solve_trace. Qed.
 
-Example PRINTER0_trace2_auto : traceR S_PRINTER0 "PRINTER0" ["accept" ; "print"].
+Example PRINTER0_trace2_auto : traceR S_PRINTER0 "PRINTER0" [Event "accept" ; Event "print"].
 Proof. solve_trace. Qed.
 
 Definition CH_CHOOSE := Channel {{"select", "keep", "return"}}.
@@ -526,15 +526,17 @@ Compute (get_transitions S_CHOOSE (("keep" --> SKIP [] "return" --> ProcRef "CHO
 
 Sample (gen_valid_trace S_CHOOSE "CHOOSE" 5).
 
-Compute (check_trace S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "return" ; "select" ; "keep"] 1000).
+Compute (check_trace S_CHOOSE "CHOOSE" [Event "select" ; Event "return" ; Event "select"
+  ; Event "return" ; Event "select" ; Event "keep"] 1000).
 
-Example CHOOSE_trace1_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "keep"].
+Example CHOOSE_trace1_auto : traceR S_CHOOSE "CHOOSE" [Event "select" ; Event "keep" ; Tick].
 Proof. solve_trace. Qed.
 
-Example CHOOSE_trace2_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "return"].
+Example CHOOSE_trace2_auto : traceR S_CHOOSE "CHOOSE" [Event "select" ; Event "return"].
 Proof. solve_trace. Qed.
 
-Example CHOOSE_trace_auto : traceR S_CHOOSE "CHOOSE" ["select" ; "return" ; "select" ; "return" ; "select" ; "keep"].
+Example CHOOSE_trace_auto : traceR S_CHOOSE "CHOOSE" [Event "select" ; Event "return" ; Event "select"
+  ; Event "return" ; Event "select" ; Event "keep" ; Tick].
 Proof. solve_trace. Qed.
 
 Definition CH_TEAM := Channel {{"lift_piano", "lift_table"}}.
@@ -555,13 +557,14 @@ Sample (gen_valid_trace S_TEAM "PETE" 5).
 
 QuickChick (trace_refinement_checker S_TEAM "PETE" "DAVE" 20 1000).
 
-Example TEAM_trace1_auto : traceR S_TEAM "TEAM" ["lift_piano"].
+Example TEAM_trace1_auto : traceR S_TEAM "TEAM" [Event "lift_piano"].
 Proof. solve_trace. Qed.
 
-Example TEAM_trace2_auto : traceR S_TEAM "TEAM" ["lift_piano"; "lift_table"].
+Example TEAM_trace2_auto : traceR S_TEAM "TEAM" [Event "lift_piano"; Event "lift_table"].
 Proof. solve_trace. Qed.
 
-Example TEAM_trace3_auto : traceR S_TEAM "PETE" ["lift_table" ; "lift_piano" ; "lift_piano" ; "lift_piano" ; "lift_table"].
+Example TEAM_trace3_auto : traceR S_TEAM "PETE" [Event "lift_table" ; Event "lift_piano" ; Event "lift_piano"
+  ; Event "lift_piano" ; Event "lift_table"].
 Proof. solve_trace. Qed.
 
 Definition LIGHT := "LIGHT" ::= "on" --> "off" --> ProcRef "LIGHT".
@@ -570,7 +573,7 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [Channel {{"on", "off"}}] [LIGHT]).
 Defined.
 
-Example LIGHT_trace1_auto : traceR S_LIGHT "LIGHT" ["on"; "off" ; "on"].
+Example LIGHT_trace1_auto : traceR S_LIGHT "LIGHT" [Event "on"; Event "off" ; Event "on"].
 Proof. solve_trace. Qed.
 
 Definition S_FORECOURT : specification.
@@ -594,12 +597,14 @@ Proof.
 Defined.
 
 Example FORECOURT_trace1_auto : traceR S_FORECOURT "FORECOURT"
-    ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"].
+    [Event "lift_nozzle_1" ; Event "lift_nozzle_2" ; Event "depress_trigger_1" ; Event "depress_trigger_2"
+    ; Event "release_trigger_2"].
 Proof. solve_trace. Qed.
 
 Example FORECOURT_trace2_auto : traceR S_FORECOURT "FORECOURT"
-  ["lift_nozzle_1" ; "lift_nozzle_2" ; "depress_trigger_1" ; "depress_trigger_2" ; "release_trigger_2"
-  ; "release_trigger_1" ; "replace_nozzle_2" ; "replace_nozzle_1" ; "lift_nozzle_2"].
+  [Event "lift_nozzle_1" ; Event "lift_nozzle_2" ; Event "depress_trigger_1" ; Event "depress_trigger_2"
+  ; Event "release_trigger_2" ; Event "release_trigger_1" ; Event "replace_nozzle_2" ; Event "replace_nozzle_1"
+  ; Event "lift_nozzle_2"].
 Proof. solve_trace. Qed.
 
 Definition SPY := "SPY" ::= "listen" --> "relay" --> ProcRef "SPY".
@@ -610,10 +615,11 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [Channel {{"listen", "relay", "log"}}] [SPY ; MASTER ; MASTER_SPY]).
 Defined.
 
-Example MASTER_SPY_trace1_auto : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "log"].
+Example MASTER_SPY_trace1_auto : traceR S_MASTER_SPY "MASTER_SPY" [Event "listen" ; Event "log"].
 Proof. solve_trace. Qed.
 
-Example MASTER_SPY_trace2_auto : traceR S_MASTER_SPY "MASTER_SPY" ["listen" ; "listen" ; "log" ; "listen" ; "log"].
+Example MASTER_SPY_trace2_auto : traceR S_MASTER_SPY "MASTER_SPY" [Event "listen" ; Event "listen" ; Event "log"
+  ; Event "listen" ; Event "log"].
 Proof. solve_trace. Qed.
 
 Definition S_PURCHASE : specification.
@@ -638,8 +644,8 @@ Proof.
   ).
 Defined.
 
-Example PURCHASE_trace_auto : traceR S_PURCHASE "PURCHASE" ["select" ; "return" ; "select" ; "keep"
-  ; "card" ; "swipe" ; "reject" ; "cash" ; "receipt"].
+Example PURCHASE_trace_auto : traceR S_PURCHASE "PURCHASE" [Event "select" ; Event "return" ; Event "select"
+  ; Event "keep" ; Event "card" ; Event "swipe" ; Event "reject" ; Event "cash" ; Event "receipt"].
 Proof. solve_trace. Qed.
 
 Definition TICKET := "TICKET" ::= "cash" --> "ticket" --> ProcRef "TICKET".
@@ -651,7 +657,8 @@ Proof.
   solve_spec_ctx_rules (Build_Spec [Channel {{"cash", "ticket", "change"}}] [TICKET ; CHANGE ; MACHINE]).
 Defined.
 
-Example PARKING_trace_auto : traceR PARKING_PERMIT_MCH "MACHINE" ["cash" ; "ticket" ; "change" ; "cash" ; "change" ; "ticket"].
+Example PARKING_trace_auto : traceR PARKING_PERMIT_MCH "MACHINE" [Event "cash" ; Event "ticket" ; Event "change"
+  ; Event "cash" ; Event "change" ; Event "ticket"].
 Proof. solve_trace. Qed.
 
 Definition TOY_PROBLEM : specification.
@@ -666,7 +673,7 @@ Proof.
     ]
   ).
 Defined.
-Example TOY_PROBLEM_trace_auto : traceR TOY_PROBLEM "R" ["a" ; "b"].
+Example TOY_PROBLEM_trace_auto : traceR TOY_PROBLEM "R" [Event "a" ; Event "b"].
 Proof. solve_trace. Qed.
 
 Local Close Scope string.
