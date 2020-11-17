@@ -762,19 +762,36 @@ As we have explained in Section~\ref{subsection:traces-refinement}, this definit
 \label{section:quickchick}
 % ---
 
-In the context of this work, the QuickChick library was used to random test the refinement property according to the traces model. That being said, our goal is to obtain a simple and automated way to test this property that relates two processes, Imp and Spec, eventually finding examples that prove the opposite. In other words, this checker guarantees that, if there is a failure during the tests, it is proven by counterexample that the refinement relation between the two processes inputted does not hold.
+In the context of this work, the QuickChick library was used to random test the refinement property according to the traces model. Our goal is to obtain a simple and automated way to test this property that relates two processes, Imp and Spec, eventually finding counterexamples for the traces refinement relation. In other words, we have developed a checker in QuickChick that tries to find a counterexample of a refinement expression by means of random property-based testing.
 
-In order to create the checker, first we need to define a generator of random inputs, which, in our case, consists of traces of a given process. Thus, we define a random generator that takes a ``specification'' process and an arbitrary integer to limit the number of events in the trace. This generator returns a trace of the given process, which size is limited by the third parameter:
+In order to create this checker, we first need to define a generator of random inputs, which, in our case, consist of traces for a given process. Thus, we define a random generator that takes a ``specification'' process and an arbitrary natural number to limit the maximum number of events in the trace. This generator returns a trace for the given process, whose size is limited by the third parameter. Proving that this generator is correct (i.e., all traces generated for a process $P$ are indeed traces of $P$ according to definition \coqdocvar{traceR}) remains as a future work.
+
+The function \coqdocvar{gen\_valid\_trace} defines our generator by yielding an instance of the G Monad\footnote{More information available at \url{https://softwarefoundations.cis.upenn.edu/qc-current/QC.html}}. This function, as others presented before, retrieves the process body associated with the provided process identifier. Then, it calls the auxiliary function \coqdocvar{gen\_valid\_trace'}.
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Definition} \coqdocvar{gen\_valid\_trace}\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{proc\_id} : \coqdocvar{string}) (\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
+	\coqdocindent{1.00em}
+	: \coqdocvar{G} (\coqdocvar{option} \coqdocvar{semantics\_trace.trace}) :=\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{proc\_id} \coqdockw{with}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{None}\coqdoceol
+	\coqdocindent{1.00em}
+	\ensuremath{|} \coqdocvar{Some} \coqdocvar{P} \ensuremath{\Rightarrow} \coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{size}\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+The function \coqdocvar{gen\_valid\_trace'} operates as follows. While the third parameter is greater than zero, decide -- based on a given frequency -- whether the generation should stop. If it should continue, generate a transition from the current state of the process, decreasing the argument that limits the trace size; call the generator recursively, passing the state reached by the transition generated in the previous step. Finally, return the concatenation of the event from this transition with the result of the recursive call, if the event is not $\tau$. The function \coqdocvar{freq\_} is responsible for making the probabilistic choice. In our case, the option to end the generation before reaching the limit has $ ((1 / (size + 1)) * 100)\% $ chance to happen, while continuing with the generation has the probability of $ ((size / (size + 1)) * 100)\% $.
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Fixpoint} \coqdocvar{gen\_valid\_trace'}\coqdoceol
 	\coqdocindent{1.00em}
-	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
+	(\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
 	\coqdocindent{1.00em}
 	: \coqdocvar{G} (\coqdocvar{option} \coqdocvar{semantics\_trace.trace}) :=\coqdoceol
 	\coqdocindent{1.00em}
@@ -833,30 +850,9 @@ In order to create the checker, first we need to define a generator of random in
 	]\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
-	\coqdocemptyline
-	\coqdocnoindent
-	\coqdockw{Definition} \coqdocvar{gen\_valid\_trace}\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
-	\coqdocindent{1.00em}
-	: \coqdocvar{G} (\coqdocvar{option} \coqdocvar{semantics\_trace.trace}) :=\coqdoceol
-	\coqdocindent{1.00em}
-	\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{proc\_id} \coqdockw{with}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{None}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \coqdocvar{Some} \coqdocvar{P} \ensuremath{\Rightarrow} \coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{size}\coqdoceol
-	\coqdocindent{1.00em}
-	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-This generator operates as follows: while the third parameter is greater than zero, decide -- based on probability -- whether the generation should stop; in case it should continue, generate a transition from the current state of the process, decreasing the argument that limits the trace size; call the generator recursively, passing the state reached by the  transition generated in the previous step; finally, return the concatenation of the event from this transition with the result of the recursive call. The function \coqdocvar{freq\_} is responsible for making the probabilistic choice. In our case, the option to end the generation before reaching the limit has $ ((1 / (size + 1)) * 100)\% $ chance to happen, while continuing with the generation has the probability of $ ((size / (size + 1)) * 100)\% $.
-
-The command that samples traces according to the generator we defined, as well as the output of this sampling process are exemplified bellow:
+The command that samples traces according to this generator, as well as part of the output of this sampling process are exemplified below.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -870,7 +866,7 @@ The command that samples traces according to the generator we defined, as well a
 	\emph{Some [``cash''; ``change''; ``ticket''; ``cash'']; Some [``cash''; ``change''; ``ticket'']; $\dots$]}
 \end{tabbing}
 
-This definition, however, depends on another generator of random input: \coqdocvar{gen\_valid\_trans}. This generator receives a specification and a process body, and returns a list containing exactly one valid random transition from the given state, where the transition is represented by the pair (action, target\_state):
+As one can see, the definition of \coqdocvar{gen\_valid\_trace'} relies on a generator of random transitions from a given process $P$ (\coqdocvar{gen\_valid\_trans}). The latter generator receives a specification and a process body, and yields a list containing exactly one valid random transition from the given state, where the transition is represented by the pair (action, target\_state). The generation of all emanating transitions from a given process $P$ is performed by \coqdocvar{get\_transitions}, which is a function used in our computable definition of LTSs.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -893,13 +889,15 @@ This definition, however, depends on another generator of random input: \coqdocv
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-The following lines in Coq exemplify the usage of this function that generates valid transitions:
+\noindent The following lines exemplify the usage of \coqdocvar{gen\_valid\_trans}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdocvar{Sample} (\coqdocvar{gen\_valid\_trans} \coqdocvar{PARKING\_PERMIT\_MCH}\coqdoceol
 	\coqdocindent{1.00em}
-	(\coqdocvar{ProcRef} ``TICKET'' [[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]] 	\coqdocvar{ProcRef} ``CHANGE'')).\coqdoceol
+	(\coqdocvar{ProcRef} ``TICKET''\coqdoceol
+	\coqdocindent{1.40em} [[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]]\coqdoceol
+	\coqdocindent{1.40em}\coqdocvar{ProcRef} ``CHANGE'')).\coqdoceol
 \end{coqdoccode}
 
 \begin{tabbing}
@@ -908,21 +906,17 @@ The following lines in Coq exemplify the usage of this function that generates v
 	\emph{Some [($ \tau $,cash $ \rightarrow $ ticket $ \rightarrow $ TICKET [{ticket, cash} || {change, cash}] CHANGE)]; $\dots$]}
 \end{tabbing}
 
-Note that, since this generator also computes transitions in which $ \tau $ and $ \tick $ may appear as actions, it is necessary to hide them, so that the generated trace does not consider such non-external events. The generator \coqdocvar{gen\_valid\_trace} does so by concatenating only external events to the list that will be returned at the end of the computation.
+Note that, since this generator also computes transitions in which $ \tau $ may appear as actions, it is necessary to hide them, so that the generated trace does not consider these internal events. The generator \coqdocvar{gen\_valid\_trace} does so by concatenating only external events and $\tick$ to the list that will be returned.
 
-Once the random trace generator is defined, we need an executable property to evaluate these inputs when applied to another process. In other words, we need a computable function to check whether the trace generated from a process \emph{Imp} is also a trace of a process \emph{Spec}. The idea behind this function is to try to make progress with the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ or $ \tick $ for the sequence of events to be accepted by the process:
+Once the random generator of traces is defined, we need an executable property that uses the generated traces to assess a refinement expression. Therefore, we define the function \coqdocvar{check\_trace'} to check whether the trace generated from a process \emph{Imp} is also a trace of a process \emph{Spec}. The idea behind this function is to try to make progress within the given process, one step at a time, consuming the events of the trace in the order in which they appear, while trying to guess non-deterministically when it is necessary to insert a $ \tau $ for the sequence of events to be accepted by the process.
+
+The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events (trace), or the internal event. Then, we try to make progress with each of these valid events, performing a recursive call considering each target state obtained from the transitions in the previous step, but removing the corresponding event from the list when applicable -- that is, except $ \tau $. If any of the recursive calls reach an empty list (trace), then the provided trace is indeed a trace of the process. Differently, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Fixpoint} \coqdocvar{check\_trace'}\coqdoceol
 	\coqdocindent{1.00em}
-	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{event\_list} : \coqdocvar{trace})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{option} \coqdocvar{bool} :=\coqdoceol
+	(\coqdocvar{S} : \coqdocvar{specification})	(\coqdocvar{P} : \coqdocvar{proc\_body})	(\coqdocvar{event\_list} : \coqdocvar{trace}) (\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{option} \coqdocvar{bool} :=\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{match} \coqdocvar{fuel}, \coqdocvar{event\_list} \coqdockw{with}\coqdoceol
 	\coqdocindent{1.00em}
@@ -997,17 +991,16 @@ Once the random trace generator is defined, we need an executable property to ev
 	\coqdockw{end}\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
+\end{coqdoccode}
+
+The function \coqdocvar{check\_trace'} is called by \coqdocvar{check\_trace}, which retrieves the process body associated with the provided process identifier.
+
+\begin{coqdoccode}	
 	\coqdocemptyline
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{check\_trace}\coqdoceol
 	\coqdocindent{1.00em}
-	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{event\_list} : \coqdocvar{trace})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{option} \coqdocvar{bool} :=\coqdoceol
+	(\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{proc\_id} : \coqdocvar{string}) (\coqdocvar{event\_list} : \coqdocvar{trace}) 	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{option} \coqdocvar{bool} :=\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{match} \coqdocvar{fuel}, \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{proc\_id} \coqdockw{with}\coqdoceol
 	\coqdocindent{1.00em}
@@ -1016,14 +1009,16 @@ Once the random trace generator is defined, we need an executable property to ev
 	\ensuremath{|} \coqdocvar{S} \coqdocvar{fuel'}, \coqdocvar{Some} \coqdocvar{P} \ensuremath{\Rightarrow} \coqdocvar{check\_trace'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{event\_list} \coqdocvar{fuel'}\coqdoceol
 	\coqdocindent{1.00em}
 	\coqdockw{end}.\coqdoceol
-	\coqdocemptyline
+\end{coqdoccode}
+
+Finally, the function \coqdocvar{traceP} provides the given trace to \coqdocvar{check\_trace} and propagates the boolean yielded by the latter function.
+	
+\begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{traceP}\coqdoceol
 	\coqdocindent{1.00em}
-	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
-	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})
+	(\coqdocvar{proc\_id} : \coqdocvar{string})
 	(\coqdocvar{fuel} : \coqdocvar{nat})\coqdoceol
 	\coqdocindent{1.00em}
 	(\coqdocvar{t} : \coqdocvar{option} \coqdocvar{semantics\_trace.trace}) : \coqdocvar{bool} :=\coqdoceol
@@ -1045,27 +1040,21 @@ Once the random trace generator is defined, we need an executable property to ev
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-
-The function \coqdocvar{check\_trace'} initially computes all possible immediate transitions from one state. Then, it filters, from these transitions, those whose action corresponds either to the current element in the list of events, or the internal event, or the termination event. Then, we try to make progress with each of these valid events, performing a recursive call with each target state obtained from the transitions in the previous step, removing the corresponding event from the list when applicable -- that is, except $ \tau $ and $ \tick $. If any of the recursive call empties the list of events, then this list is indeed a trace of the process. On the other hand, if none of the recursive calls is able to make progress, then we can assume that this list is not a trace of the process.
-
-Provided these definitions, we can then declare the refinement property checker. This checker tests whether every randomly generated trace of an implementation process is also a trace of a specification process:
+Provided these definitions, we define the refinement-property checker. This checker tests whether every randomly generated trace of an implementation process is also a trace of a specification process. This definition reflects the formal definition of the trace-refinement relation presented in Section~\ref{section:traces-concepts}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{trace\_refinement\_checker}\coqdoceol
 	\coqdocindent{1.00em}
-	(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{Imp} \coqdocvar{Spec} : \coqdocvar{string})\coqdoceol
-	\coqdocindent{1.00em}
-	(\coqdocvar{trace\_max\_size} : \coqdocvar{nat})\coqdoceol
-	\coqdocindent{1.00em}
+	(\coqdocvar{S} : \coqdocvar{specification})
+	(\coqdocvar{Imp} \coqdocvar{Spec} : \coqdocvar{string})
+	(\coqdocvar{trace\_max\_size} : \coqdocvar{nat})
 	(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{Checker} :=\coqdoceol
 	\coqdocindent{2.00em}
 	\coqdocvar{forAll} (\coqdocvar{gen\_valid\_trace} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{trace\_max\_size}) (\coqdocvar{traceP} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{fuel}).\coqdoceol
 \end{coqdoccode}
 
-In order to see the checker \coqdocvar{trace\_refinement\_checker} in action, consider the following \CSPcoq{} specification:
+To illustrate the verification of this executable property, consider the following \CSPcoq{} specification.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -1088,7 +1077,7 @@ In order to see the checker \coqdocvar{trace\_refinement\_checker} in action, co
 	\coqdockw{Defined}.\coqdoceol
 \end{coqdoccode}
 
-Now, we may want to check whether ``Q'' trace-refines ``P'', that is, if every trace of ``Q'' is also a trace of ``P''. For that, we invoke our checker with the command \coqdocvar{QuickChick}, passing 5 as the maximum trace size and the arbitrary integer 1000 as the fuel argument:
+If we may want to check whether ``Q'' trace-refines ``P'', that is, if every trace of ``Q'' is also a trace of ``P'', we invoke our checker with the command \coqdocvar{QuickChick}, passing, for instance, 5 as the maximum trace size and the arbitrary integer 1000 as the fuel argument (to limit the number of performed recursions).
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -1100,7 +1089,7 @@ Now, we may want to check whether ``Q'' trace-refines ``P'', that is, if every t
 	\emph{*** Failed after 3 tests and 0 shrinks. (0 discards)}
 \end{tabbing}
 
-As we are told by the message above, QuickChick performed 3 tests before running into a trace that invalidates the refinement relation, proving that ``Q'' does not trace-refine ``P''. We can verify this with the provided counterexample -- [``c''] is a trace of process ``Q'', but it is not a trace of ``P''. On the other hand, notice that the process ``Q'' is actually refined by ``P'' (i.e. ``P'' trace-refines ``Q''). We will not be able to prove that statement with our checker though. Instead, it may only lead us to believe that the relation holds, since QuickChick is not able to provide us with any counterexample after executing 10000 tests.
+As we are told by the message above, QuickChick performed 3 tests before running into a trace that violates the refinement relation, showing evidence that ``Q'' does not trace-refine ``P'', since [``c''] is a trace of ``Q'', but it is not a trace of ``P''. Differently, note that the process ``Q'' is actually refined by ``P'' (i.e. ``P'' trace-refines ``Q''). We will not be able to prove that statement with our checker though. Instead, it may only lead us to believe that the relation holds, since QuickChick is not able to provide us with any counterexample after executing 10000 tests.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -1111,4 +1100,4 @@ As we are told by the message above, QuickChick performed 3 tests before running
 	\emph{+++ Passed 10000 tests (0 discards)}
 \end{tabbing}
 
-Therefore, since this method is, ultimately, a testing solution, we are only interested in counterexamples, which actually prove that the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere indication at best, thus they do not count as proofs for the assertions made. In other words, this refinement-checking approach is sound (if the checked property does not hold, we do not have a trace refinement), but it is not complete (if the checked property holds, we can not guarantee whether it is a trace refinement).
+Therefore, since this method is, ultimately, a testing solution, we are only interested in counterexamples, which actually show evidence that the refinement relation does not hold between two processes. Passing tests must be considered nothing but a mere indication of a possibly valid refinement expression. In other words, this refinement-checking approach is sound (if the checked property does not hold, the trace-refinement relation does not hold), but it is not complete (if the checked property holds, we can not guarantee whether the trace-refinement relation holds).
