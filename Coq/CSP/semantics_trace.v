@@ -6,19 +6,16 @@ Import ListNotations.
 Require Import syntax.
 Require Import semantics_sos.
 
-Definition trace := list event.
+Definition trace := list event_tau_tick.
 
 Inductive traceR' : specification -> proc_body -> trace -> Prop :=
   | empty_trace_rule (S : specification) (P : proc_body) :
     traceR' S P nil
-  | event_trace_rule (S : specification) (P P' : proc_body) (h : event) (tl : trace) :
-    (S # P // Event h ==> P') ->
+  | event_trace_rule (S : specification) (P P' : proc_body) (h : event_tau_tick) (tl : trace) :
+    ~ eq h Tau ->
+    (S # P // h ==> P') ->
     traceR' S P' tl ->
     traceR' S P (h::tl)
-  | tick_trace_rule (S : specification) (P P' : proc_body) (t : trace) :
-    (S # P // Tick ==> P') ->
-    traceR' S P' t ->
-    traceR' S P t
   | tau_trace_rule (S : specification) (P P' : proc_body) (t : trace) :
     (S # P // Tau ==> P') ->
     traceR' S P' t ->
@@ -37,7 +34,6 @@ Ltac solve_trace' :=
   (* Non-empty trace *)
   | |- traceR' _ _ _ =>
     (eapply tau_trace_rule
-    + eapply tick_trace_rule
     + eapply event_trace_rule); solve_trace'
   (* SOS Prefix rule *)
   | |- _ # _ --> _ // _ ==> _ => apply prefix_rule
@@ -99,6 +95,18 @@ Ltac solve_trace' :=
   end.
 
 Ltac solve_trace := unfold traceR; simpl; solve_trace'.
+
+Local Open Scope string.
+
+Definition S_SKIP : specification.
+Proof.
+  solve_spec_ctx_rules (Build_Spec [Channel {{"a"}}] ["P" ::= "a" --> SKIP]).
+Defined.
+
+Example tick_in_trace : traceR S_SKIP "P" [Event "a" ; Tick].
+Proof. solve_trace. Qed.
+
+Local Close Scope string.
 
 Definition trace_refinement (S : specification) (Spec Imp : string) : Prop :=
   forall (t : trace), traceR S Imp t -> traceR S Spec t.
@@ -279,7 +287,7 @@ Fixpoint check_trace'
       | nil => Some false
       | _ =>
         let result := map (fun t =>
-          if is_equal (fst t) (Event e)
+          if negb (is_equal (fst t) (Tau))
           then check_trace' S (snd t) es fuel'
           else check_trace' S (snd t) (e :: es) fuel'
         ) valid_moves in
@@ -309,6 +317,13 @@ Definition check_trace
   | O, _ | _, None => None
   | S fuel', Some P => check_trace' S P event_list fuel'
   end.
+
+Local Open Scope string.
+
+Example check_trace_with_tick : (check_trace S_SKIP "P" [Event "a" ; Tick] 1000) = Some true.
+Proof. simpl. reflexivity. Qed.
+
+Local Close Scope string.
 
 From QuickChick Require Import QuickChick.
 
@@ -346,8 +361,11 @@ Fixpoint gen_valid_trace'
           | nil => ret nil
           | (Event e, Q) :: _ =>
             ts <- (gen_valid_trace' S Q size') ;;
-            ret (e :: ts)
-          | (_, Q) :: _ =>
+            ret (Event e :: ts)
+          | (Tick, Q) :: _ =>
+            ts <- (gen_valid_trace' S Q size') ;;
+            ret (Tick :: ts)
+          | (Tau, Q) :: _ =>
             ts <- (gen_valid_trace' S Q size') ;;
             ret ts
           end
@@ -358,9 +376,13 @@ Fixpoint gen_valid_trace'
             | nil => ret nil
             | (Event e, Q) :: _ =>
               bind (gen_valid_trace' S Q size') (
-                fun ts => ret (e :: ts)
+                fun ts => ret (Event e :: ts)
               )
-            | (_, Q) :: _ =>
+            | (Tick, Q) :: _ =>
+              bind (gen_valid_trace' S Q size') (
+                fun ts => ret (Tick :: ts)
+              )
+            | (Tau, Q) :: _ =>
               bind (gen_valid_trace' S Q size') (
                 fun ts => ret ts
               )
@@ -441,37 +463,6 @@ Definition trace_refinement_checker
   (trace_max_size : nat)
   (fuel : nat) : Checker :=
     forAll (gen_valid_trace S Imp trace_max_size) (traceP S Spec fuel).
-
-Theorem traceP_correctness:
-  forall (S : specification) (proc_id : string) (fuel : nat) (t : semantics_trace.trace),
-  traceP S proc_id fuel (Some t) = true -> traceR S proc_id t.
-Proof.
-  intros. unfold traceR. destruct (get_proc_body S proc_id) eqn:H1.
-  - unfold traceP in H. unfold check_trace in H. rewrite -> H1 in H.
-    destruct fuel.
-    * inversion H.
-    * destruct (check_trace' S p t fuel) eqn:H2.
-      + rewrite H in H2. destruct t.
-        { apply empty_trace_rule. }
-        {
-          destruct fuel.
-          { inversion H2. }
-          {
-            unfold check_trace' in H2. destruct (get_transitions S p) eqn:H3.
-            destruct (filter (fun t : event_tau_tick * proc_body =>
-              is_equal (fst t) (Event e) || is_equal (fst t) Tau || is_equal (fst t) Tick) l) eqn:H4.
-            { inversion H2. }
-            {
-              admit.
-            }
-            { inversion H2. }
-          }
-        }
-      + inversion H.
-  - unfold traceP in H. unfold check_trace in H. rewrite -> H1 in H.
-    destruct fuel; inversion H.
-Admitted.
-
 
 (** TRACE EXAMPLES **)
 
