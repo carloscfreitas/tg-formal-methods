@@ -468,6 +468,26 @@ Definition trace_refinement_checker
 
 Local Open Scope string.
 
+Sample (gen_valid_trace S_SKIP "P" 5).
+
+QuickChick (trace_refinement_checker S_SKIP "P" "P" 5 1000).
+
+Definition S_TEST : specification.
+Proof.
+  solve_spec_ctx_rules (
+    Build_Spec 
+    [ Channel {{"a"}} ]
+    [ "P" ::= SKIP ;; ("a" --> SKIP)
+    ; "Q" ::= "a" --> SKIP ]
+  ).
+Defined.
+
+Sample (gen_valid_trace S_TEST "P" 3).
+
+QuickChick (trace_refinement_checker S_TEST "P" "Q" 5 1000).
+
+QuickChick (trace_refinement_checker S_TEST "Q" "P" 5 1000).
+
 Definition CH_PRINTER0 := Channel {{"accept", "print"}}.
 Definition PRINTER0 := "PRINTER0" ::= "accept" --> "print" --> STOP.
 Definition S_PRINTER0 : specification.
