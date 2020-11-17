@@ -336,7 +336,7 @@ Although we reflect the original reference rule, it is important to emphasise th
 
 Now, considering the SOS presented before and implemented in Coq, we discuss another way of representing processes, based on the idea of labelled transition systems (LTSs). This section will cover how the LTS concept is embedded in Coq via functional and inductive definitions, and how \CSPcoq{} provides support to the GraphViz software, which enables a graphical visualisation of CSP processes.
 
-A labelled transition system consists of a non-empty set of states $ S $, with a designated initial state $ P_{0} $, a set of labels $ L $, and a ternary relation (a set of triples of the form $(P,x,Q)$, meaning that the state $ P $ can perform an action labelled as $ x $ and move to state $ Q $). In Coq, we define a LTS in two different and complementary ways: a computable function and a relation.
+A labelled transition system consists of a non-empty set of states $ S $, with a designated initial state $ P_{0} $, a set of labels $ L $, and a ternary relation (a set of triples of the form $(P,x,Q)$, meaning that the state $ P $ can perform an action labelled as $ x $ and move to state $ Q $). In Coq, we define an LTS in two different and complementary ways: a computable function and a relation.
 
 To illustrate these definitions, consider the following \CSPcoq{} specification.
 
@@ -480,7 +480,7 @@ During the development of this work, we have used this idea to validate the func
 \subsection{GraphViz integration}
 % ---
 
-GraphViz is an open source graph visualisation software that takes descriptions of graphs in simple textual languages -- in our case, the DOT language -- and creates diagrams in useful formats, such as SVG and PDF. Moreover, this tool allows the customisation of these diagrams, modifying colors, fonts, hyperlinks, and using custom node shapes. Providing support for this software enables \CSPcoq{} users to generate a graph from the description of a LTS with one command line. That way, the behaviour of a process may be inspected and validated more easily, since a visual representation is available.
+GraphViz is an open source graph visualisation software that takes descriptions of graphs in simple textual languages -- in our case, the DOT language -- and creates diagrams in useful formats, such as SVG and PDF. Moreover, this tool allows the customisation of these diagrams, modifying colors, fonts, hyperlinks, and using custom node shapes. Providing support for this software enables \CSPcoq{} users to generate a graph from the description of an LTS with one command line. That way, the behaviour of a process may be inspected and validated more easily, since a visual representation is available.
 
 In order to build the description of a graph in the DOT language, it is necessary to define a mapping of the constructors of the types \coqdocvar{event\_tau\_tick} and \coqdocvar{proc\_body} to the \coqdocvar{string} type. That way, it is possible to convert each tuple from the LTS into a statement that corresponds to a transition of a graph in the DOT syntax. One way to achieve this in Coq is through the \coqdockw{Coercion} command, which assigns a conversion function that maps an expression of one type into another. For example, consider the following coercion from the type \coqdocvar{event\_tau\_tick} to the type \coqdocvar{string}.
 
@@ -593,20 +593,21 @@ In \CSPcoq, it is also possible to generate such a graph displaying the behaviou
 \label{section:traces}
 % ---
 
-As we saw earlier in \autoref{subsection:traces-refinement}, a simple but effective way to analyse the behaviour of a process is through the sequence of externally visible events such process is capable of performing over time. This communication history is called \emph{trace}. Using the concepts we saw previously, we may perceive trace as a list of actions that takes from one state to another in a LTS, or even the sequence of external events that one process can be communicate according to the operational semantics.
+As we have seen in Section~\ref{subsection:traces-refinement}, a simple but effective way to analyse the behaviour of a process is through the sequence of externally visible events that such a process is capable of performing over time. This communication history is called \emph{trace}. We may perceive a trace as a list of actions that takes from one state to another in an LTS. In Section~\ref{section:traces-concepts} we present our characterisation of traces in Coq, and in Section~\ref{section:quickchick} we explain how we use QuickChick to analyse traces-refinement expressions.
 
 % ---
 \subsection{Traces-related concepts}
+\label{section:traces-concepts}
 % ---
 
-Like the other types of CSP language we have discussed so far in this work, the trace also has its counterpart in \CSPcoq{}. It is defined in terms of a list of events that can be observed by the environment, that is, neither $ \tau $ nor $ \tick $ can be present in that list. This restriction is guaranteed in Coq by choosing the inductive type \coqdocvar{event} in the trace definition, instead of the type \coqdocvar{event\_tau\_tick}, which also includes internal and termination events. Below, we can check the definition in the proof assistant:
+Like the other concepts of CSP we have discussed so far, traces are also formalised in \CSPcoq{}. This concept is defined in terms of a list of events that can be observed by the environment and, thus, $ \tau $ is not considered here. Although our definition of \emph{trace} allows the presence of $\tau$, the way we build traces prevents its appearance.
 
 \begin{coqdoccode}
 	\coqdocnoindent
-	\coqdockw{Definition} \coqdocvar{trace} := \coqdocvar{list} \coqdocvar{event}.\coqdoceol
+	\coqdockw{Definition} \coqdocvar{trace} := \coqdocvar{list} \coqdocvar{event\_tau\_tick}.\coqdoceol
 \end{coqdoccode}
 
-After defining this type, we can then declare trace as a relationship between a process P and a list of events L, so that it is possible to make logical propositions that involve whether or not L is a trace of P. Initially, we can describe four inference rules that define this relation:
+After defining this new type, we can formalise being a trace as a relationship between a process P and a list of events L, so that it is possible to create logical propositions that involve assessing whether L is a trace of P. This relationship encodes the following inference rules:
 
 \begin{itemize}
 	\item the empty list is a trace of any process;
@@ -614,20 +615,16 @@ After defining this type, we can then declare trace as a relationship between a 
 		\AxiomC{}
 		\UnaryInfC{$ \mathit{trace} \ P \ nil $}
 	\end{prooftree}
-	\item a non-empty list L is a trace of a process P if the first element of L can be performed by P and the remaining events of this list is a trace of the process resulting from this communication;
+	
+	\item a non-empty list $L = h :: tl$ is a trace of a process $P$ if $P$ behaves as $Q$ after communicating $h$, which cannot be $\tau$, and the remaining events of this list is a trace of the process resulting from this communication;
 	\begin{prooftree}
 		\AxiomC{$ P \trans[h] Q $}
 		\AxiomC{$ \mathit{trace} \ Q \ tl $}
-		\RightLabel{\quad ($ h \notin \{\tick, \ \tau\} $)}
+		\RightLabel{\quad ($ h \notin \{\tau\} $)}
 		\BinaryInfC{$ \mathit{trace} \ P \ (h :: tl) $}
 	\end{prooftree}
-	\item a list L is a trace of a process P if $ \tick $ can be performed by P and L is a trace of the process resulting from this communication;
-	\begin{prooftree}
-		\AxiomC{$ P \trans[\tick] Q $}
-		\AxiomC{$ \mathit{trace} \ Q \ L $}
-		\BinaryInfC{$ \mathit{trace} \ P \ L $}
-	\end{prooftree}
-	\item similarly, a list L is a trace of a process P if $ \tau $ can be performed by P and L is a trace of the process resulting from this communication.
+
+	\item similarly, a list $L$ is a trace of a process $P$ if $ \tau $ can be performed by $P$ and $L$ is a trace of the process resulting from this communication.
 	\begin{prooftree}
 		\AxiomC{$ P \trans[\tau] Q $}
 		\AxiomC{$ \mathit{trace} \ Q \ L $}
@@ -635,9 +632,9 @@ After defining this type, we can then declare trace as a relationship between a 
 	\end{prooftree}
 \end{itemize}
 
-To illustrate this concept, consider once again our process MACHINE, whose LTS is represented by the graph in \autoref{image:machine_lts}. One can easily verify, using that image, that the sequence of events <cash, ticket, change> is a trace of that process. First, the process communicates the internal event $ \tau $ twice, in order to unfold both sides of the parallel combination. Then, it proceeds to communicate the event cash, as the joint step of the process MACHINE components (processes TICKET and CHANGE). Finally, the left-hand side of the process compound may communicate first, performing the event ticket; followed by event change, communicated by the right-hand side of the operator. Remember that a trace consists of externally visible events only, therefore the first two communicated events, which both happen to be $ \tau $, do not appear in the trace.
+To illustrate this concept, consider once again the process MACHINE, whose LTS is represented by the graph in Figure~\ref{image:machine_lts}. Examining this figure, one can note that the sequence of events <cash, ticket, change> is a trace of this process. First, the process communicates the internal event $ \tau $ twice, in order to unfold both sides of the parallel combination. Then, it proceeds to communicate the event cash, as the joint step of the MACHINE components (processes TICKET and CHANGE). Finally, the left-hand side of the parallel composition may communicate first, performing the event ticket; followed by event change, communicated by the right-hand side of the parallel composition. Remember that a trace consists of visible events only (also considering $\tick$), therefore the first two communicated events, which both happen to be $ \tau $, do not appear in the trace.
 
-Now, our knowledge of inductive declaration in Coq will be useful once again to embed these rules in the tool -- each one of these can be translated into a constructor from the \coqdocvar{traceR'} definition:
+Now, we create an inductively defined proposition to formalise the traces notion, encoding the aforementioned rules, which are translated to three constructors of \coqdocvar{traceR'}. The propositional function \coqdocvar{traceR} is responsible for retrieving the process body associated with the provided process name.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -647,21 +644,15 @@ Now, our knowledge of inductive declaration in Coq will be useful once again to 
 	\coqdocindent{2.00em}
 	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{nil}\coqdoceol
 	\coqdocindent{1.00em}
-	\ensuremath{|} \coqdocvar{event\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{h} : \coqdocvar{event}) (\coqdocvar{tl} : \coqdocvar{trace}) :\coqdoceol
+	\ensuremath{|} \coqdocvar{event\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{h} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{tl} : \coqdocvar{trace}) :\coqdoceol
 	\coqdocindent{2.00em}
-	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Event} \coqdocvar{h} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+	\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{h} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol	
+	\coqdocindent{2.00em}	
+	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{h} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
 	\coqdocindent{2.00em}
 	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{tl} \ensuremath{\rightarrow}\coqdoceol
 	\coqdocindent{2.00em}
 	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} (\coqdocvar{h}::\coqdocvar{tl})\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \coqdocvar{tick\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{t} : \coqdocvar{trace}) :\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tick} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{t} \ensuremath{\rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{t}\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{tau\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{t} : \coqdocvar{trace}) :\coqdoceol
 	\coqdocindent{2.00em}
@@ -683,15 +674,15 @@ Now, our knowledge of inductive declaration in Coq will be useful once again to 
 	\coqdockw{end}.\coqdoceol
 \end{coqdoccode}
 
-Note that the inference rules described above, in the order they were presented, correspond, respectively, to the constructors \coqdocvar{empty\_trace\_rule,} \coqdocvar{event\_trace\_rule}, \coqdocvar{tick\_trace\_rule}, and \coqdocvar{tau\_trace\_rule} of the \coqdocvar{traceR'} inductive definition.
+Note that the inference rules described before, in the order they were presented, correspond, respectively, to the constructors \coqdocvar{empty\_trace\_rule,} \coqdocvar{event\_trace\_rule}, and \coqdocvar{tau\_trace\_rule} of the \coqdocvar{traceR'} inductive definition.
 
-This definition of trace as a relation, as well as the definition of operational semantics in the SOS style, allows us not only to make assertions like \emph{traceR S ``P'' L}, given a specification $ S $, a process $ P $ and a list of events $ L $, but also prove them in Coq by applying the constructors from the inductive declarations available.
+This definition of traces as a relation allows us not only to make assertions like \emph{traceR S ``P'' L}, given a specification $ S $, a process $ P $ and a list of events $ L $, but also prove them in Coq by applying the constructors from the inductive declarations of traces and SOS.
 
-It turns out that, not only these proofs, that verify the trace relationship between a process and a list of events, grow in proportion to the size of the list you want to check, they also become quite repetitive. Fortunately, this repetition allows us to define an algorithm to automatically prove assertions of this kind, and thus create a tactic macro for that purpose.
+It turns out that, the proof that $L$ is a trace of $P$ grows proportionally to the size of the list (trace). Additionally, these proofs also become quite repetitive. Fortunately, this repetition allows us to define an algorithm (decision procedure) to automatically prove assertions of this kind. Therefore, we have created a tactic macro for this purpose.
 
-This algorithm can be defined as follows: if the goal is to prove the trace relation for an empty list, apply the rule \coqdocvar{empty\_trace\_rule} and fishing the proof, otherwise, try to make progress by applying each of the other three constructors of the \coqdocvar{traceR'} definition, making a recursive call afterwards. For goals which are operations described by the \CSPcoq{} semantics, try to make progress using the constructors applicable for that operation based on pattern matching, making once again a recursive call at the end of this step.
+This algorithm can be defined as follows. If the goal is to prove the trace relation for an empty list, apply the rule \coqdocvar{empty\_trace\_rule} and finish the proof. Otherwise, try to make progress by applying each of the other two constructors of \coqdocvar{traceR'}, and then repeating this procedure until the proof is finished. For goals that involve expressions in terms of the \CSPcoq{} semantics (SOS), based o pattern matching, try to make progress using the SOS constructors applicable for the current SOS operator, making once again a recursive call at the end of this step.
 
-The following definition uses the Ltac language to describe this algorithm as a tactic macro that automatically proves statements of the kind \emph{traceR S ``P'' L}:
+The definition \coqdocvar{solve\_trace'}, partially presented in what follows, uses the Ltac language to describe this algorithm as a tactic macro that automatically proves statements of the kind \emph{traceR S ``P'' L}. Note that the first case deals with the situation when the list is empty (\emph{nil}). The second case tries to make progress by applying the \coqdocvar{tau\_trace\_rule} and \coqdocvar{event\_trace\_rule} constructors. Then, we have many cases considering the application of SOS constructors. In the end, we have some additional cases for proving some specific propositions, involving \coqdocvar{set\_In} and disjunctions. Finally, the tactic \coqdocvar{solve\_trace} works unfolding the definition \emph{traceR}, performing simplification and, then, invoking the tactic \coqdocvar{solve\_trace'}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -704,8 +695,6 @@ The following definition uses the Ltac language to describe this algorithm as a 
 	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{traceR'} \coqdocvar{\_} \coqdocvar{\_} \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
 	\coqdocindent{2.00em}
 	(\coqdoctac{eapply} \coqdocvar{tau\_trace\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{tick\_trace\_rule}\coqdoceol
 	\coqdocindent{2.00em}
 	+ \coqdoctac{eapply} \coqdocvar{event\_trace\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
 	\coqdocindent{1.00em}
@@ -723,63 +712,7 @@ The following definition uses the Ltac language to describe this algorithm as a 
 	\coqdocindent{2.00em}
 	+ \coqdoctac{eapply} \coqdocvar{ext\_choice\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
 	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} |\~{}| \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdoctac{eapply} \coqdocvar{int\_choice\_left\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{int\_choice\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} [[ \coqdocvar{\_} \symbol{92}\symbol{92} \coqdocvar{\_} ]] \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdoctac{eapply} \coqdocvar{alpha\_parall\_tau\_indep\_left\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_tau\_indep\_right\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_tick\_joint\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_joint\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_indep\_left\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{alpha\_parall\_indep\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} [| \coqdocvar{\_} |] \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdoctac{eapply} \coqdocvar{gener\_parall\_tau\_indep\_left\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_tau\_indep\_right\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_tick\_joint\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_joint\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_indep\_left\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{gener\_parall\_indep\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} ||| \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdoctac{eapply} \coqdocvar{interleave\_tick\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{interleave\_left\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{interleave\_right\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} ;; \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdoctac{eapply} \coqdocvar{seq\_comp\_tick\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{seq\_comp\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{\_} \symbol{92} \coqdocvar{\_} // \coqdocvar{\_} ==> \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-	\coqdocindent{2.00em}
-	(\coqdoctac{eapply} \coqdocvar{hiding\_tau\_tick\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{hiding\_not\_hidden\_rule}\coqdoceol
-	\coqdocindent{2.00em}
-	+ \coqdoctac{eapply} \coqdocvar{hiding\_rule}); \coqdocvar{solve\_trace'}\coqdoceol
-	\coqdocindent{1.00em}
-	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \# \coqdocvar{SKIP} // \coqdocvar{Tick} ==> \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{apply} \coqdocvar{success\_termination\_rule}\coqdoceol
+	$\vdots$\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \ensuremath{\vdash} \coqdocvar{\_} \ensuremath{\not=} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdoctac{unfold} \coqdocvar{not}; \coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} ``H'' \coqdoctac{in} (\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{inversion} \coqdocvar{H})\coqdoceol
 	\coqdocindent{1.00em}
@@ -797,7 +730,7 @@ The following definition uses the Ltac language to describe this algorithm as a 
 	\coqdockw{Ltac} \coqdocvar{solve\_trace} := \coqdoctac{unfold} \coqdocvar{traceR}; \coqdoctac{simpl}; \coqdocvar{solve\_trace'}.\coqdoceol
 \end{coqdoccode}
 
-The following proof revisits the trace example we discussed earlier in this section. Using our tactic macro \coqdocvar{solve\_trace}, we can automatically prove that the list of events <cash, ticket, change> is indeed a trace of the process MACHINE (\autoref{image:machine_lts}):
+The following proof revisits the trace example we have discussed earlier in this section. Using our tactic macro \coqdocvar{solve\_trace}, we can automatically prove that the list of events <cash, ticket, change> is indeed a trace of the process MACHINE (\autoref{image:machine_lts}).
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -808,7 +741,7 @@ The following proof revisits the trace example we discussed earlier in this sect
 	\coqdockw{Proof}. \coqdocvar{solve\_trace}. \coqdockw{Qed}.\coqdoceol
 \end{coqdoccode}
 
-Provided the definitions we presented so far, we can finally formulate in Coq the concept of refinement according to the traces model, along with an appropriate notation for this relationship:
+Provided the definitions we have presented so far, we can finally formulate in Coq the concept of refinement according to the traces model, along with an appropriate notation for this relationship.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -817,13 +750,16 @@ Provided the definitions we presented so far, we can finally formulate in Coq th
 	\coqdockw{\ensuremath{\forall}} (\coqdocvar{t} : \coqdocvar{trace}), \coqdocvar{traceR} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{t} \ensuremath{\rightarrow} \coqdocvar{traceR} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{t}.\coqdoceol
 	\coqdocemptyline
 	\coqdocnoindent
-	\coqdockw{Notation} ``S '\#' P '[T=' Q'' := (\coqdocvar{trace\_refinement} \coqdocvar{S} \coqdocvar{P} \coqdocvar{Q}) (\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+	\coqdockw{Notation} ``S `\#' P `[T=' Q'' := (\coqdocvar{trace\_refinement} \coqdocvar{S} \coqdocvar{P} \coqdocvar{Q})\coqdoceol
+	\coqdocindent{1.00em}
+	(\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
 \end{coqdoccode}
 
-As we learned in \autoref{subsection:traces-refinement} of the previous chapter, this definition ensures that an implementation Q refines a specification P, according to the traces model, if, and only if, every trace of Q is also a trace of P.
+As we have explained in Section~\ref{subsection:traces-refinement}, this definition states that an implementation Q refines a specification P, according to the traces model, if, and only if, every trace of Q is also a trace of P.
 
 % ---
-\subsection{QuickChick integration}
+\subsection{Checking refinement with QuickChick}
+\label{section:quickchick}
 % ---
 
 In the context of this work, the QuickChick library was used to random test the refinement property according to the traces model. That being said, our goal is to obtain a simple and automated way to test this property that relates two processes, Imp and Spec, eventually finding examples that prove the opposite. In other words, this checker guarantees that, if there is a failure during the tests, it is proven by counterexample that the refinement relation between the two processes inputted does not hold.
