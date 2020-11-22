@@ -1,0 +1,59 @@
+% Beamer template (based on Madrid, CambridgeUS and Berlin)
+% Last modification: 2020-08-22
+% Author: Gustavo Carvalho (ghpc@cin.ufpe.br)
+
+\mode<presentation>
+
+\definecolor{cinred}{rgb}{0.86,0.12,0.18}
+
+\usecolortheme[rgb={0.86,0.12,0.18}]{structure}
+
+\setbeamercolor{alerted text}{fg=cinred!80!gray}
+\setbeamercolor*{palette primary}{fg=cinred,bg=gray!30!white}
+\setbeamercolor*{palette secondary}{fg=cinred,bg=gray!15!white}
+\setbeamercolor*{palette tertiary}{bg=cinred,fg=gray!10!white}
+\setbeamercolor*{palette quaternary}{fg=cinred,bg=gray!5!white}
+
+\setbeamercolor{titlelike}{parent=palette primary,fg=cinred}
+\setbeamercolor{title}{parent=palette primary,fg=cinred}
+\setbeamercolor{frametitle}{bg=gray!10!white}
+
+\setbeamercolor*{separation line}{}
+\setbeamercolor*{fine separation line}{}
+
+\useinnertheme{rectangles}
+\useoutertheme{infolines}
+
+\setbeamerfont{block title}{size={}}
+
+\setbeamertemplate{headline}
+{
+	\leavevmode%
+	\hbox{%
+	\begin{beamercolorbox}[wd=.5\paperwidth,ht=2.25ex,dp=1ex,right,rightskip=1em]{section in head/foot}%
+		\usebeamerfont{subsection in head/foot}\hspace*{2ex}
+	\end{beamercolorbox}%
+	\begin{beamercolorbox}[wd=.5\paperwidth,ht=2.25ex,dp=1ex,left,leftskip=1em]{subsection in head/foot}%
+		\usebeamerfont{section in head/foot}\insertsectionhead\hspace*{2ex}
+	\end{beamercolorbox}}%
+	\vskip0pt%
+}
+
+\newenvironment<>{customblock}[1]{%
+	\begin{actionenv}#2%
+		\def\insertblocktitle{#1}%
+		\par%
+		\mode<presentation>{%
+			\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+			\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+			\setbeamertemplate{blocks}[rounded]
+%			\setbeamercolor{block title}{fg=white,bg=orange!20!black}
+%			\setbeamercolor{block body}{fg=black,bg=olive!50}
+%			\setbeamercolor{itemize item}{fg=orange!20!black}
+			\setbeamertemplate{itemize item}[triangle]
+		}%
+		\usebeamertemplate{block begin}}
+	{\par\usebeamertemplate{block end}\end{actionenv}}
+
+\mode
+<all>

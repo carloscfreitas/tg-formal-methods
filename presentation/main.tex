@@ -1,0 +1,750 @@
+\documentclass[t]{beamer}
+\usetheme{_ghpcCInUFPE}
+
+\usepackage[UKenglish]{babel}
+\usepackage[long,nodayofweek,level]{datetime}
+\usepackage[latin1]{inputenc}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{pgf}
+\usepackage{hyperref}
+\usepackage{verbatim}
+
+\usepackage[color]{coqdoc}
+\usepackage{cspsymb}
+\usepackage{bussproofs}
+
+\usepackage{multicol}
+
+\title[A THEORY FOR CSP IN COQ]
+{\large{A THEORY FOR COMMUNICATING \\ SEQUENTIAL PROCESSES IN COQ}}
+
+\author[CARLOS FREITAS]
+{
+	CARLOS ALBERTO DA SILVA CARVALHO DE FREITAS\\
+	(casc2@cin.ufpe.br)\\
+	[7mm]{\small Supervisor: Gustavo Carvalho}
+}
+
+\institute[]
+{
+	Universidade Federal de Pernambuco\\
+	Centro de Inform\'atica, 50740-560, Brazil\\
+}
+
+\date[24th November, 2020]
+
+\pgfdeclareimage[height=1cm]{figures/cin-ufpe}{figures/cin-ufpe}
+\logo{\pgfuseimage{figures/cin-ufpe}}
+
+\AtBeginSection[]
+{
+	\begin{frame}<beamer>{Agenda}
+		\tableofcontents[currentsection,currentsubsection]
+	\end{frame}
+}
+
+% Defining symbol for the CSP_Coq language.
+\newcommand{\CSPcoq}{CSP\textsubscript{\textit{Coq}}}
+
+\begin{document}
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{INTRODUCTION}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}{INTRODUCTION}
+	\begin{itemize}
+		\item Concurrent systems
+		\begin{itemize}
+			\item Parallel execution of components
+			\item Deadlock, nondeterminism and other issues
+			\item Testing cannot guarantee properties such as determinism
+		\end{itemize}
+		\item CSP: a theory for Communicating Sequential Processes
+		\begin{itemize}
+			\item Clear and accurate description of concurrent systems
+			\item Designs can be proven correct with respect to desired properties
+		\end{itemize}
+		\item Refinement (model) checkers
+		\begin{itemize}
+			\item Analysis and verification of systems via state exploration
+			\item FDR: most popular refinement checker for CSP
+			\item State explosion problem
+		\end{itemize}
+		\item Verifying properties by proof development
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{OBJECTIVES}
+	\begin{center}
+		\emph{``Provide an initial formalisation of the CSP language in Coq.''}
+	\end{center}
+	\begin{itemize}
+		\item Simplified syntax for CSP in Coq
+		\begin{itemize}
+			\item Machine-readable version of CSP
+		\end{itemize}
+		\item Support for the Labelled Transition System representation
+		\begin{itemize}
+			\item Operational semantics via the SOS approach
+		\end{itemize}
+		\item Verification of traces refinement relations
+		\begin{itemize}
+			\item Property-based random testing
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}<beamer>{Agenda}
+	\tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{BACKGROUND}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{CSP}
+
+\begin{frame}{CSP}
+	Example: the cloakroom attendant
+	\begin{itemize}
+		\item \CSPM{}
+		\ttfamily
+		\scriptsize
+		\begin{tabbing}
+			channel coat\_on, coat\_off, store, retrieve, request\_coat, eat\\
+			SYS\=TEM =\\
+			\>	coat\_off -> store -> request\_coat -> retrieve -> coat\_on -> SKIP\\
+			\>	{[| \{coat\_off, request\_coat, coat\_on\} |]}\\
+			\>	coat\_off -> eat -> request\_coat -> coat\_on -> SKIP
+		\end{tabbing}
+		\normalfont
+		\normalsize
+
+		\item LTS
+		\begin{figure}
+			\includegraphics[scale=0.3]{figures/LTS.pdf}
+		\end{figure}
+
+		\item Traces
+		\begin{itemize}
+			\item $ \langle \mathit{coat\_off,\ store,\ eat} \rangle, $ \\
+			$ \langle \mathit{coat\_off,\ eat,\ store,\ request\_coat} \rangle $\\
+			$\ldots$
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+
+\subsection{COQ}
+
+\begin{frame}{COQ}
+	\begin{itemize}
+		\item Functional and inductive definitions
+		\begin{columns}
+			\scriptsize
+			\column{0.5\textwidth}
+			\begin{coqdoccode}
+				\coqdocnoindent
+				\coqdockw{Fixpoint} \coqdocvar{evenb} (\coqdocvar{n}:\coqdocvar{nat}) : \coqdocvar{bool} :=\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdockw{match} \coqdocvar{n} \coqdockw{with}\coqdoceol
+				\coqdocindent{2.00em}
+				\ensuremath{|} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{true}\coqdoceol
+				\coqdocindent{2.00em}
+				\ensuremath{|} \coqdocvar{S} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{false}\coqdoceol
+				\coqdocindent{2.00em}
+				\ensuremath{|} \coqdocvar{S} (\coqdocvar{S} \coqdocvar{n'}) \ensuremath{\Rightarrow} \coqdocvar{evenb} \coqdocvar{n'}\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdockw{end}.\coqdoceol
+			\end{coqdoccode}
+			\column{0.5\textwidth}
+			\begin{coqdoccode}
+				\coqdocnoindent
+				\coqdockw{Inductive} \coqdocvar{ev} : \coqdocvar{nat} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
+				\coqdocindent{1.00em}
+				\ensuremath{|} \coqdocvar{ev\_0} : \coqdocvar{ev} 0\coqdoceol
+				\coqdocindent{1.00em}
+				\ensuremath{|} \coqdocvar{ev\_SS} (\coqdocvar{n} : \coqdocvar{nat}) (\coqdocvar{H} : \coqdocvar{ev} \coqdocvar{n}) : \coqdocvar{ev} (\coqdocvar{S} (\coqdocvar{S} \coqdocvar{n})).\coqdoceol
+			\end{coqdoccode}
+		\end{columns}
+
+		\item Proof development and the tactics language Ltac
+		\begin{columns}[T]
+			\scriptsize
+			\column{0.5\textwidth}
+			\begin{coqdoccode}
+				\coqdocemptyline
+				\coqdocnoindent
+				\coqdockw{Lemma} \coqdocvar{negb\_involutive} : \coqdockw{\ensuremath{\forall}} (\coqdocvar{b} : \coqdocvar{bool}),\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdocvar{negb} (\coqdocvar{negb} \coqdocvar{b}) = \coqdocvar{b}.\coqdoceol
+				\coqdocnoindent
+				\coqdockw{Proof}.\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdoctac{destruct} \coqdocvar{b}.\coqdoceol
+				\coqdocindent{1.00em}
+				- \coqdoctac{simpl}. \coqdoctac{reflexivity}.\coqdoceol
+				\coqdocindent{1.00em}
+				- \coqdoctac{simpl}. \coqdoctac{reflexivity}.\coqdoceol
+				\coqdocnoindent
+				\coqdockw{Qed}.\coqdoceol
+			\end{coqdoccode}
+			\column{0.5\textwidth}
+			\begin{coqdoccode}
+				\coqdockw{Ltac} \coqdocvar{solve\_negb\_inv} \coqdocvar{b} :=\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdoctac{destruct} \coqdocvar{b}; \coqdoctac{simpl}; \coqdoctac{reflexivity}.\coqdoceol
+			\end{coqdoccode}
+		\end{columns}
+	\end{itemize}
+\end{frame}
+
+\subsection{QUICKCHICK}
+
+\begin{frame}{QUICKCHICK}
+	\begin{itemize}
+		\item Randomised property-based testing tool
+		\begin{itemize}
+			\item Example\\
+			\small
+			\begin{coqdoccode}
+				\coqdocnoindent
+				\coqdockw{Fixpoint} \coqdocvar{remove} (\coqdocvar{x} : \coqdocvar{nat}) (\coqdocvar{l} : \coqdocvar{list} \coqdocvar{nat}) : \coqdocvar{list} \coqdocvar{nat} :=\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdockw{match} \coqdocvar{l} \coqdockw{with}\coqdoceol
+				\coqdocindent{2.00em}
+				\ensuremath{|} []   \ensuremath{\Rightarrow} []\coqdoceol
+				\coqdocindent{2.00em}
+				\ensuremath{|} \coqdocvar{h}::\coqdocvar{t} \ensuremath{\Rightarrow} \coqdockw{if} \coqdocvar{h} =? \coqdocvar{x} \coqdockw{then} \coqdocvar{t} \coqdockw{else} \coqdocvar{h} :: \coqdocvar{remove} \coqdocvar{x} \coqdocvar{t}\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdockw{end}.\coqdoceol
+				\coqdocemptyline
+				\coqdocnoindent
+				\coqdockw{Conjecture} \coqdocvar{removeP} : \coqdockw{\ensuremath{\forall}} \coqdocvar{x} \coqdocvar{l},  \ensuremath{\lnot} (\coqdocvar{In} \coqdocvar{x} (\coqdocvar{remove} \coqdocvar{x} \coqdocvar{l})).\coqdoceol
+				\coqdocemptyline
+				\coqdocnoindent
+				\coqdocvar{QuickChick} \coqdocvar{removeP}.\coqdoceol
+			\end{coqdoccode}
+
+			\normalsize
+			\item Output\\
+			\ttfamily
+			\small
+			0\\
+			{[0, 0]}\\
+			Failed! After 17 tests and 12 shrinks
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{A THEORY OF CSP IN COQ}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{ABSTRACT AND CONCRETE SYNTAXES}
+
+\begin{frame}{ABSTRACT AND CONCRETE SYNTAXES}
+	\begin{itemize}
+		\item Event prefix
+		\begin{columns}
+			\column{0.5\textwidth}
+			\centering\small
+			Abstract\\
+			\texttt{ProcPrefix (Event ``e'') STOP}
+
+			\column{0.5\textwidth}
+			\centering\small
+			Concrete\\
+			\texttt{``e'' -{}-> STOP}
+		\end{columns}
+
+		\vspace{3mm}
+		\item Example: process ``PRINTER''
+		\begin{itemize}
+			\item \CSPcoq{}\\
+			\vspace{1mm}
+			\begin{columns}
+				\column{0.5\textwidth}
+				\centering\small
+				Abstract\\
+				\ttfamily
+				\begin{tabbing}
+					P\=r\=o\=c\=\ ``PRINTER''\\
+					\>	(ProcPrefix (Event ``accept'')\\
+					\>\>	(ProcPrefix (Event ``print'')\\
+					\>\>\>		STOP))
+				\end{tabbing}
+				\normalfont
+
+				\column{0.5\textwidth}
+				\centering\small
+				Concrete\\
+				\texttt{``PRINTER'' ::= ``accept'' -{}-> ``print'' -{}-> STOP}
+			\end{columns}
+			\vspace{1mm}
+			\item \CSPM{}\\
+			\texttt{PRINTER = accept -> print -> STOP}
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{ABSTRACT AND CONCRETE SYNTAXES}
+	\begin{table}[htb]
+		\scriptsize
+		\begin{center}
+			\begin{tabular}{ |l|c|c| }
+				\hline
+				Constructor & \CSPM{} & \CSPcoq{} \\
+				\hline
+				Stop & STOP & STOP \\ [0.5ex]
+				Skip & SKIP & SKIP \\ [0.5ex]
+				Event prefix & e -> P & e -{}-> P \\  [0.5ex]
+				External choice & P [] Q & P [] Q \\  [0.5ex]
+				Internal choice & P |$ \sim $| Q & P |$ \sim $| Q \\ [0.5ex]
+				Alphabetised parallel & P [A || B] Q & P [[A \textbackslash\textbackslash \ B]] Q \\ [0.5ex]
+				Generalised parallel & P [| A |] Q & P [| A |] Q \\ [0.5ex]
+				Interleave & P ||| Q & P ||| Q \\ [0.5ex]
+				Sequential composition & P ; Q & P ;; Q \\ [0.5ex]
+				Event hiding & P \textbackslash \ A & P \textbackslash \ A \\ [0.5ex]
+				Process definition & P := Q & P ::= Q \\ [0.5ex]
+				Process name & P & ProcRef ``P'' \\ [0.5ex]
+				\hline
+			\end{tabular}
+		\end{center}
+	\end{table}
+\end{frame}
+
+\subsection{STRUCTURED OPERATIONAL SEMANTICS}
+
+\begin{frame}{STRUCTURED OPERATIONAL SEMANTICS}
+	\begin{itemize}
+		\item Inference rule\\
+		\begin{columns}
+			\column{0.5\textwidth}
+			\centering\small
+			Event prefix\\
+			\begin{prooftree}
+				\AxiomC{}
+				\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
+			\end{prooftree}
+
+			\column{0.5\textwidth}
+			\centering\small
+			External choice\\
+			\begin{prooftree}
+				\AxiomC{$ P \trans(2)[a] P' $}
+				\RightLabel{\quad ($ a \neq \tau $)}
+				\UnaryInfC{$ P \extchoice Q \trans(2)[a] P' $}
+			\end{prooftree}
+		\end{columns}
+
+		\item Inductive definition \coqdocvar{sosR}\\
+		\small
+		\begin{coqdoccode}
+			\coqdocnoindent
+			\coqdockw{Inductive} \coqdocvar{sosR} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdocvar{event\_tau\_tick} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} \coqdocvar{prefix\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event}) :\coqdoceol
+			\coqdocindent{1.50em}
+			\coqdocvar{S} \# (\coqdocvar{a} \texttt{-{}-}> \coqdocvar{P}) // \coqdocvar{Event} \coqdocvar{a} ==> \coqdocvar{P}\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} \coqdocvar{ext\_choice\_left\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{Q} : \coqdocvar{proc\_body}) :\coqdoceol
+			\coqdocindent{1.50em}
+			\coqdockw{\ensuremath{\forall}} (\coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{a} : \coqdocvar{event\_tau\_tick}),\coqdoceol
+			\coqdocindent{3.00em}
+			\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{a} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{3.00em}
+			(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{3.00em}
+			(\coqdocvar{S} \# \coqdocvar{P} [] \coqdocvar{Q} // \coqdocvar{a} ==> \coqdocvar{P'})
+		\end{coqdoccode}
+	\end{itemize}
+\end{frame}
+
+\subsection{LABELLED TRANSITION SYSTEMS}
+
+\begin{frame}{LABELLED TRANSITION SYSTEMS}
+	\begin{itemize}
+		\item Inductive definition \coqdocvar{ltsR'} (1/2)\\
+		\begin{coqdoccode}
+			\coqdocnoindent
+			\coqdockw{Inductive} \coqdocvar{ltsR'} :\coqdoceol
+			\coqdocindent{1.00em}
+			\coqdocvar{specification} \ensuremath{\rightarrow} \coqdoceol
+			\coqdocindent{1.00em}
+			\coqdoctac{set} \coqdocvar{transition} \ensuremath{\rightarrow} \coqdoceol
+			\coqdocindent{1.00em}
+			\coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoceol
+			\coqdocindent{1.00em}
+			\coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoceol
+			\coqdocindent{1.00em}
+			\coqdockw{Prop} :=\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} \coqdocvar{lts\_empty\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{visited} : \coqdoctac{set} \coqdocvar{proc\_body}) :\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{nil} \coqdocvar{nil} \coqdocvar{visited}\coqdoceol
+			\coqdocindent{1.00em}
+		\end{coqdoccode}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{LABELLED TRANSITION SYSTEMS}
+	\begin{itemize}
+		\item Inductive definition \coqdocvar{ltsR'} (2/2)\\
+		\small
+		\begin{coqdoccode}
+			\ensuremath{|} \coqdocvar{lts\_inductive\_rule}\coqdoceol
+			\coqdocindent{4.00em}
+			(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+			\coqdocindent{4.00em}
+			(\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition})\coqdoceol
+			\coqdocindent{4.00em}
+			(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
+			\coqdocindent{4.00em}
+			(\coqdocvar{tl} \coqdocvar{visited} : \coqdoctac{set} \coqdocvar{proc\_body}) :\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdockw{let} \coqdocvar{T'} := \coqdocvar{transitions\_from} \coqdocvar{P} \coqdocvar{T} \coqdoctac{in}\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdockw{let} \coqdocvar{T'{}'} := \coqdocvar{set\_diff} \coqdocvar{transition\_eq\_dec} \coqdocvar{T} \coqdocvar{T'} \coqdoctac{in}\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdockw{let} \coqdocvar{visited'} := \coqdocvar{set\_add} \coqdocvar{proc\_body\_eq\_dec} \coqdocvar{P} \coqdocvar{visited} \coqdoctac{in}\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdockw{let} \coqdocvar{to\_visit} := \coqdocvar{set\_diff} \coqdocvar{proc\_body\_eq\_dec}\coqdoceol
+			\coqdocindent{5.00em}
+			(\coqdocvar{set\_union} \coqdocvar{proc\_body\_eq\_dec} \coqdocvar{tl} (\coqdocvar{target\_proc\_bodies} \coqdocvar{T'}))\coqdoceol
+			\coqdocindent{5.00em}
+			\coqdocvar{visited'} \coqdoctac{in}\coqdoceol
+			\coqdocindent{3.00em}
+			(\coqdockw{\ensuremath{\forall}} (\coqdocvar{a} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{P'} : \coqdocvar{proc\_body}),\coqdoceol
+			\coqdocindent{4.50em}
+			(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\leftrightarrow} \coqdocvar{In} (\coqdocvar{P},\coqdocvar{a},\coqdocvar{P'}) \coqdocvar{T'}) \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T'{}'} \coqdocvar{to\_visit} \coqdocvar{visited'} \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} (\coqdocvar{P} :: \coqdocvar{tl}) \coqdocvar{visited}.\coqdoceol
+		\end{coqdoccode}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{LABELLED TRANSITION SYSTEMS}
+	\begin{itemize}
+		\item Functional definitions: \coqdocvar{compute\_ltsR} and \coqdocvar{generate\_dot}\\
+		\begin{coqdoccode}
+			\small
+			\coqdocnoindent
+			\coqdockw{Definition} \coqdocvar{compute\_ltsR}\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{limit} : \coqdocvar{nat}) : \coqdocvar{option} (\coqdoctac{set} \coqdocvar{transition}).\coqdoceol
+			\coqdocemptyline
+			\coqdocnoindent
+			\coqdockw{Definition} \coqdocvar{generate\_dot} (\coqdocvar{lts} : \coqdocvar{option} (\coqdoctac{set} \coqdocvar{transition})) : \coqdocvar{string}.\coqdoceol
+		\end{coqdoccode}
+
+		\item Graph visualisation (GraphViz)
+		\begin{figure}
+			\includegraphics[scale=0.35]{figures/MACHINE_LTS.pdf}
+		\end{figure}
+	\end{itemize}
+\end{frame}
+
+\subsection{TRACES REFINEMENT}
+
+\begin{frame}{TRACES REFINEMENT}
+	\begin{itemize}
+		\item Inductive definition \coqdocvar{traceR'}\\
+		\begin{coqdoccode}
+			\small
+			\coqdocnoindent
+			\coqdockw{Inductive} \coqdocvar{traceR'} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdocvar{trace} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} \coqdocvar{empty\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) :\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{nil}\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} \coqdocvar{event\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{h} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{tl} : \coqdocvar{trace}) :\coqdoceol
+			\coqdocindent{2.00em}
+			\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{h} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{h} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{tl} \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} (\coqdocvar{h}::\coqdocvar{tl})\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} \coqdocvar{tau\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{t} : \coqdocvar{trace}) :\coqdoceol
+			\coqdocindent{2.00em}
+			(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tau} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{t} \ensuremath{\rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{t}.\coqdoceol
+		\end{coqdoccode}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{TRACES REFINEMENT}
+	\begin{itemize}
+		\item Proof automation for the is-a-trace relation: \coqdocvar{solve\_trace}\\
+		\begin{coqdoccode}
+			\small
+			\coqdocnoindent
+			\coqdockw{Example} \coqdocvar{MACHINE\_TRACE} :\coqdoceol
+			\coqdocindent{1.00em}
+			\coqdocvar{traceR} \coqdocvar{PARKING\_PERMIT\_MCH} ``MACHINE'' [``cash'' ; ``ticket'' ; ``change''].\coqdoceol
+			\coqdocnoindent
+			\coqdockw{Proof}. \coqdocvar{solve\_trace}. \coqdockw{Qed}.\coqdoceol
+		\end{coqdoccode}
+
+		\item Traces refinement formalisation\\
+		\begin{coqdoccode}
+			\small
+			\coqdocnoindent
+			\coqdockw{Definition} \coqdocvar{trace\_refinement} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{Spec} \coqdocvar{Imp} : \coqdocvar{string}) : \coqdockw{Prop} :=\coqdoceol
+			\coqdocindent{1.00em}
+			\coqdockw{\ensuremath{\forall}} (\coqdocvar{t} : \coqdocvar{trace}), \coqdocvar{traceR} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{t} \ensuremath{\rightarrow} \coqdocvar{traceR} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{t}.\coqdoceol
+			\coqdocemptyline
+			\coqdocnoindent
+			\coqdockw{Notation} ``S `\#' P `[T=' Q'' := (\coqdocvar{trace\_refinement} \coqdocvar{S} \coqdocvar{P} \coqdocvar{Q})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdoctac{at} \coqdockw{level} 150, \coqdoctac{left} \coqdockw{associativity}).\coqdoceol
+		\end{coqdoccode}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{TRACES REFINEMENT}
+	\begin{itemize}
+		\item Traces generator: \coqdocvar{gen\_valid\_trace'}
+		\begin{columns}
+			\column{0.5\textwidth}
+			\begin{coqdoccode}
+				\scriptsize
+				\coqdocnoindent
+				\coqdockw{Fixpoint} \coqdocvar{gen\_valid\_trace'}\coqdoceol
+				\coqdocindent{1.00em}
+				(\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) (\coqdocvar{size} : \coqdocvar{nat})\coqdoceol
+				\coqdocindent{1.00em}
+				: \coqdocvar{G} (\coqdocvar{option} \coqdocvar{semantics\_trace.trace}) :=\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdockw{match} \coqdocvar{size} \coqdockw{with}\coqdoceol
+				\coqdocindent{1.00em}
+				\ensuremath{|} \coqdocvar{O} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{nil}\coqdoceol
+				\coqdocindent{1.00em}
+				\ensuremath{|} \coqdocvar{S} \coqdocvar{size'} \ensuremath{\Rightarrow}\coqdoceol
+				\coqdocindent{2.00em}
+				\coqdocvar{freq\_} (\coqdocvar{ret} \coqdocvar{nil}) [\coqdoceol
+				\coqdocindent{3.00em}
+				(1, \coqdocvar{ret} \coqdocvar{nil}) ;\coqdoceol
+				\coqdocindent{3.00em}
+				(\coqdocvar{size},\coqdoceol
+				\coqdocindent{4.00em}
+				\coqdocvar{bind} (\coqdocvar{gen\_valid\_trans} \coqdocvar{S} \coqdocvar{P}) (\coqdoceol
+				\coqdocindent{5.00em}
+				\coqdockw{fun} \coqdocvar{t} \ensuremath{\Rightarrow} (\coqdoceol
+				\coqdocindent{6.00em}
+				\coqdockw{match} \coqdocvar{t} \coqdockw{with}\coqdoceol
+				\coqdocindent{6.00em}
+				\ensuremath{|} \coqdocvar{nil} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{nil}\coqdoceol
+				\coqdocindent{6.00em}
+				\ensuremath{|} (\coqdocvar{Event} \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+				\coqdocindent{7.00em}
+				\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+				\coqdocindent{8.00em}
+			\end{coqdoccode}
+
+			\column{0.5\textwidth}
+			\begin{coqdoccode}
+				\scriptsize
+				\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Event} \coqdocvar{e} :: \coqdocvar{ts})\coqdoceol
+				\coqdocindent{7.00em}
+				)\coqdoceol
+				\coqdocindent{6.00em}
+				\ensuremath{|} (\coqdocvar{Tick}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+				\coqdocindent{7.00em}
+				\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+				\coqdocindent{8.00em}
+				\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Tick} :: \coqdocvar{ts})\coqdoceol
+				\coqdocindent{7.00em}
+				)\coqdoceol
+				\coqdocindent{6.00em}
+				\ensuremath{|} (\coqdocvar{Tau}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+				\coqdocindent{7.00em}
+				\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+				\coqdocindent{8.00em}
+				\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{ts}\coqdoceol
+				\coqdocindent{7.00em}
+				)\coqdoceol
+				\coqdocindent{6.00em}
+				\coqdockw{end}\coqdoceol
+				\coqdocindent{5.00em}
+				)\coqdoceol
+				\coqdocindent{4.00em}
+				)\coqdoceol
+				\coqdocindent{3.00em}
+				)\coqdoceol
+				\coqdocindent{2.00em}
+				]\coqdoceol
+				\coqdocindent{1.00em}
+				\coqdockw{end}.\coqdoceol
+			\end{coqdoccode}
+		\end{columns}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{TRACES REFINEMENT}
+	\begin{itemize}
+		\item Demonstrating the generator\\
+		\vspace{2mm}
+		\small
+		\begin{coqdoccode}
+			\coqdocnoindent
+			\coqdocvar{Sample} (\coqdocvar{gen\_valid\_trace} \coqdocvar{PARKING\_PERMIT\_MCH} ``MACHINE'' 10).\coqdoceol
+		\end{coqdoccode}
+		\vspace{2mm}
+		Output:\\
+		\ttfamily
+		{[Some []; Some [``cash''; ``change''; ``ticket''; ``cash''; ``change'']};
+		{Some [``cash'']; Some [``cash''; ``ticket''; ``change''; ``cash'']; Some []};
+		{Some [``cash''; ``change''; ``ticket''; ``cash'']; Some [``cash''; ``change''; ``ticket'']; $\dots$]}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{TRACES REFINEMENT}
+	\begin{itemize}
+		\item Executable property \coqdocvar{traceP}\\
+		\begin{coqdoccode}
+			\small
+			\coqdocnoindent
+			\coqdockw{Definition} \coqdocvar{traceP}\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{proc\_id} : \coqdocvar{string})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{fuel} : \coqdocvar{nat})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{t} : \coqdocvar{option} \coqdocvar{semantics\_trace.trace}) : \coqdocvar{bool}.\coqdoceol
+		\end{coqdoccode}
+
+		\item Refinement checker \coqdocvar{trace\_refinement\_checker}\\
+		\begin{coqdoccode}
+			\small
+			\coqdocnoindent
+			\coqdockw{Definition} \coqdocvar{trace\_refinement\_checker}\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{Imp} \coqdocvar{Spec} : \coqdocvar{string})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{trace\_max\_size} : \coqdocvar{nat})\coqdoceol
+			\coqdocindent{1.00em}
+			(\coqdocvar{fuel} : \coqdocvar{nat}) : \coqdocvar{Checker} :=\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{forAll} (\coqdocvar{gen\_valid\_trace} \coqdocvar{S} \coqdocvar{Imp} \coqdocvar{trace\_max\_size}) (\coqdocvar{traceP} \coqdocvar{S} \coqdocvar{Spec} \coqdocvar{fuel}).\coqdoceol
+		\end{coqdoccode}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{TRACES REFINEMENT}
+	\begin{itemize}
+		\item Searching for counterexamples with QuickChick\\
+		\vspace{2mm}
+		\small
+		\begin{coqdoccode}
+			\coqdocnoindent
+			\coqdockw{Definition} \coqdocvar{EXAMPLE} : \coqdocvar{specification}.\coqdoceol
+			\coqdocnoindent
+			\coqdockw{Proof}.\coqdoceol
+			\coqdocindent{1.00em}
+			\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{Build\_Spec}\coqdoceol
+			\coqdocindent{3.00em}
+			[ \coqdocvar{Channel} \{\{``a'', ``b'', ``c''\}\} ]\coqdoceol
+			\coqdocindent{3.00em}
+			[ ``P'' ::= ``a'' -{}-> ``b'' -{}-> \coqdocvar{ProcRef} ``P'' ;\coqdoceol
+			\coqdocindent{4.00em}
+			``Q'' ::= (``a'' -{}-> ``b'' -{}-> \coqdocvar{ProcRef} ``Q'') [] (``c'' -{}-> \coqdocvar{STOP}) ]\coqdoceol
+			\coqdocindent{1.00em}
+			).\coqdoceol
+			\coqdocnoindent
+			\coqdockw{Defined}.\coqdoceol
+			\coqdocemptyline
+			\coqdocnoindent
+			\coqdocvar{QuickChick} (\coqdocvar{trace\_refinement\_checker} \coqdocvar{EXAMPLE} ``Q'' ``P'' 5 1000).\coqdoceol
+		\end{coqdoccode}
+		\vspace{2mm}
+		Output:\\
+		\ttfamily
+		Some {[``c'']}\\
+		*** Failed after 3 tests\\
+		and 0 shrinks. (0 discards)
+	\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{CONCLUSIONS}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{SUMMARY}
+
+\begin{frame}{SUMMARY}
+	\begin{itemize}
+		\item Abstract and concrete syntaxes for a subset of CSP operators
+		\item Operational semantics via the SOS approach
+		\item Inductive and functional definitions of labelled transition systems
+		\item Third-party visualisation support for LTS representation
+		\item Inductive and functional definitions of traces
+		\item Proof automation for checking the is-a-trace relation
+		\item Random testing for refinement relations using QuickChick
+	\end{itemize}
+\end{frame}
+
+\subsection{RELATED WORK}
+
+\begin{frame}{RELATED WORK}
+	\begin{itemize}
+		\item CSP-Prover
+		\begin{itemize}
+			\item Interactive theorem prover based on Isabelle
+			\item Stable failures model as the underlying denotational semantics
+			\item Semi-automated proof tactics for verification of refinement relations
+		\end{itemize}
+		\item Isabelle/UTP
+		\begin{itemize}
+			\item Implementation of the \emph{Unifying Theories of Programming} framework
+			\item Support for construction of denotational semantic meta-models
+			\item Useful to construct program verification tools
+		\end{itemize}
+		\item Distinguishable features of \CSPcoq{}
+		\begin{itemize}
+			\item Graphical representation of LTSs
+			\item Property-based testing for checking traces refinement relations
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+
+\subsection{FUTURE WORK}
+
+\begin{frame}{FUTURE WORK}
+	\begin{itemize}
+		\item Extend \CSPcoq{} dialect to include remaining CSP operators
+		\item Check for invalid recursions (hiding and parallelism operations)
+		\item Define a tactic to automate proofs involving the relation \coqdocvar{ltsR}
+		\item Prove correctness of definition \coqdocvar{compute\_ltsR}
+		\item Prove correctness of generator \coqdocvar{gen\_valid\_trace}
+		\item Define traces refinement in terms of bi-simulation
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\end{document}
