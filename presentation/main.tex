@@ -528,8 +528,8 @@
 \begin{frame}{Traces refinement}
 	Traces generator: \coqdocvar{gen\_valid\_trace'}
 	\vskip 0.1in
-	\begin{columns}
-		\column{0.5\textwidth}
+	\begin{columns}[T]
+		\column{0.55\textwidth}
 		\begin{coqdoccode}
 			\scriptsize
 			\coqdocnoindent
@@ -561,45 +561,35 @@
 			\coqdocindent{6.00em}
 			\ensuremath{|} (\coqdocvar{Event} \coqdocvar{e}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
 			\coqdocindent{7.00em}
-			\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q}\coqdoceol
-			\coqdocindent{8.00em}\coqdocvar{size'}) (\coqdoceol
+			\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
 			\coqdocindent{8.00em}
-		\end{coqdoccode}
-
-		\column{0.5\textwidth}
-		\begin{coqdoccode}
-			\scriptsize
 			\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Event} \coqdocvar{e} :: \coqdocvar{ts})\coqdoceol
 			\coqdocindent{7.00em}
 			)\coqdoceol
-			\coqdocindent{6.00em}
-			\ensuremath{|} (\coqdocvar{Tick}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-			\coqdocindent{7.00em}
-			\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q}\coqdoceol\coqdocindent{7.50em} \coqdocvar{size'}) (\coqdoceol
-			\coqdocindent{8.00em}
-			\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Tick} :: \coqdocvar{ts})\coqdoceol
-			\coqdocindent{7.00em}
-			)\coqdoceol
-			\coqdocindent{6.00em}
-			\ensuremath{|} (\coqdocvar{Tau}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
-			\coqdocindent{7.00em}
-			\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q}\coqdoceol\coqdocindent{7.50em} \coqdocvar{size'}) (\coqdoceol
-			\coqdocindent{8.00em}
-			\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{ts}\coqdoceol
-			\coqdocindent{7.00em}
-			)\coqdoceol
-			\coqdocindent{6.00em}
-			\coqdockw{end}\coqdoceol
-			\coqdocindent{5.00em}
-			)\coqdoceol
-			\coqdocindent{4.00em}
-			)\coqdoceol
-			\coqdocindent{3.00em}
-			)\coqdoceol
-			\coqdocindent{2.00em}
-			]\coqdoceol
+		\end{coqdoccode}
+
+		\column{0.45\textwidth}
+		\begin{coqdoccode}
+			\scriptsize
 			\coqdocindent{1.00em}
-			\coqdockw{end}.\coqdoceol
+			\ensuremath{|} (\coqdocvar{Tick}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} (\coqdocvar{Tick} :: \coqdocvar{ts})\coqdoceol
+			\coqdocindent{2.00em}
+			)\coqdoceol
+			\coqdocindent{1.00em}
+			\ensuremath{|} (\coqdocvar{Tau}, \coqdocvar{Q}) :: \coqdocvar{\_} \ensuremath{\Rightarrow}\coqdoceol
+			\coqdocindent{2.00em}
+			\coqdocvar{bind} (\coqdocvar{gen\_valid\_trace'} \coqdocvar{S} \coqdocvar{Q} \coqdocvar{size'}) (\coqdoceol
+			\coqdocindent{3.00em}
+			\coqdockw{fun} \coqdocvar{ts} \ensuremath{\Rightarrow} \coqdocvar{ret} \coqdocvar{ts}\coqdoceol
+			\coqdocindent{2.00em}
+			)\coqdoceol
+			\coqdocindent{1.00em}
+			\coqdockw{end}\coqdoceol
+			) ) ) ]	\coqdockw{end}.\coqdoceol
 		\end{coqdoccode}
 	\end{columns}
 \end{frame}
