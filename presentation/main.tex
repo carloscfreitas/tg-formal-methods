@@ -88,7 +88,7 @@
 \begin{frame}{Objectives}
 	Main: \emph{``provide an initial formalisation of the CSP language in Coq.''}
 	\vskip 0.2in
-	Specific objectives	
+	Specific objectives
 	\begin{itemize}
 		\item Define the syntax of a subset of CSP in Coq
 		\item Support for the LTS representation based on the SOS
@@ -133,7 +133,7 @@
 		\end{tabbing}
 		\normalfont
 		\normalsize
-		
+
 		\vskip 0.1in
 		\item LTS
 		\begin{figure}
@@ -319,12 +319,55 @@
 				Interleave & P ||| Q & P ||| Q \\ [0.5ex]
 				Sequential composition & P ; Q & P ;; Q \\ [0.5ex]
 				Event hiding & P \textbackslash \ A & P \textbackslash \ A \\ [0.5ex]
-				Process definition & P := Q & P ::= Q \\ [0.5ex]
+				Process definition & P = Q & P ::= Q \\ [0.5ex]
 				Process name & P & ProcRef ``P'' \\ [0.5ex]
 				\hline
 			\end{tabular}
 		\end{center}
 	\end{table}
+\end{frame}
+
+\begin{frame}{Abstract and concrete syntax}
+	\begin{coqdoccode}
+		\scriptsize
+		\coqdocnoindent
+		\coqdockw{Record} \coqdocvar{specification} : \coqdockw{Type} := \coqdocvar{Build\_Spec}\coqdoceol
+		\coqdocnoindent
+		\{\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{ch\_list} : \coqdocvar{list} \coqdocvar{channel};\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{proc\_list} : \coqdocvar{list} \coqdocvar{proc\_def};\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{non\_empty\_proc\_ids} : \ensuremath{\lnot} \coqdocvar{In} \coqdocvar{EmptyString} (\coqdocvar{map} \coqdocvar{get\_proc\_id} \coqdocvar{proc\_list});\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{non\_empty\_events} : \ensuremath{\lnot} \coqdocvar{In} \coqdocvar{EmptyString} (\coqdocvar{concat\_channels} \coqdocvar{ch\_list});\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{no\_dup\_events\_proc\_ids} : \coqdocvar{NoDup} ((\coqdocvar{concat\_channels} \coqdocvar{ch\_list}) ++ (\coqdocvar{map} \coqdocvar{get\_proc\_id} \coqdocvar{proc\_list}));\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{no\_missing\_proc\_defs} : \coqdocvar{incl} (\coqdocvar{get\_proc\_refs} \coqdocvar{proc\_list}) (\coqdocvar{map} \coqdocvar{get\_proc\_id} \coqdocvar{proc\_list});\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{no\_missing\_events} : \coqdocvar{incl} (\coqdocvar{get\_events} \coqdocvar{proc\_list}) (\coqdocvar{concat\_channels} \coqdocvar{ch\_list})\coqdoceol
+		\coqdocnoindent
+		\}.\coqdoceol
+		\coqdocemptyline
+		\coqdocnoindent
+		\coqdockw{Ltac} \coqdocvar{solve\_spec\_ctx\_rules} \coqdocvar{spec\_cons} := \coqdoctac{apply} \coqdocvar{spec\_cons};\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdoctac{repeat} (\coqdoceol
+		\coqdocindent{2.00em}
+		\coqdockw{match} \coqdockw{goal} \coqdockw{with}\coqdoceol
+		\coqdocindent{2.00em}
+		\ensuremath{|} \ensuremath{\vdash} \ensuremath{\lnot} \coqdocvar{In} \coqdocvar{\_} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{solve\_not\_in}\coqdoceol
+		\coqdocindent{2.00em}
+		\ensuremath{|} \ensuremath{\vdash} \coqdocvar{NoDup} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{solve\_nodup}\coqdoceol
+		\coqdocindent{2.00em}
+		\ensuremath{|} \ensuremath{\vdash} \coqdocvar{incl} \coqdocvar{\_} \coqdocvar{\_} \ensuremath{\Rightarrow} \coqdocvar{solve\_incl}\coqdoceol
+		\coqdocindent{2.00em}
+		\coqdockw{end}\coqdoceol
+		\coqdocindent{1.00em}
+		); \coqdoctac{fail} "One or more contextual rules were not fulfilled".\coqdoceol
+	\end{coqdoccode}
 \end{frame}
 
 \subsection{Structured Operational Semantics}
@@ -378,71 +421,41 @@
 \subsection{Labelled Transition Systems}
 
 \begin{frame}{Labelled Transition Systems}
-	Inductive definition: \coqdocvar{ltsR'} (part 1/2)
+	Propositional function \coqdocvar{ltsR}
 	\vskip 0.1in
 	\begin{coqdoccode}
 		\coqdocnoindent
-		\coqdockw{Inductive} \coqdocvar{ltsR'} :\coqdoceol
+		\coqdockw{Definition} \coqdocvar{ltsR} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition}) : \coqdockw{Prop} :=\coqdoceol
 		\coqdocindent{1.00em}
-		\coqdocvar{specification} \ensuremath{\rightarrow} \coqdoceol
+		\coqdockw{match} \coqdocvar{get\_proc\_body} \coqdocvar{S} \coqdocvar{name} \coqdockw{with}\coqdoceol
 		\coqdocindent{1.00em}
-		\coqdoctac{set} \coqdocvar{transition} \ensuremath{\rightarrow} \coqdoceol
+		\ensuremath{|} \coqdocvar{Some} \coqdocvar{body} \ensuremath{\Rightarrow} \coqdocvar{NoDup} \coqdocvar{T} \ensuremath{\land} \coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} [\coqdocvar{body}] \coqdocvar{nil}\coqdoceol
 		\coqdocindent{1.00em}
-		\coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoceol
+		\ensuremath{|} \coqdocvar{None} \ensuremath{\Rightarrow} \coqdocvar{False}\coqdoceol
 		\coqdocindent{1.00em}
-		\coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoceol
-		\coqdocindent{1.00em}
-		\coqdockw{Prop} :=\coqdoceol
-		\coqdocindent{1.00em}
-		\ensuremath{|} \coqdocvar{lts\_empty\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{visited} : \coqdoctac{set} \coqdocvar{proc\_body}) :\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{nil} \coqdocvar{nil} \coqdocvar{visited}\coqdoceol
-		\coqdocindent{1.00em}
+		\coqdockw{end}.\coqdoceol
 	\end{coqdoccode}
 \end{frame}
 
 \begin{frame}{Labelled Transition Systems}
-	Inductive definition: \coqdocvar{ltsR'} (part 2/2)
+	Inductive definition: \coqdocvar{ltsR'}
 	\vskip 0.1in
-	\small
 	\begin{coqdoccode}
-		\ensuremath{|} \coqdocvar{lts\_inductive\_rule}\coqdoceol
-		\coqdocindent{4.00em}
-		(\coqdocvar{S} : \coqdocvar{specification})\coqdoceol
-		\coqdocindent{4.00em}
-		(\coqdocvar{T} : \coqdoctac{set} \coqdocvar{transition})\coqdoceol
-		\coqdocindent{4.00em}
-		(\coqdocvar{P} : \coqdocvar{proc\_body})\coqdoceol
-		\coqdocindent{4.00em}
-		(\coqdocvar{tl} \coqdocvar{visited} : \coqdoctac{set} \coqdocvar{proc\_body}) :\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdockw{let} \coqdocvar{T'} := \coqdocvar{transitions\_from} \coqdocvar{P} \coqdocvar{T} \coqdoctac{in}\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdockw{let} \coqdocvar{T'{}'} := \coqdocvar{set\_diff} \coqdocvar{transition\_eq\_dec} \coqdocvar{T} \coqdocvar{T'} \coqdoctac{in}\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdockw{let} \coqdocvar{visited'} := \coqdocvar{set\_add} \coqdocvar{proc\_body\_eq\_dec} \coqdocvar{P} \coqdocvar{visited} \coqdoctac{in}\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdockw{let} \coqdocvar{to\_visit} := \coqdocvar{set\_diff} \coqdocvar{proc\_body\_eq\_dec}\coqdoceol
-		\coqdocindent{5.00em}
-		(\coqdocvar{set\_union} \coqdocvar{proc\_body\_eq\_dec} \coqdocvar{tl} (\coqdocvar{target\_proc\_bodies} \coqdocvar{T'}))\coqdoceol
-		\coqdocindent{5.00em}
-		\coqdocvar{visited'} \coqdoctac{in}\coqdoceol
-		\coqdocindent{3.00em}
-		(\coqdockw{\ensuremath{\forall}} (\coqdocvar{a} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{P'} : \coqdocvar{proc\_body}),\coqdoceol
-		\coqdocindent{4.50em}
-		(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{a} ==> \coqdocvar{P'}) \ensuremath{\leftrightarrow} \coqdocvar{In} (\coqdocvar{P},\coqdocvar{a},\coqdocvar{P'}) \coqdocvar{T'}) \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T'{}'} \coqdocvar{to\_visit} \coqdocvar{visited'} \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{3.00em}
-		\coqdocvar{ltsR'} \coqdocvar{S} \coqdocvar{T} (\coqdocvar{P} :: \coqdocvar{tl}) \coqdocvar{visited}.\coqdoceol
+		\coqdocnoindent
+		\coqdockw{Inductive} \coqdocvar{ltsR'} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdoctac{set} \coqdocvar{transition} \ensuremath{\rightarrow} \coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdoctac{set} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdockw{Prop}.\coqdoceol
 	\end{coqdoccode}
+	\vskip 0.2in
+	\begin{itemize}
+		\item \coqdocvar{lts\_empty\_rule}: no states remain to be visited; the corresponding LTS is empty
+		\item \coqdocvar{lts\_inductive\_rule}: for all process states, it is valid operation according to the SOS, if, and only if, the corresponding 3-tuple belongs to the set of transitions
+	\end{itemize}
 \end{frame}
 
 \begin{frame}{Labelled Transition Systems}
 	Functional definitions: \coqdocvar{compute\_ltsR} and \coqdocvar{generate\_dot}
 	\vskip 0.1in
 	\begin{coqdoccode}
-		\small
+		\scriptsize
 		\coqdocnoindent
 		\coqdockw{Definition} \coqdocvar{compute\_ltsR}\coqdoceol
 		\coqdocindent{1.00em}
@@ -452,49 +465,58 @@
 		\coqdockw{Definition} \coqdocvar{generate\_dot} (\coqdocvar{lts} : \coqdocvar{option} (\coqdoctac{set} \coqdocvar{transition})) : \coqdocvar{string}.\coqdoceol
 	\end{coqdoccode}
 	\vskip 0.2in
+	Example: process ``MACHINE''
+	\vskip 0.1in
+	\begin{coqdoccode}
+		\scriptsize
+		\coqdocnoindent
+		\coqdockw{Definition} \coqdocvar{PARKING\_PERMIT\_MCH} : \coqdocvar{specification}.\coqdoceol
+		\coqdocnoindent
+		\coqdockw{Proof}.\coqdoceol
+		\coqdocindent{1.00em}
+		\coqdocvar{solve\_spec\_ctx\_rules} (\coqdoceol
+		\coqdocindent{2.00em}
+		\coqdocvar{Build\_Spec}\coqdoceol
+		\coqdocindent{2.00em}
+		[ \coqdocvar{Channel} \{\{``cash'', ``ticket'', ``change''\}\} ]\coqdoceol
+		\coqdocindent{2.00em}
+		[ ``TICKET'' ::= ``cash'' -{}-> ``ticket'' -{}-> \coqdocvar{ProcRef} ``TICKET''\coqdoceol
+		\coqdocindent{2.00em}
+		; ``CHANGE'' ::= ``cash'' -{}-> ``change'' -{}-> \coqdocvar{ProcRef} ``CHANGE''\coqdoceol
+		\coqdocindent{2.00em}
+		; ``MACHINE'' ::= \coqdocvar{ProcRef} ``TICKET''\coqdoceol
+		\coqdocindent{10.50em}[[ \{\{``cash'', ``ticket''\}\} \symbol{92}\symbol{92} \{\{``cash'', ``change''\}\} ]]\coqdoceol
+		\coqdocindent{10.50em}\coqdocvar{ProcRef} ``CHANGE'' ]\coqdoceol
+		\coqdocindent{1.00em}
+		).\coqdoceol
+		\coqdocnoindent
+		\coqdockw{Defined}.\coqdoceol
+	\end{coqdoccode}
+\end{frame}
+
+\begin{frame}{Labelled Transition Systems}
 	Graph visualisation (GraphViz)
-	\vskip -0.2in
 	\begin{figure}
-		\includegraphics[scale=0.35]{figures/MACHINE_LTS.pdf}
+		\includegraphics[scale=0.4]{figures/MACHINE_LTS.pdf}
 	\end{figure}
 \end{frame}
 
 \subsection{Traces refinement}
 
-\begin{frame}{Traces refinement}
+\begin{frame}{Is-a-trace relation}
 	Inductive definition: \coqdocvar{traceR'}
 	\vskip 0.1in
 	\begin{coqdoccode}
 		\small
 		\coqdocnoindent
-		\coqdockw{Inductive} \coqdocvar{traceR'} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdocvar{trace} \ensuremath{\rightarrow} \coqdockw{Prop} :=\coqdoceol
-		\coqdocindent{1.00em}
-		\ensuremath{|} \coqdocvar{empty\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} : \coqdocvar{proc\_body}) :\coqdoceol
-		\coqdocindent{2.00em}
-		\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{nil}\coqdoceol
-		\coqdocindent{1.00em}
-		\ensuremath{|} \coqdocvar{event\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body})\coqdoceol
-		\coqdocindent{1.50em}(\coqdocvar{h} : \coqdocvar{event\_tau\_tick}) (\coqdocvar{tl} : \coqdocvar{trace}) :\coqdoceol
-		\coqdocindent{2.00em}
-		\ensuremath{\lnot} \coqdocvar{eq} \coqdocvar{h} \coqdocvar{Tau} \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{2.00em}
-		(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{h} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{2.00em}
-		\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{tl} \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{2.00em}
-		\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} (\coqdocvar{h}::\coqdocvar{tl})\coqdoceol
-		\coqdocindent{1.00em}
-		\ensuremath{|} \coqdocvar{tau\_trace\_rule} (\coqdocvar{S} : \coqdocvar{specification}) (\coqdocvar{P} \coqdocvar{P'} : \coqdocvar{proc\_body}) (\coqdocvar{t} : \coqdocvar{trace}) :\coqdoceol
-		\coqdocindent{2.00em}
-		(\coqdocvar{S} \# \coqdocvar{P} // \coqdocvar{Tau} ==> \coqdocvar{P'}) \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{2.00em}
-		\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P'} \coqdocvar{t} \ensuremath{\rightarrow}\coqdoceol
-		\coqdocindent{2.00em}
-		\coqdocvar{traceR'} \coqdocvar{S} \coqdocvar{P} \coqdocvar{t}.\coqdoceol
+		\coqdockw{Inductive} \coqdocvar{traceR'} : \coqdocvar{specification} \ensuremath{\rightarrow} \coqdocvar{proc\_body} \ensuremath{\rightarrow} \coqdocvar{trace} \ensuremath{\rightarrow} \coqdockw{Prop}.\coqdoceol
 	\end{coqdoccode}
-\end{frame}
-
-\begin{frame}{Traces refinement}
+	\begin{itemize}
+		\item \coqdocvar{empty\_trace\_rule}
+		\item \coqdocvar{event\_trace\_rule}
+		\item \coqdocvar{tau\_trace\_rule}
+	\end{itemize}
+	\vskip 0.2in
 	Proof automation for the is-a-trace relation: \coqdocvar{solve\_trace}
 	\vskip 0.1in
 	\begin{coqdoccode}
@@ -506,8 +528,9 @@
 		\coqdocnoindent
 		\coqdockw{Proof}. \coqdocvar{solve\_trace}. \coqdockw{Qed}.\coqdoceol
 	\end{coqdoccode}
+\end{frame}
 
-	\vskip 0.2in
+\begin{frame}{Traces refinement}
 	Traces refinement formalisation
 	\vskip 0.1in
 	\begin{coqdoccode}
