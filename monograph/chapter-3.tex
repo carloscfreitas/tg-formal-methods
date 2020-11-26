@@ -53,12 +53,13 @@ For describing a set of external events, we have the types \emph{channel} and \e
 	\coqdockw{Inductive} \coqdocvar{alphabet} : \coqdockw{Type} :=\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{Alphabet} (\coqdocvar{events} : \coqdoctac{set} \coqdocvar{event}).\coqdoceol
+	\coqdocnoindent
 	\coqdockw{Inductive} \coqdocvar{channel} : \coqdockw{Type} :=\coqdoceol
 	\coqdocindent{1.00em}
 	\ensuremath{|} \coqdocvar{Channel} (\coqdocvar{events} : \coqdoctac{set} \coqdocvar{event}).\coqdoceol
 \end{coqdoccode}
 
-The types \emph{proc\_body} and \emph{proc\_def} define, respectively, constructors for the CSP language (SKIP, STOP, process referencing, event prefix, external choice, internal choice, alphabetised parallelism, generalised parallelism, interleaving, sequential composition, and hiding) and means for declaring new processes (process attribution statement). The constructors made available by \emph{proc\_body} can be combined in order to describe complex behaviour. The type \emph{proc\_def} provides a constructor that makes it possible to identify a process by an identifier, that is, to give it a name.
+The types \emph{proc\_body} and \emph{proc\_def} define, respectively, constructors for the CSP language (SKIP, STOP, process referencing, event prefix, external choice, internal choice, alphabetised parallelism, generalised parallelism, interleaving, sequential composition, and hiding) and are used to declare new processes (process attribution statement). The constructors made available by \emph{proc\_body} can be combined in order to describe complex behaviour. The type \emph{proc\_def} provides a constructor that makes it possible to identify a process by an identifier, that is, to give it a name.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -210,7 +211,7 @@ Table~\ref{tab:cspm-csp_coq} displays a comparison between the \CSPM{} operators
 			Interleave & P ||| Q & P ||| Q \\ [0.5ex]
 			Sequential composition & P ; Q & P ;; Q \\ [0.5ex]
 			Event hiding & P \textbackslash \ A & P \textbackslash \ A \\ [0.5ex]
-			Process definition & P := Q & P ::= Q \\ [0.5ex]
+			Process definition & P = Q & P ::= Q \\ [0.5ex]
 			Process name & P & ProcRef ``P'' \\ [0.5ex]
 			\hline
 		\end{tabular}
@@ -995,7 +996,7 @@ The function \coqdocvar{check\_trace'} initially computes all possible immediate
 
 The function \coqdocvar{check\_trace'} is called by \coqdocvar{check\_trace}, which retrieves the process body associated with the provided process identifier.
 
-\begin{coqdoccode}	
+\begin{coqdoccode}
 	\coqdocemptyline
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{check\_trace}\coqdoceol
@@ -1012,7 +1013,7 @@ The function \coqdocvar{check\_trace'} is called by \coqdocvar{check\_trace}, wh
 \end{coqdoccode}
 
 Finally, the function \coqdocvar{traceP} provides the given trace to \coqdocvar{check\_trace} and propagates the boolean yielded by the latter function.
-	
+
 \begin{coqdoccode}
 	\coqdocnoindent
 	\coqdockw{Definition} \coqdocvar{traceP}\coqdoceol

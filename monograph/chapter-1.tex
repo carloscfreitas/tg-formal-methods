@@ -43,7 +43,7 @@ To illustrate \CSPcoq{}, our dialect of CSP in Coq, consider the following CSP p
 
 The system comprises six possible events (\emph{coat\_on}, \emph{coat\_off}, among others), and its behaviour is described by the parallel synchronisation of the attendant's and the costumer's behaviours, requiring that they need to synchronise on the execution of the following events: \emph{coat\_off}, \emph{request\_coat}, and \emph{coat\_on}. Regarding the other events, the attendant and the costumer are free to perform them as they wish.
 
-We can declare such system in \CSPcoq{} by defining a specification, which consists of lists of channels and processes. This specification must also abide by a set of contextual rules that will be discussed further in this work.
+We can declare such a system in \CSPcoq{} by defining a specification, which consists of lists of channels and processes. This specification must also abide by a set of contextual rules that will be discussed further in this work.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -70,7 +70,7 @@ We can declare such system in \CSPcoq{} by defining a specification, which consi
 	\coqdockw{Defined}.\coqdoceol
 \end{coqdoccode}
 
-As one can see, the main syntax of \CSPcoq{} is close that of \CSPM{}. It is also important to emphasise that the tactic \emph{solve\_spec\_ctx\_rules} proves the aforementioned contextual rules with no user intervention (automatically). Furthermore, we can execute the following command to compute the process LTS and output the corresponding graph in the dot language:
+As one can see, the main syntax of \CSPcoq{} is close to that of \CSPM{}. It is also important to emphasise that the tactic \emph{solve\_spec\_ctx\_rules} proves the aforementioned contextual rules with no user intervention (automatically). Furthermore, we can execute the following command to compute the process LTS and output the corresponding graph in the dot language:
 
 \begin{coqdoccode}
 	\coqdocnoindent
