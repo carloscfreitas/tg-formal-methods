@@ -7,12 +7,12 @@
 
 Chapter~\ref{chapter:background} provided an overview of the essential concepts for understanding the implementation of \CSPcoq{}, setting the scene for an in-depth explanation of the language developed in this work. That being said, Chapter~\ref{chapter:csp_coq} explains how we developed a theory for communicating sequential processes in the Coq proof assistant.
 
-Section~\ref{section:syntax} discusses the implementation of the language's abstract and concrete syntaxes, whereas Section~\ref{section:sos} explains how the SOS style of defining language semantics translates into Coq as inductively defined propositions. Afterwards, Section~\ref{section:lts} provides details on both functional and inductive definitions of LTSs, along with further explanation on the GraphViz software integration. Finally, Section~\ref{section:traces} explains how we define traces refinement as an executable property and also presents randomised testing based on this property using the QuickChick tool.
+Section~\ref{section:syntax} discusses the implementation of the language's abstract and concrete syntax, whereas Section~\ref{section:sos} explains how the SOS style of defining language semantics translates into Coq as inductively defined propositions. Afterwards, Section~\ref{section:lts} provides details on both functional and inductive definitions of LTSs, along with further explanation on the GraphViz software integration. Finally, Section~\ref{section:traces} explains how we define traces refinement as an executable property and also presents randomised testing based on this property using the QuickChick tool.
 
 Our Coq characterisation of CSP is structured into the following files. We have a total of 675 LOC (lines of code) of formal definitions, and 94 LOC concerning the definition of special-purpose tactics.
 
 \begin{itemize}
-	\item \textbf{syntax.v}: the abstract and concrete syntaxes of \CSPcoq{}.
+	\item \textbf{syntax.v}: the abstract and concrete syntax of \CSPcoq{}.
 	\item \textbf{semantics\_sos.v}: the SOS-style semantics of \CSPcoq{}.
 	\item \textbf{lts.v} characterisations of LTSs and integration with GraphViz.
 	\item \textbf{semantics\_trace.v}: characterisations of traces and integration with QuickChick.
@@ -25,7 +25,7 @@ We also have 745 LOC of examples illustrating the formalised concepts. All code 
 \label{section:syntax}
 % ---
 
-The \CSPcoq{} language provides support to all process constructors and operations discussed in Section~\ref{section:csp}. Those include the processes $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, the operations event prefix, external choice, internal choice, alphabetised parallelism, generalised parallelism, interleaving, sequential composition, and event hiding, in addition to process referencing. This section introduces the reader to the implementation of both abstract and concrete syntaxes of the \CSPcoq{}.
+The \CSPcoq{} language provides support to all process constructors and operations discussed in Section~\ref{section:csp}. Those include the processes $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, the operations event prefix, external choice, internal choice, alphabetised parallelism, generalised parallelism, interleaving, sequential composition, and event hiding, in addition to process referencing. This section introduces the reader to the implementation of both abstract and concrete syntax of the \CSPcoq{}.
 
 % ---
 \subsection{Abstract syntax}
