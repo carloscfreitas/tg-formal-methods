@@ -20,7 +20,7 @@ The way a process communicates with the environment is through its \emph{interfa
 
 One of the most basic process one can define is $ \mathit{\STOP} $. Essentially, this process never interacts with the environment and its only purpose is to denote the end of an execution without success, that is, in the sense of a failure or a \emph{deadlock}: a state in which the process can not engage in any event or make any progress whatsoever. It could be used to describe a computer that failed booting because one of its components is damaged, or a camera that can no longer take pictures due to storage space shortage.
 
-Another basic process is $ \mathit{\SKIP} $. It indicates that the process has reached a successful termination state. We can use $ \mathit{\SKIP} $ to illustrate an athlete that has crossed the finish line, or a build for a project that has passed. But differently to $ \mathit{\STOP} $, $ \mathit{\SKIP} $ allows a continuation of behavior when followed by a sequential composition operator, explained later on in this section.
+Another basic process is $ \mathit{\SKIP} $. It indicates that the process has reached a successful termination state. We can use $ \mathit{\SKIP} $ to illustrate an athlete that has crossed the finish line, or a build for a project that has passed. But differently to $ \mathit{\STOP} $, $ \mathit{\SKIP} $ allows a continuation of behaviour when followed by a sequential composition operator, explained later on in this section.
 
 Provided these two basic processes, $ \mathit{\STOP} $ and $ \mathit{\SKIP} $, and the knowledge of what the process interface is, we can apply a handful of CSP operators to define more descriptive processes. For example, let $ a $ be an event in the process $ P $ interface, one can define $ P $ as $ a \then \mathit{\STOP} $, meaning that this process behaves as $ \mathit{\STOP} $ after performing $ a $. This operator is known as the \emph{event prefix}, and it is pronounced as ``then''.
 
@@ -36,7 +36,7 @@ Both versions of the parallel operator may be used to describe a marathon where 
 
 Another CSP operator that models concurrent execution of processes is the \emph{interleaving} one. Different from the parallel operators, interleaving represents a combination of processes that do not require any synchronisation at all. The processes applied to this operation execute totally independent of each other. This might be the case of two vending machines at a supermarket. They operate completely separate from each other, receiving payments, processing changes, and releasing snacks. In other words, there is no dependency regarding the communication of events between the vending machines. That being said, consider the process $ \mathit{VENDING\_MACHINE} $ as $ \mathit{pay} \then \mathit{select\_snack} \then \mathit{return\_change} \then \mathit{release\_snack} \then \mathit{\SKIP} $. Then, the process that specifies both machines operating together can be described as $ \mathit{VENDING\_MACHINE} \interleave \mathit{VENDING\_MACHINE} $.
 
-The last two operators we will discuss are \emph{sequential composition} and \emph{event hiding}, in addition to \emph{process referencing}. Before we continue, the reader must be aware that there are others CSP operators for combining processes apart from the ones presented in this chapter, but they are not yet supported by the framework implemented in this project.
+The last two operators we will discuss are \emph{sequential composition} and \emph{event hiding}, in addition to \emph{process referencing}. Before we continue, the reader must be aware that there are other CSP operators for combining processes apart from the ones presented in this chapter, but they are not yet supported by the framework implemented in this project.
 
 Sometimes it is necessary to pass the control over execution from one process to another, and for that we use sequential composition. It means that the first process has reached a successful termination state and now the system is ready to behave as the second process in the composition. For instance, parents can choose to let their children play only after completing their homework. That being the case, the process $ \mathit{CHILD} $ could be modeled as $ \mathit{HOMEWORK}\!; \mathit{FUN} $, where
 \begin{align}
@@ -54,7 +54,7 @@ Finally, as illustrated before, we can define new processes by referencing to pr
 \label{subsection:sos}
 % ---
 
-There are three major complementary approaches for describing and reasoning about the semantics of CSP programs. These are through \emph{algebraic}, \emph{denotational} (also called \emph{behavioural}), and \emph{operational semantics}. Here, we focus on the last one, which is used to construct the LTS of a given process, since providing support for this in Coq is among the objectives of this work.
+There are four major complementary approaches for describing and reasoning about the semantics of CSP programs. These are through \emph{axiomatic}, \emph{algebraic}, \emph{denotational} (also called \emph{behavioural}), and \emph{operational semantics}. Here, we focus on the last one, which is used to construct the LTS of a given process, since providing support for this in Coq is among the objectives of this work.
 
 The operational semantics for the CSP language describes how a valid process is interpreted as sequences of computational steps. By evaluating the initial events of a process and finding out how it will behave immediately after performing them, this approach enables us to explore the state space of any process. All we need to do is to repeat this step until we have covered the whole transition system of the process we are interested in.
 
@@ -76,7 +76,7 @@ The event prefix operation also has no antecedents in its inference rule, so the
 	\UnaryInfC{$ (a \then P) \trans(2)[a] P $}
 \end{prooftree}
 
-The transition rules for external choice reflect the fact that the first external event resolves the choice in favor of the process performing it. In addition, as we can see in the first two rules, the choice is not resolved on the occurrence of internal events.
+The transition rules for external choice reflect the fact that the first external event resolves the choice in favor of the process performing it. In addition, as we can see in the first two rules, the choice is not resolved on the occurrence of internal events. In both rules, the state change happens ``silently'', thus the transition is followed by the communication of internal event $ \tau $.
 
 % External choice (tau, left side)
 \begin{prooftree}
@@ -104,7 +104,7 @@ The transition rules for external choice reflect the fact that the first externa
 	\UnaryInfC{$ P \extchoice Q \trans(2)[a] Q' $}
 \end{prooftree}
 
-The internal choice is an operation that guarantees the process to behave as either of its components on any execution. This state change happens ``silently'', thus this transition is followed by the communication of internal event $ \tau $, as we can see in the inference rules for this operation.
+The internal choice is an operation that guarantees the process to behave as either of its components on any execution. The state transition for this operation is also indistinguishable for the environment, which is once again denoted by the communication of $ \tau $, as we can see in the following inference rules.
 
 % Internal choice (left side)
 \begin{prooftree}
@@ -238,7 +238,7 @@ The operational rules presented in this section have been formalised in our Coq 
 
 A reasonable way for gathering information from a process interacting with the environment is by keeping track of the events this process engages in. This sequence of communications between a process and the environment, presented in a chronological order, is what we call a \emph{trace}. Traces can either be finite or infinite, and it depends on the observation span and the nature of the process itself. In this work, we restrict ourselves to finite traces. Nevertheless, the behaviour of a process can be characterised by an infinite set of (finite) traces.
 
-Because this sequence of communications is easily observed by the environment, it is often used to build models of CSP processes. As a matter of fact, there is one sequence named after it: the $ \mathit{\traces} $ model, represented by the symbol $ \tmodel $. It defines the meaning of a process expression as the set of sequences of events (traces) that the process can be observed to perform. This model is one of the three major denotational models of CSP. The other ones being the \emph{stable} $ \mathit{\failures} \ \fmodel $ and the $ \mathit{\failures \mhyphen \divergences} $ $ \nmodel $ models.
+Because this sequence of communications is easily observed by the environment, it is often used to build models of CSP processes. As a matter of fact, there is one model named after this sequence: the $ \mathit{\traces} $ model, represented by the symbol $ \tmodel $. It defines the meaning of a process expression as the set of sequences of events (traces) that the process can be observed to perform. This model is one of the three major denotational models of CSP. The other ones being the \emph{stable} $ \mathit{\failures} \ \fmodel $ and the $ \mathit{\failures \mhyphen \divergences} $ $ \nmodel $ models.
 
 The notion of refinement is particularly useful for specifying the correctness of a CSP process. If we can establish a relation between components of a system that captures the fact that one satisfies at least the same conditions as another, then we may replace a worse component by a better one without degrading the properties of the system.
 
