@@ -46,7 +46,7 @@ In order to define these CSP operations in Coq, we declared the following induct
 	\ensuremath{|} \coqdocvar{Tick}.\coqdoceol
 \end{coqdoccode}
 
-For describing a set of external events, we have the types \emph{channel} and \emph{alphabet}. Apart from considering different names of constructors, they are syntactically equivalent; the difference between these two types being semantic. The type \emph{channel} is used to declare external events that may be communicated in a \CSPcoq{} specification. The constructor provided by the type \emph{alphabet} is applied, for example, to enumerate all external events in the process interface of an alphabetised parallel composition.
+For describing a set of external events, we have the types \emph{channel} and \emph{alphabet}. Apart from considering different names of constructors, they are syntactically equivalent; the difference between these two types being semantic. The type \emph{channel} is used to declare external events that may be communicated in a \CSPcoq{} specification. The constructor provided by the type \emph{alphabet} is applied, for example, to enumerate all external events in the process interface of an alphabetised parallel composition, as discussed in Section~\ref{subsection:sos}.
 
 \begin{coqdoccode}
 	\coqdocnoindent
