@@ -31,7 +31,7 @@ This work is a first representation of CSP in Coq and, thus, the topics listed b
 \begin{itemize}
 	\item Extend \CSPcoq{} to include the remaining CSP operators (e.g., indexed forms of operators, compound events, interrupt operator, among others), along with the functional language supported by CSP$_{M}$.
 	
-	\item Check for invalid recursions in the presence of hiding and parallelism operations. In order to prevent the creation of LTSs with an infinite number of states, some forms of recursion is not supported when using hiding and parallelism operations.
+	\item Check for invalid recursions in the presence of hiding and parallelism operations. In order to prevent the creation of LTSs with an infinite number of states, which may impose new challenges regarding the formal characterisation of LTSs and proof development, some forms of recursion is not supported when using hiding and parallelism operations.
 	
 	\item Provide optimisation means for compressing the LTS computed by \coqdocvar{compute\_ltsR}. For instance, the process referencing operation introduces the communication of an internal event $ \tau $ as a way to take into account the ``effort'' of unfolding a process body inside another. Omitting these communications may reduce the LTS size.
 	

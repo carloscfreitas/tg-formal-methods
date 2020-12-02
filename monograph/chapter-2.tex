@@ -5,7 +5,7 @@
 \label{chapter:background}
 % ---
 
-Before jumping into the details of the implementation of \CSPcoq{}, we first need to understand some aspects of the CSP language itself, such as its syntax and semantics (Section~\ref{section:csp}). Beyond that, it is also important to provide an overview of the Coq proof assistant, covering concepts such as tactics, as well as the embedded Ltac language (Section~\ref{section:coq}). In this chapter, we also present the QuickChick property-based testing tool (Section~\ref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000}.
+Before jumping into the details of the implementation of \CSPcoq{}, we first need to understand some aspects of the CSP language itself, such as its syntax and semantics (Section~\ref{section:csp}). Beyond that, it is also important to provide an overview of the Coq proof assistant, covering concepts such as tactics, as well as the embedded Ltac language (Section~\ref{section:coq}). In this chapter, we also present the QuickChick property-based testing tool (Section~\ref{section:quickchick}), which is the Coq implementation of QuickCheck~\cite{hughes:quickcheck2000} -- a tool for testing properties randomly in Haskell.
 
 % ---
 \section{Communicating sequential processes}
@@ -123,14 +123,14 @@ We can group the rules for alphabetised parallelism into two categories: one des
 % Alphabetized parallel (left side)
 \begin{prooftree}
 	\AxiomC{$ P \trans(2)[\mu] P' $}
-	\RightLabel{\quad ($ \mu \in (A \cup \{\, \tau \,\} \setminus B) $)}
+	\RightLabel{\quad ($ \mu \in ((A \cup \{\, \tau \,\}) \setminus B) $)}
 	\UnaryInfC{$ P \parallel[A][B] Q \trans(2)[\mu] P' \parallel[A][B] Q $}
 \end{prooftree}
 
 % Alphabetized parallel (right side)
 \begin{prooftree}
 	\AxiomC{$ Q \trans(2)[\mu] Q' $}
-	\RightLabel{\quad ($ \mu \in (B \cup \{\, \tau \,\} \setminus A) $)}
+	\RightLabel{\quad ($ \mu \in ((B \cup \{\, \tau \,\}) \setminus A) $)}
 	\UnaryInfC{$ P \parallel[A][B] Q \trans(2)[\mu] P \parallel[A][B] Q' $}
 \end{prooftree}
 
@@ -229,14 +229,14 @@ The last operational rule we need to discuss relates to process referencing. Ass
 	\UnaryInfC{$ N \trans(2)[\tau] P $}
 \end{prooftree}
 
-The operational rules presented in this section have been formalised in our Coq characterisation of CSP, as we discuss later.
+The operational rules presented in this section have been formalised in our Coq characterisation of CSP, as we discuss later. As we discuss in the next chapter, we use these rules to define and to generate LTS-based representations of CSP processes and, thus, allowing graphical visualisation of specifications.
 
 % ---
 \subsection{Traces refinement}
 \label{subsection:traces-refinement}
 % ---
 
-A reasonable way for gathering information from a process interacting with the environment is by keeping track of the events this process engages in. This sequence of communications between a process and the environment, presented in a chronological order, is what we call a \emph{trace}. Traces can either be finite or infinite, and it depends on the observation span and the nature of the process itself. In this work, we restrict ourselves to finite traces. Nevertheless, the behaviour of a process can be characterised by an infinite set of (finite) traces.
+A reasonable way for gathering information from a process interacting with the environment is by keeping track of the events this process engages in. This sequence of communications between a process and the environment, presented in a chronological order, is what we call a \emph{trace}. Traces can either be finite or infinite, and it depends on the observation span and the nature of the process itself. In this work, as a matter of simplification, we first restrict ourselves to finite traces. Nevertheless, the behaviour of a process can be characterised by an infinite set of (finite) traces.
 
 Because this sequence of communications is easily observed by the environment, it is often used to build models of CSP processes. As a matter of fact, there is one model named after this sequence: the $ \mathit{\traces} $ model, represented by the symbol $ \tmodel $. It defines the meaning of a process expression as the set of sequences of events (traces) that the process can be observed to perform. This model is one of the three major denotational models of CSP. The other ones being the \emph{stable} $ \mathit{\failures} \ \fmodel $ and the $ \mathit{\failures \mhyphen \divergences} $ $ \nmodel $ models.
 
@@ -304,7 +304,7 @@ Coq's native functional programming language is called \emph{Gallina}. Before we
 
 This declaration tells Coq that we are defining a \emph{type}. The $ O $ constructor represents zero. When the $ S $ constructor is applied to the representation of a natural number $ n $, the result is the representation of $ S\ n $ (or simply $ n+1 $), where $ S $ stands for ``successor''. An $ \coqdockw{Inductive} $ definition carves out a subset of the whole space of constructor expressions and gives it a name, in this case, $ nat $.
 
-Having defined $ nat $, we can write functions that operate on natural numbers, such as the predecessor function, whose body is defined using pattern matching.
+Having defined $ nat $, we can write functions that operate on natural numbers, such as the predecessor function, whose body is defined using pattern matching. All Coq functions need to be total, and pattern-matching expressions should consider all possible combinations.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -363,7 +363,7 @@ We can formally define these rules in Coq as follows. Each constructor in this d
 
 This definition is different from the previous use of $ \coqdockw{Inductive} $. Here, we are defining a function from $ nat $ to $ Prop $, in other words, a property of numbers. The type of each constructor must be specified explicitly (after a colon), and in this case each constructor's type must have the form $ ev \ n $ for some natural number $ n $.
 
-Yet another style can be used to formalise the notion of evenness. The following definition (\emph{even}) states that a natural number $n$ is even if exists a natural number $n'$ such that $n = 2 \times n'$. It is said that \emph{even} is a \emph{propositional function}, since it is a function that builds a logical proposition (\coqdockw{Prop}) from the given arguments.
+Yet another style can be used to formalise the notion of evenness. The following definition (\emph{even}) states that a natural number $n$ is even if exists a natural number $n'$ such that $n = 2 \times n'$. It is said that \emph{even} is a \emph{propositional function}, since it is a function that builds a logical proposition (\coqdockw{Prop}) from the given arguments. Coq has an in-built mechanism for converting automatically numbers such as $2$ to its corresponding symbolic representation (\coqdocvar{S} (\coqdocvar{S} \coqdocvar{O})), and vice-versa.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -403,6 +403,16 @@ During proof development, one may find useful to make assertions about smaller i
 \end{coqdoccode}
 
 Table~\ref{Proofs:coq-example:Lemma:negb-involutive} shows how each tactic changes the proof goal until proving the original claim. The proof editing mode in Coq is entered whenever asserting a statement. Keywords such as \coqdockw{Lemma}, \coqdockw{Theorem}, and \coqdockw{Example} do so by allowing us to give the statement a name and the proposition we want to prove. Additionally, the commands \coqdockw{Proof} and \coqdockw{Qed} delimit, respectively, the beginning and the end of the sequence of tactic commands.
+
+In Figure~\ref{image:coqide}, one can see the graphical user interface of CoqIDE\footnote{CoqIDE website: \url{https://coq.inria.fr/refman/practical-tools/coqide.html}}. On the left side, we have the lemma statement and its proof script. The commands that have already been processed are highlighted in green. On the top-right side, the tool shows the current proof context, which is composed by the statement that needs to be proved.
+
+\begin{figure}[htb]
+	\caption[CoqIDE: proving negb\_involutive]{CoqIDE: proving negb\_involutive.}
+	\label{image:coqide}
+	\begin{center}
+		\includegraphics[width=\textwidth]{images/coqide.png}
+	\end{center}
+\end{figure}
 
 The keywords \coqdoctac{destruct}, \coqdoctac{simpl}, and \coqdoctac{reflexivity} are examples of tactics. A tactic is a command that is used to guide the process of checking some claim we are making. In the context of this proof, the tactic \coqdoctac{destruct} generates two sub-goals, one for each boolean value, which we must prove separately in order to prove the main goal. This strategy is also known as proof by case analysis. The command $-$ is then used to focus on the next generated sub-goal.
 
@@ -791,7 +801,5 @@ The \coqdocvar{QuickChick} command takes an executable property and attempts to 
 	\emph{Failed! After 17 tests and 12 shrinks}
 \end{tabbing}
 
-This means that, if we run \emph{remove} with $ x $ being 0 and $ l $ being the two-element list containing two zeros, then the property \coqdocvar{removeP} fails.
-
-With this example in hand, we can see that the \emph{then} branch of \emph{remove} fails to make a recursive call, which means that only the first occurrence of $ x $ will be removed from the list. The last line of the output records that 17 tests were necessary to identify some fault-inducing input and 12 shrinks to reduce it to a minimal counterexample.
+This means that, if we run \emph{remove} with $ x $ being 0 and $ l $ being the two-element list containing two zeros, then the property \coqdocvar{removeP} fails. With this example in hand, we can see that the \emph{then} branch of \emph{remove} fails to make a recursive call, which means that only the first occurrence of $ x $ will be removed from the list. The last line of the output records that 17 tests were necessary to identify some fault-inducing input and 12 shrinks to reduce it to a minimal counterexample. 	It is important to emphasise that QuickChick is a testing-based tool and, thus, if it does not find a counterexample for a given property, it does not necessarily mean that the property is correct indeed.
 
