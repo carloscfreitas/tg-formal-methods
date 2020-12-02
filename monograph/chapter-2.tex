@@ -374,6 +374,29 @@ Yet another style can be used to formalise the notion of evenness. The following
 
 Therefore, in Coq, we can formalise concepts in functional (\emph{evenb}), inductive (\emph{ev}) and logical (\emph{even}) terms. Each style has its pros and cons. Generally speaking, functional definitions are computable and promotes automatic simplification during proofs. Differently, inductive and logical definitions promote the application of rewriting rules during proof development.
 
+Finally, there is one last concept we need to introduce before discussing proof development in Coq. The \coqdockw{Record} macro is a construction that allows the definition of a set of attributes and propositions, which must be proved to hold when creating an instance of the record. For example, one may define the set of rational numbers as:
+
+\begin{coqdoccode}
+	\coqdocnoindent
+	\coqdockw{Record} \coqdocvar{Rat} : \coqdockw{Set} := \coqdocvar{mkRat} \{\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{sign} : \coqdocvar{bool};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{top} : \coqdocvar{nat};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{bottom} : \coqdocvar{nat};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{Rat\_bottom\_cond} : 0 \ensuremath{\not=} \coqdocvar{bottom};\coqdoceol
+	\coqdocindent{1.00em}
+	\coqdocvar{Rat\_irred\_cond} :\coqdoceol
+	\coqdocindent{2.00em}
+	\coqdockw{\ensuremath{\forall}} \coqdocvar{x} \coqdocvar{y} \coqdocvar{z}:\coqdocvar{nat}, (\coqdocvar{x} \ensuremath{\times} \coqdocvar{y}) = \coqdocvar{top} \ensuremath{\land} (\coqdocvar{x} \ensuremath{\times} \coqdocvar{z}) = \coqdocvar{bottom} \ensuremath{\rightarrow} \coqdocvar{x} = 1\coqdoceol
+	\coqdocnoindent
+	\}.\coqdoceol
+\end{coqdoccode}
+
+The numerator and denominator are represented, respectively, by the naturals \coqdocvar{top} and \coqdocvar{bottom}, whereas \coqdocvar{sign} indicates whether the number is positive. Additionally, two propositions on rational numbers are declared, ensuring a non-zero denominator (\coqdocvar{Rat\_bottom\_cond}) and that the fraction is in lowest terms (\coqdocvar{Rat\_irred\_cond}). The record type will be useful to formalise CSP specifications in Coq (Section~\ref{subsection:abstract_syntax}).
+
 % ---
 \subsection{Building proofs}
 % ---
@@ -736,7 +759,7 @@ Since this pattern in the sequence of tactics is now exposed, we can define a ta
 	\coqdocnoindent
 	\coqdockw{Ltac} \coqdocvar{solve\_not\_in} := \coqdoctac{unfold} \coqdocvar{not};\coqdoceol
 	\coqdocindent{1.00em}
-	\coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} "H" \coqdoctac{in} (\coqdoceol
+	\coqdockw{let} \coqdocvar{H} := \coqdoctac{fresh} ``H'' \coqdoctac{in} (\coqdoceol
 	\coqdocindent{2.00em}
 	\coqdoctac{intros} \coqdocvar{H}; \coqdoctac{repeat} (\coqdoctac{contradiction} + (\coqdoctac{destruct} \coqdocvar{H}; [> \coqdoctac{inversion} \coqdocvar{H} \ensuremath{|} ]))\coqdoceol
 	\coqdocindent{1.00em}

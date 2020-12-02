@@ -29,6 +29,7 @@ The \CSPcoq{} language provides support to all process constructors and operatio
 
 % ---
 \subsection{Abstract syntax}
+\label{subsection:abstract_syntax}
 % ---
 
 In order to define these CSP operations in Coq, we declared the following inductive types: \emph{event}, \emph{event\_tau\_tick}, \emph{channel}, \emph{alphabet}, \emph{proc\_body}, and \emph{proc\_def}. The type \emph{event} represents all external events. As we have said before, external events are all events that are neither internal ($ \tau $) nor indicate termination ($ \tick $). The type \emph{event\_tau\_tick} provides not only a constructor for the external events, but also for the especial events $ \tau $ and $ \tick $.
@@ -92,7 +93,7 @@ The types \emph{proc\_body} and \emph{proc\_def} define, respectively, construct
 	\ensuremath{|} \coqdocvar{Proc} (\coqdocvar{name} : \coqdocvar{string}) (\coqdocvar{body} : \coqdocvar{proc\_body}).\coqdoceol
 \end{coqdoccode}
 
-The last definition of the CSP abstract syntax is \emph{specification}. A CSP specification can be perceived as a file containing multiple channels of events (\emph{ch\_list}) and declarations of processes (\emph{proc\_list}). Ultimately, it is a context that holds information such as all the events that can be performed, and all processes and corresponding definitions that compose a system. The way we introduce this concept in \CSPcoq{} is via a record type. Records are constructions that allow the definition of a set of attributes and propositions, which must be proved to hold when creating an instance of the record. In the following definition, note that \coqdocvar{map} is a higher-order function that receives a function and a list and applies this function to each element of the list, yielding an updated list. Additionally, note that the symbol ++ is a syntax sugar for list concatenation.
+The last definition of the CSP abstract syntax is \emph{specification}. A CSP specification can be perceived as a file containing multiple channels of events (\emph{ch\_list}) and declarations of processes (\emph{proc\_list}). Ultimately, it is a context that holds information such as all the events that can be performed, and all processes and corresponding definitions that compose a system. The way we introduce this concept in \CSPcoq{} is via a record type. In the following definition, note that \coqdocvar{map} is a higher-order function that receives a function and a list and applies this function to each element of the list, yielding an updated list. Additionally, note that the symbol ++ is a syntax sugar for list concatenation.
 
 \begin{coqdoccode}
 	\coqdocnoindent
@@ -117,7 +118,7 @@ The last definition of the CSP abstract syntax is \emph{specification}. A CSP sp
 	\}.\coqdoceol
 \end{coqdoccode}
 
-Therefore, when creating a CSP specification in \CSPcoq{}, one needs to prove that the following properties are met. As mentioned in Chapter~\ref{chapter:introduction}, we have developed a special-purpose tactic (\emph{solve\_spec\_ctx\_rules}) that automates the proof of such properties.
+When creating a CSP specification in \CSPcoq{}, one needs to prove that the following properties are met. As mentioned in Chapter~\ref{chapter:introduction}, we have developed a special-purpose tactic (\emph{solve\_spec\_ctx\_rules}) that automates the proof of such properties.
 
 \begin{itemize}
 	\item The empty string is not a valid identifier for the name of a process\\
